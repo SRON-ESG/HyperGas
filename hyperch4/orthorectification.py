@@ -22,6 +22,7 @@ from pyproj.database import query_utm_crs_info
 from pyresample.geometry import AreaDefinition
 from rasterio import warp
 from rasterio.enums import Resampling
+from rioxarray.rioxarray import _make_coords
 
 ORTHO_RES = {'hsi_l1b': 30,  'hyc_l1': 30, 'emit_l1b': 60}
 LOG = logging.getLogger(__name__)
@@ -128,6 +129,33 @@ class Ortho():
 
             self.utm_epsg = CRS.from_epsg(utm_crs_list[0].code).to_epsg()
 
+    def _assign_coords(self, data):
+        """Calculate and assign the UTM coords
+
+        Args:
+            data (DataArray): it should has been written the transform.
+        """
+        # make coords from transform
+        coords = _make_coords(
+            data,
+            data.rio.transform(),
+            data.rio.width,
+            data.rio.height,
+            force_generate=True,
+        )
+
+        # assign to coords
+        data.coords['y'] = coords['y']
+        data.coords['x'] = coords['x']
+
+        # add attrs
+        data.coords['y'].attrs['units'] = 'metre'
+        data.coords['x'].attrs['units'] = 'metre'
+        data.coords['y'].attrs['standard_name'] = 'projection_y_coordinate'
+        data.coords['y'].attrs['standard_name'] = 'projection_x_coordinate'
+        data.coords['y'].attrs['long_name'] = 'y coordinate of projection'
+        data.coords['x'].attrs['long_name'] = 'x coordinate of projection'
+
     def apply_ortho(self):
         """Apply orthorectification."""
         if self.ortho_source == 'rpc':
@@ -169,6 +197,9 @@ class Ortho():
 
         else:
             raise ValueError('Please load `rpc` or `glt` variables for ortho.')
+
+        # assign coords
+        self._assign_coords(da_ortho)
 
         # copy attrs
         da_ortho = da_ortho.rename(self.scene[self.varname].name)
