@@ -1,0 +1,12 @@
+absorption_dir:
+  resources/absorption
+irradiance_dir:
+  resources/solar_irradiance
+era5_dir:
+  resources/ERA5
+  # data structure should be: yyyy/sl*grib
+  # if you leave this empty, the package will try to load cloud data
+geosfp_dir:
+  resources/GEOS-FP
+  # data structure should be: yyyy/mm/dd/GEOS.fp.asm.tavg1_2d_slv_Nx.*.V01.nc4
+  # if you leave this empty, the package will try to load cloud data
