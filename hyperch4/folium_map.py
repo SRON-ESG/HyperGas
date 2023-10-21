@@ -16,11 +16,14 @@ import cartopy.crs as ccrs
 import folium
 import geojson
 import numpy as np
+import pyproj
+from cartopy.crs import epsg as ccrs_from_epsg
 from folium.features import DivIcon
 from folium.plugins import (Draw, FeatureGroupSubGroup, Fullscreen, Geocoder,
                             MousePosition)
 from geoarray import GeoArray
-from py_tools_ds.geo.coord_trafo import reproject_shapelyGeometry
+from pyresample.gradient import get_polygon
+from pyresample.utils import load_cf_area
 
 LOG = logging.getLogger(__name__)
 
@@ -83,6 +86,19 @@ class Map():
         center_lat = self.ds.coords['latitude'].mean()
         self.center_map = [center_lat, center_lon]
 
+    def _get_cartopy_crs_from_epsg(self, epsg_code):
+        if epsg_code:
+            try:
+                return ccrs_from_epsg(epsg_code)
+            except ValueError:
+                if epsg_code == 4326:
+                    return ccrs.PlateCarree()
+                else:
+                    raise NotImplementedError('The show_map() method currently does not support the given '
+                                              'projection.')
+        else:
+            raise ValueError(f'Expected a valid EPSG code. Got {epsg_code}.')
+
     def initialize(self):
         """Set the basic folium map background"""
         m = folium.Map(location=self.center_map, zoom_start=12, tiles=None, control_scale=True)
@@ -120,11 +136,11 @@ class Map():
 
         self.map = m
 
-    def plot(self, crs=3857, show_layers=None, opacities=None):
+    def plot(self, out_epsg=3857, show_layers=None, opacities=None):
         """Plot data and export to png files
 
         Args:
-            crs (float): EPSG code of the output projection (3857 is the proj of folium Map)
+            out_epsg (int): EPSG code of the output projection (3857 is the proj of folium Map)
             show_layers (boolean list): Whether the layers will be shown on opening (the length should be as same as varnames)
             opacities (float list): the opacities of layer (the length should be as same as varnames)
         """
@@ -159,9 +175,16 @@ class Map():
                 input_data = da_ortho.fillna(0).values
 
             # fill nan values by 0 to plot data in transparent
+            area, _ = load_cf_area(self.ds)
+
+            # gdal order transform
+            # (c, a, b, f, d, e)
+            # https://rasterio.readthedocs.io/en/latest/topics/migrating-to-v1.html#affine-affine-vs-gdal-style-geotransforms
+            geotransform = (area.upper_left_extent[0], area.pixel_size_x, 0,
+                            area.upper_left_extent[1], 0, -area.pixel_size_y)
             ga = GeoArray(input_data,
-                          geotransform=da_ortho.rio.transform().to_gdal(),
-                          projection=da_ortho.rio.crs.to_wkt(),
+                          geotransform=geotransform,
+                          projection=area.crs.to_wkt(),
                           q=True,
                           nodata=0)
 
@@ -178,15 +201,51 @@ class Map():
 
             # call show_map function with original resolution
             fig, ax = ga.show_map(vmin=vmin, vmax=vmax, cmap=cmap,
-                                  band=band_array, res_factor=1, out_epsg=crs,
+                                  band=band_array, res_factor=1, out_epsg=out_epsg,
                                   return_map=True, draw_gridlines=False)
+
+            # # --- back up --- #
+            # # --- matplotlib vesion --- #
+            # # the output image has strange shape ...
+            # if varname == 'rgb':
+            #     # create RGBA data
+            #     import xarray as xr
+            #     da_ortho = xr.concat([da_ortho, (~da_ortho.isnull().all(dim='bands'))], dim='bands').transpose(..., 'bands')
+            #     cmap = None
+            #     vmin = None
+            #     vmax = None
+            # else:
+            #     # it should be ch4 (ppb)
+            #     cmap = 'plasma'
+            #     vmin = 0
+            #     vmax = 600
+
+            # # load the area from Dataset or NetCDF file
+            # #   Note that you do not need to decode_coords='all' when you open the NetCDF file
+            # area, _ = load_cf_area(self.ds)
+
+            # import matplotlib.pyplot as plt
+            # fig, ax = plt.subplots(subplot_kw=dict(projection=self._get_cartopy_crs_from_epsg(out_epsg)))
+
+            # # set extent
+            # input_crs = area.to_cartopy_crs()
+            # ax.set_extent(input_crs.bounds, crs=input_crs)
+
+            # # plot data
+            # plt.imshow(da_ortho, cmap=cmap, vmin=vmin, vmax=vmax,
+            #            transform=input_crs, extent=input_crs.bounds,
+            #            origin='upper', regrid_shape=3000,
+            #            )
+            # # --- backup --- #
 
             # turn off axis
             ax.axis('off')
+
             # set png filename
             #   hard code for renaming EMIT RAD filename
             output_png = Path(da_ortho.attrs['filename'].replace(
                 '.', f'_{varname}.').replace('RAD', '')).with_suffix('.png')
+
             # delete pads and remove edges
             fig.savefig(output_png, bbox_inches='tight', pad_inches=0.0, edgecolor=None, transparent=True, dpi=1000)
 
@@ -197,7 +256,7 @@ class Map():
         self.img_bounds = [[extent_4326[2], extent_4326[0]], [extent_4326[3], extent_4326[1]]]
 
         # get the swath polygon
-        lonlatPoly = reproject_shapelyGeometry(ga.footprint_poly, ga.prj, 4326)
+        lonlatPoly = get_polygon(pyproj.Proj('EPSG:4326'), area)
         self.gjs = geojson.Feature(geometry=lonlatPoly, properties={})
 
         # overlay images on foilum map

@@ -177,7 +177,7 @@ class Hyper():
         if 'calibration' in ch4.attrs:
             del ch4.attrs['calibration']
 
-        self.scene['ch4'] = ch4.rename('methane_enhancement')
+        self.scene['ch4'] = ch4.rename('ch4')
 
     def terrain_corr(self, varname='rgb', rpcs=None):
         """Apply orthorectification
