@@ -22,9 +22,10 @@ from pyproj.database import query_utm_crs_info
 from pyresample.geometry import AreaDefinition
 from rasterio import warp
 from rasterio.enums import Resampling
-from rioxarray.rioxarray import _make_coords
 
+# the target UTM resolution for orthorectified data
 ORTHO_RES = {'hsi_l1b': 30,  'hyc_l1': 30, 'emit_l1b': 60}
+
 LOG = logging.getLogger(__name__)
 
 
@@ -112,22 +113,18 @@ class Ortho():
         Ref:
             https://pyproj4.github.io/pyproj/stable/examples.html#find-utm-crs-by-latitude-and-longitude
         """
-        try:
-            LOG.debug('Calculate UTM EPSG using rioxarray')
-            self.utm_epsg = self.scene['radiance'].rio.estimate_utm_crs().to_epsg()
-        except:
-            LOG.debug('Calculate UTM EPSG using pyproj')
-            utm_crs_list = query_utm_crs_info(
-                datum_name="WGS 84",
-                area_of_interest=AreaOfInterest(
-                    west_lon_degree=self.bounds[0],
-                    south_lat_degree=self.bounds[1],
-                    east_lon_degree=self.bounds[2],
-                    north_lat_degree=self.bounds[3],
-                ),
-            )
+        LOG.debug('Calculate UTM EPSG using pyproj')
+        utm_crs_list = query_utm_crs_info(
+            datum_name='WGS 84',
+            area_of_interest=AreaOfInterest(
+                west_lon_degree=self.bounds[0],
+                south_lat_degree=self.bounds[1],
+                east_lon_degree=self.bounds[2],
+                north_lat_degree=self.bounds[3],
+            ),
+        )
 
-            self.utm_epsg = CRS.from_epsg(utm_crs_list[0].code).to_epsg()
+        self.utm_epsg = CRS.from_epsg(utm_crs_list[0].code).to_epsg()
 
     def _assign_coords(self, data):
         """Calculate and assign the UTM coords
@@ -135,18 +132,9 @@ class Ortho():
         Args:
             data (DataArray): it should has been written the transform.
         """
-        # make coords from transform
-        coords = _make_coords(
-            data,
-            data.rio.transform(),
-            data.rio.width,
-            data.rio.height,
-            force_generate=True,
-        )
-
-        # assign to coords
-        data.coords['y'] = coords['y']
-        data.coords['x'] = coords['x']
+        # assign coords from AreaDefinition
+        data.coords['y'] = data.attrs['area'].projection_y_coords
+        data.coords['x'] = data.attrs['area'].projection_x_coords
 
         # add attrs
         data.coords['y'].attrs['units'] = 'metre'
@@ -156,10 +144,25 @@ class Ortho():
         data.coords['y'].attrs['long_name'] = 'y coordinate of projection'
         data.coords['x'].attrs['long_name'] = 'x coordinate of projection'
 
+    def _assign_area(self, da_ortho, dst_transform):
+        """Assign the Area attrs
+
+        Args:
+            da_ortho (DataArray): the orthorectified data
+            dst_transform (Affine): the target transform (Affine order)
+        """
+        target_area = AreaDefinition.from_ul_corner(area_id=f"{self.scene[self.varname].attrs['sensor']}_utm",
+                                                    projection=f'EPSG:{self.utm_epsg}',
+                                                    shape=(da_ortho.sizes['y'], da_ortho.sizes['x']),
+                                                    upper_left_extent=(dst_transform[2], dst_transform[5]),
+                                                    resolution=self.ortho_res
+                                                    )
+        da_ortho.attrs['area'] = target_area
+
     def apply_ortho(self):
         """Apply orthorectification."""
         if self.ortho_source == 'rpc':
-            LOG.debug('Reproject data using rpc')
+            LOG.debug('Orthorectify data using rpc')
             ortho_arr, dst_transform = warp.reproject(self.scene[self.varname].data,
                                                       rpcs=self.rpcs,
                                                       src_crs='EPSG:4326',
@@ -175,53 +178,47 @@ class Ortho():
             # create the DataArray by replacing values
             da_ortho = xr.DataArray(ortho_arr, dims=['bands', 'y', 'x'])
 
-            # write crs and transform
-            da_ortho.rio.write_transform(dst_transform, inplace=True)
-            da_ortho.rio.write_crs(self.utm_epsg, inplace=True)
-
         elif self.ortho_source == 'glt':
-            LOG.debug('Reproject data using glt')
+            LOG.debug('Orthorectify data using glt')
             # the value is 0 if no data is available
             glt_valid_mask = (self.scene['glt_x'] != 0) & (self.scene['glt_y'] != 0)
             self.scene['glt_y'].load()
             self.scene['glt_x'].load()
             da_ortho = self.scene[self.varname][:, self.scene['glt_y']-1, self.scene['glt_x']-1].where(glt_valid_mask)
 
+            # create temporary array because we perfer using AreaDefinition later
+            tmp_da = da_ortho.copy()
+
             # write crs and transform
-            da_ortho.rio.write_transform(Affine.from_gdal(*da_ortho.attrs['geotransform']), inplace=True)
-            da_ortho.rio.write_crs(CRS.from_wkt(da_ortho.attrs['spatial_ref']), inplace=True)
-            da_ortho = da_ortho.rename({'ortho_y': 'y', 'ortho_x': 'x'})
+            #   the EMIT geotransform attrs is gdal order
+            tmp_da.rio.write_transform(Affine.from_gdal(*tmp_da.attrs['geotransform']), inplace=True)
+            tmp_da.rio.write_crs(CRS.from_wkt(tmp_da.attrs['spatial_ref']), inplace=True)
+            tmp_da = tmp_da.rename({'ortho_y': 'y', 'ortho_x': 'x'})
 
             # reproject to UTM
-            da_ortho = da_ortho.rio.reproject(self.utm_epsg, nodata=np.nan)
+            tmp_da = tmp_da.rio.reproject(self.utm_epsg, nodata=np.nan, resolution=self.ortho_res)
+            dst_transform = tmp_da.rio.transform()
+
+            # create new DataArray
+            da_ortho = xr.DataArray(tmp_da.data, dims=['bands', 'y', 'x'])
 
         else:
             raise ValueError('Please load `rpc` or `glt` variables for ortho.')
 
-        # assign coords
-        self._assign_coords(da_ortho)
-
         # copy attrs
         da_ortho = da_ortho.rename(self.scene[self.varname].name)
         da_ortho.attrs = self.scene[self.varname].attrs
+
         ortho_description = f'orthorectified by the {self.ortho_source} method'
         if 'description' in da_ortho.attrs:
             da_ortho.attrs['description'] = f"{da_ortho.attrs['description']} ({ortho_description})"
 
-        # write area attrs
-        area_def = AreaDefinition(area_id='area',
-                                  description=f'Area of data with EPSG:{self.utm_epsg}',
-                                  proj_id='area',
-                                  projection=da_ortho.rio.crs,
-                                  width=da_ortho.rio.width,
-                                  height=da_ortho.rio.height,
-                                  area_extent=da_ortho.rio.bounds()
-                                  )
-        da_ortho.attrs['area'] = area_def
+        # update area attrs
+        LOG.debug('Assign UTM Area definition')
+        self._assign_area(da_ortho, dst_transform)
 
-        # # set fill value to nan
-        # if '_FillValue' in da_ortho.attrs:
-        #     da_ortho = da_ortho.where(da_ortho != da_ortho.attrs['_FillValue'])
-        #     del da_ortho.attrs['_FillValue']
+        # assign coords
+        LOG.debug('Assign coords to orthorectified data')
+        self._assign_coords(da_ortho)
 
         return da_ortho
