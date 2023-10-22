@@ -10,6 +10,7 @@
 import sys
 
 import spectral.algorithms as algo
+import numpy as np
 import xarray as xr
 from spectral.algorithms.detectors import matched_filter
 
@@ -72,8 +73,12 @@ class MatchedFilter():
     #     return scaler.transform(data)
 
     def col_matched_filter(self, radiance, K):
-        # calculate stats of data
-        background = algo.calc_stats(radiance, mask=None, index=None)
+        """Calculate stats of data."""
+        # create nan mask
+        mask = ~np.isnan(radiance).any(axis=1)
+        # calculate stats
+        background = algo.calc_stats(radiance, mask=mask, index=None)
+        # get mean value
         mu = background.mean
 
         # calculate the target spectrum
