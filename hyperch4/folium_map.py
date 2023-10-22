@@ -343,5 +343,5 @@ class Map():
             savename = str(Path(self.ds[self.varnames[0]].attrs['filename'].replace('RAD', '')).with_suffix('.html'))
 
         LOG.info(
-            f'Export folium map to {savename}.')
+            f'Export folium map to {savename}')
         self.map.save(savename)
