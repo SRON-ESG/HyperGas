@@ -300,6 +300,7 @@ class Map():
         """Overlay plotted png images on folium map"""
         # get the time string
         self.time_str = self.ds[self.varnames[0]].attrs['start_time']
+        sensor_name = self.ds[self.varnames[0]].attrs['sensor']
 
         # add swath poly
         style = {'fillColor': '#00000000', 'color': 'dodgerblue'}
@@ -312,7 +313,7 @@ class Map():
                        ).add_to(self.map)
 
         # add the group which controls all subgroups (varnames)
-        self.fg = folium.FeatureGroup(name=self.time_str)
+        self.fg = folium.FeatureGroup(name=f'{self.time_str} | {sensor_name}')
         self.map.add_child(self.fg)
 
         for index, varname in enumerate(self.varnames):
