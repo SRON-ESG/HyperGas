@@ -137,8 +137,8 @@ class Ortho():
         data.coords['x'] = data.attrs['area'].projection_x_coords
 
         # add attrs
-        data.coords['y'].attrs['units'] = 'metre'
-        data.coords['x'].attrs['units'] = 'metre'
+        data.coords['y'].attrs['units'] = 'm'
+        data.coords['x'].attrs['units'] = 'm'
         data.coords['y'].attrs['standard_name'] = 'projection_y_coordinate'
         data.coords['y'].attrs['standard_name'] = 'projection_x_coordinate'
         data.coords['y'].attrs['long_name'] = 'y coordinate of projection'
