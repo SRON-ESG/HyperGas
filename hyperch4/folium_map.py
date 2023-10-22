@@ -313,7 +313,7 @@ class Map():
                        ).add_to(self.map)
 
         # add the group which controls all subgroups (varnames)
-        self.fg = folium.FeatureGroup(name=f'{self.time_str} | {sensor_name}')
+        self.fg = folium.FeatureGroup(name=f'{self.time_str} group ({sensor_name})')
         self.map.add_child(self.fg)
 
         for index, varname in enumerate(self.varnames):
