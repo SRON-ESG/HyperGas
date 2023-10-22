@@ -124,7 +124,7 @@ class Map():
 
         # add draw menu
         output_geojson = str(
-            Path(os.path.basename(self.ds[self.varnames[0]].attrs['filename']).replace('RAD', '')).with_suffix('.geojson'))
+            Path(os.path.basename(self.ds[self.varnames[0]].attrs['filename']).replace('_RAD', '').replace('L1', 'L2')).with_suffix('.geojson'))
         Draw(export=True, position='topleft', filename=output_geojson).add_to(m)
 
         # add mouse position
@@ -243,7 +243,7 @@ class Map():
             # set png filename
             #   hard code for renaming EMIT RAD filename
             output_png = Path(da_ortho.attrs['filename'].replace(
-                '.', f'_{varname}.').replace('RAD', '')).with_suffix('.png')
+                '.', f'_{varname}.').replace('_RAD', '').replace('L1', 'L2')).with_suffix('.png')
 
             # delete pads and remove edges
             fig.savefig(output_png, bbox_inches='tight', pad_inches=0.0, edgecolor=None, transparent=True, dpi=1000)
@@ -327,7 +327,7 @@ class Map():
             self.map.add_child(gplot)
 
             output_png = Path(self.ds[varname].attrs['filename'].replace(
-                '.', f'_{varname}.').replace('RAD', '')).with_suffix('.png')
+                '.', f'_{varname}.').replace('_RAD', '').replace('L1', 'L2')).with_suffix('.png')
             raster = folium.raster_layers.ImageOverlay(image=str(output_png),
                                                        opacity=self.opacities[index],
                                                        bounds=self.img_bounds,
@@ -345,7 +345,7 @@ class Map():
         self.map.add_child(layer_control)
 
         if savename is None:
-            savename = str(Path(self.ds[self.varnames[0]].attrs['filename'].replace('RAD', '')).with_suffix('.html'))
+            savename = str(Path(self.ds[self.varnames[0]].attrs['filename'].replace('_RAD', '').replace('L1', 'L2')).with_suffix('.html'))
 
         LOG.info(
             f'Export folium map to {savename}')
