@@ -124,7 +124,7 @@ class Map():
 
         # add draw menu
         output_geojson = str(
-            Path(self.ds[self.varnames[0]].attrs['filename'].replace('RAD', '')).with_suffix('.geojson'))
+            Path(os.path.basename(self.ds[self.varnames[0]].attrs['filename']).replace('RAD', '')).with_suffix('.geojson'))
         Draw(export=True, position='topleft', filename=output_geojson).add_to(m)
 
         # add mouse position
