@@ -16,13 +16,12 @@ import cartopy.crs as ccrs
 import folium
 import geojson
 import numpy as np
-import pyproj
 from cartopy.crs import epsg as ccrs_from_epsg
 from folium.features import DivIcon
 from folium.plugins import (Draw, FeatureGroupSubGroup, Fullscreen, Geocoder,
                             MousePosition)
 from geoarray import GeoArray
-from pyresample.gradient import get_polygon
+from py_tools_ds.geo.coord_trafo import reproject_shapelyGeometry
 from pyresample.utils import load_cf_area
 
 LOG = logging.getLogger(__name__)
@@ -256,8 +255,14 @@ class Map():
         self.img_bounds = [[extent_4326[2], extent_4326[0]], [extent_4326[3], extent_4326[1]]]
 
         # get the swath polygon
-        lonlatPoly = get_polygon(pyproj.Proj('EPSG:4326'), area)
+        lonlatPoly = reproject_shapelyGeometry(ga.footprint_poly, ga.prj, 4326)
         self.gjs = geojson.Feature(geometry=lonlatPoly, properties={})
+        # # --- backup --- #
+        # # pyresample version
+        # import pyproj
+        # from pyresample.gradient import get_polygon
+        # lonlatPoly = get_polygon(pyproj.Proj('EPSG:4326'), area)
+        # self.gjs = geojson.Feature(geometry=lonlatPoly, properties={})
 
         # overlay images on foilum map
         self.plot_folium()
