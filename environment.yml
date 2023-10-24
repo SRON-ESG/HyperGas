@@ -4,7 +4,7 @@ channels:
 dependencies:
   - python>=3.10
   - matplotlib>=3.8.0
-  # - proplot, pip install git+https://github.com/cvanelteren/proplot.git@mpl3.8 --user
+  # - proplot, # pip install git+https://github.com/cvanelteren/proplot.git@mpl3.8 --user
   - numpy
   - pandas
   - scikit-learn
@@ -22,3 +22,4 @@ dependencies:
   - algotom
   - dem_stitcher
   - aiohttp
+  # - spacetrack  # pip install spacetrack

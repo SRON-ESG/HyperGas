@@ -1,3 +1,4 @@
+# dir paths will be set as a relative path to hyperch4 package
 absorption_dir:
   resources/absorption
 irradiance_dir:
@@ -10,3 +11,7 @@ geosfp_dir:
   resources/GEOS-FP
   # data structure should be: yyyy/mm/dd/GEOS.fp.asm.tavg1_2d_slv_Nx.*.V01.nc4
   # if you leave this empty, the package will try to load cloud data
+spacetrack_usename:
+  <username>
+spacetrack_password:
+  <password>

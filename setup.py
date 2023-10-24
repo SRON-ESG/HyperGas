@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 requires = ['matplotlib >=3.8.0', 'numpy', 'pandas', 'scikit-learn', 'scikit-image', 'scipy',
             'xarray', 'cfgrib', 'h5netcdf', 'rioxarray', 'pyresample', 'folium', 'contextily',
-            'enpt', 'satpy', 'algotom', 'dem_stitcher', 'aiohttp']
+            'enpt', 'satpy', 'algotom', 'dem_stitcher', 'aiohttp', 'spacetrack']
 
 setup(
     name='hyperch4',
