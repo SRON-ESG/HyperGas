@@ -44,7 +44,7 @@ class unit_spec():
         self.wvl_lowres = radiance['bands'].data
         self.fwhm = radiance['fwhm'].data
         self.sza = radiance.attrs['sza']
-        self.vza = radiance.attrs['sza']
+        self.vza = radiance.attrs['vza']
         self.wvl_min = wvl_min
         self.wvl_max = wvl_max
         self.fit_unit = fit_unit
