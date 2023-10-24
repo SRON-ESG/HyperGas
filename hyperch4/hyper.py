@@ -7,16 +7,19 @@
 # hyperch4 is a library to retrieve methane from hyperspectral satellite data
 """Hyper object to hold hyperspectral satellite data."""
 import logging
+from datetime import timedelta
 
 import numpy as np
 import xarray as xr
+from pyorbital import orbital
 from satpy import DataQuery, Scene
 
 from .orthorectification import Ortho
 from .retrieve import MatchedFilter
+from .tle import TLE
 from .wind import Wind
 
-AVAILABLE_READERS = ['hsi_l1b', 'emit_l1b']
+AVAILABLE_READERS = ['hsi_l1b', 'emit_l1b', 'hyc_l1']
 LOG = logging.getLogger(__name__)
 
 
@@ -31,8 +34,14 @@ class Hyper():
         # load datasets from input files
         hyp.load()
 
-        # save all datasets to NetCDF files in the current directory
-        hyp.save_datasets()
+        # retrieve ch4
+        hyp.retrieve(self, wvl_intervals=[2110, 2450])
+
+        # orthorectification (EnMAP and EMIT)
+        hyp.terrain_corr(varname='rgb')
+
+        # export to NetCDF file
+        hyp.scene.save_datasets(datasets=['u10', 'v10', 'rgb', 'ch4'], filename='output.nc', writer='cf')
     """
 
     def __init__(self, filename=None, reader=None, reader_kwargs=None,
@@ -65,6 +74,10 @@ class Hyper():
         elif self.reader == 'emit_l1b':
             # EMIT L1B
             dataset_names = ['glt_x', 'glt_y', 'radiance', 'sza', 'vza']
+        elif self.reader == 'hyc_l1':
+            swir_rad_id = DataQuery(name='swir', calibration='radiance')
+            vnir_rad_id = DataQuery(name='vnir', calibration='radiance')
+            dataset_names = [swir_rad_id, vnir_rad_id]
         else:
             raise ValueError(f"'reader' must be a list of available readers: {AVAILABLE_READERS}")
 
@@ -104,6 +117,32 @@ class Hyper():
         rgb = rgb.rename('rgb')
         self.scene['rgb'] = rgb
 
+    def _calc_sensor_angle(self):
+        """Calculate the VAA and VZA from TLE file"""
+        et = self.start_time + timedelta(days=1)
+
+        # get the TLE info
+        tles = TLE(self.platform_name).get_tle(self.start_time, et)
+
+        # pass tle to Orbital
+        orbit = orbital.Orbital(self.platform_name, line1=tles[0], line2=tles[1])
+
+        # calculate the lon and lat center
+        lons, lats = self.area.get_lonlats()
+        lon_centre = lons.mean()
+        lat_centre = lats.mean()
+
+        # get sensor angle and elevation
+        vaa, satel = orbit.get_observer_look(self.start_time,
+                                             lon=lon_centre,
+                                             lat=lat_centre,
+                                             alt=0)
+
+        # get VZA
+        vza = 90 - satel
+
+        return vaa, vza
+
     def load(self, drop_waterbands=True):
         """Load data into xarray Dataset using satpy
 
@@ -113,7 +152,7 @@ class Hyper():
         scn = Scene(self.filename, reader=self.reader)
         scn.load(self.available_dataset_names)
 
-        # merge band dims into one "bands" dims if they are splited (e.g. EnMAP)
+        # merge band dims into one "bands" dims if they are splited (e.g. EnMAP and PRISMA)
         if 'radiance' not in self.available_dataset_names:
             # Note that although we concat these DataArrays
             #   there are offsets between EnMAP VNIR and SWIR data
@@ -124,12 +163,27 @@ class Hyper():
         else:
             scn['radiance'] = scn['radiance']
 
+        # drop duplicated bands which is the case for PRISMA
+        scn['radiance'] = scn['radiance'].drop_duplicates(dim='bands')
+
+        # get attrs
+        self.start_time = scn['radiance'].attrs['start_time']
+        self.platform_name = scn['radiance'].attrs['platform_name']
+        self.area = scn['radiance'].attrs['area']
+
         # make sure the mean "sza" and "vza" are set as attrs of `scn['radiance']`
         #   we need these for radianceCalc later
+        loaded_names = [x['name'] for x in scn._datasets.keys()]
         if 'sza' not in scn['radiance'].attrs:
             scn['radiance'].attrs['sza'] = scn['sza'].mean().load().item()
+
         if 'vza' not in scn['radiance'].attrs:
-            scn['radiance'].attrs['vza'] = scn['vza'].mean().load().item()
+            if 'vza' in loaded_names:
+                scn['radiance'].attrs['vza'] = scn['vza'].mean().load().item()
+            else:
+                # vza is not saved in the PRISMA L1 product
+                _, vza = self._calc_sensor_angle()
+                scn['radiance'].attrs['vza'] = vza
 
         if drop_waterbands:
             # drop water vapor bands
