@@ -20,9 +20,9 @@ from cartopy.crs import epsg as ccrs_from_epsg
 from folium.features import DivIcon
 from folium.plugins import (Draw, FeatureGroupSubGroup, Fullscreen, Geocoder,
                             MousePosition)
-from geoarray import GeoArray
-from py_tools_ds.geo.coord_trafo import reproject_shapelyGeometry
-from pyresample.utils import load_cf_area
+from pyresample.geometry import SwathDefinition
+from scipy.spatial import ConvexHull
+from shapely import geometry
 
 LOG = logging.getLogger(__name__)
 
@@ -135,13 +135,16 @@ class Map():
 
         self.map = m
 
-    def plot(self, out_epsg=3857, show_layers=None, opacities=None):
+    def plot(self, out_epsg=3857, show_layers=None, opacities=None, marker=None, export_dir=None, draw_polygon=True):
         """Plot data and export to png files
 
         Args:
             out_epsg (int): EPSG code of the output projection (3857 is the proj of folium Map)
             show_layers (boolean list): Whether the layers will be shown on opening (the length should be as same as varnames)
             opacities (float list): the opacities of layer (the length should be as same as varnames)
+            marker (list): the coords ([lat, lon], deg) for a yellow circle marker
+            export_dir (str): the directory to save plotted images (Default: the same path as filename attrs)
+            draw_polygon (boolean): whether plot the scene boundary polygon (Default: True)
         """
         # check the length of self.
         if show_layers is None:
@@ -164,86 +167,38 @@ class Map():
             # load data
             da_ortho = self.ds[varname]
 
-            # get bands info which is useful for plotting automatically
-            if 'bands' in da_ortho.dims:
-                # e.g. RGB
-                band_array = np.arange(da_ortho.sizes['bands'])
-                input_data = da_ortho.fillna(0).transpose(..., 'bands').values
+            if varname == 'rgb':
+                # transpose the bands
+                da_ortho = da_ortho.transpose(..., 'bands')
+                cmap = None
+                vmin = None
+                vmax = None
             else:
-                band_array = 0
-                input_data = da_ortho.fillna(0).values
-
-            # fill nan values by 0 to plot data in transparent
-            area, _ = load_cf_area(self.ds)
-
-            # gdal order transform
-            # (c, a, b, f, d, e)
-            # https://rasterio.readthedocs.io/en/latest/topics/migrating-to-v1.html#affine-affine-vs-gdal-style-geotransforms
-            geotransform = (area.upper_left_extent[0], area.pixel_size_x, 0,
-                            area.upper_left_extent[1], 0, -area.pixel_size_y)
-            ga = GeoArray(input_data,
-                          geotransform=geotransform,
-                          projection=area.crs.to_wkt(),
-                          q=True,
-                          nodata=0)
-
-            # set cmap
-            if 'rgb' not in varname:
                 # it should be ch4 (ppb)
                 cmap = 'plasma'
                 vmin = 0
                 vmax = 600
-            else:
-                cmap = None
-                vmin = None
-                vmax = None
 
-            # call show_map function with original resolution
-            fig, ax = ga.show_map(vmin=vmin, vmax=vmax, cmap=cmap,
-                                  band=band_array, res_factor=1, out_epsg=out_epsg,
-                                  return_map=True, draw_gridlines=False)
+            import matplotlib.pyplot as plt
+            fig, ax = plt.subplots(subplot_kw=dict(projection=self._get_cartopy_crs_from_epsg(out_epsg)))
 
-            # # --- back up --- #
-            # # --- matplotlib vesion --- #
-            # # the output image has strange shape ...
-            # if varname == 'rgb':
-            #     # create RGBA data
-            #     import xarray as xr
-            #     da_ortho = xr.concat([da_ortho, (~da_ortho.isnull().all(dim='bands'))], dim='bands').transpose(..., 'bands')
-            #     cmap = None
-            #     vmin = None
-            #     vmax = None
-            # else:
-            #     # it should be ch4 (ppb)
-            #     cmap = 'plasma'
-            #     vmin = 0
-            #     vmax = 600
-
-            # # load the area from Dataset or NetCDF file
-            # #   Note that you do not need to decode_coords='all' when you open the NetCDF file
-            # area, _ = load_cf_area(self.ds)
-
-            # import matplotlib.pyplot as plt
-            # fig, ax = plt.subplots(subplot_kw=dict(projection=self._get_cartopy_crs_from_epsg(out_epsg)))
-
-            # # set extent
-            # input_crs = area.to_cartopy_crs()
-            # ax.set_extent(input_crs.bounds, crs=input_crs)
-
-            # # plot data
-            # plt.imshow(da_ortho, cmap=cmap, vmin=vmin, vmax=vmax,
-            #            transform=input_crs, extent=input_crs.bounds,
-            #            origin='upper', regrid_shape=3000,
-            #            )
-            # # --- backup --- #
+            # because we use longitude and latitude, we need to specify the transform.
+            input_crs = self._get_cartopy_crs_from_epsg(4326)
+            ax.pcolormesh(self.ds.longitude, self.ds.latitude, da_ortho, vmin=vmin, vmax=vmax, cmap=cmap,
+                          transform=input_crs, antialiased=True)
 
             # turn off axis
             ax.axis('off')
 
             # set png filename
             #   hard code for renaming EMIT RAD filename
-            output_png = Path(da_ortho.attrs['filename'].replace(
-                '.', f'_{varname}.').replace('_RAD', '').replace('L1', 'L2')).with_suffix('.png')
+            if export_dir is None:
+                output_png = Path(da_ortho.attrs['filename'].replace(
+                    '.', f'_{varname}.').replace('_RAD', '').replace('L1', 'L2')).with_suffix('.png')
+            else:
+                output_png = Path(os.path.join(export_dir,
+                                               os.path.basename(da_ortho.attrs['filename']).replace('.', f'_{varname}.')
+                                               .replace('_RAD', '').replace('L1', 'L2'))).with_suffix('.png')
 
             # delete pads and remove edges
             fig.savefig(output_png, bbox_inches='tight', pad_inches=0.0, edgecolor=None, transparent=True, dpi=1000)
@@ -254,17 +209,16 @@ class Map():
 
         self.img_bounds = [[extent_4326[2], extent_4326[0]], [extent_4326[3], extent_4326[1]]]
 
-        # get the swath polygon
-        lonlatPoly = reproject_shapelyGeometry(ga.footprint_poly, ga.prj, 4326)
+        # get the swath polygon from area boundary
+        area = SwathDefinition(lons=self.ds.longitude, lats=self.ds.latitude)
+        hull = ConvexHull(area.boundary().vertices)
+        lonlatPoly = geometry.Polygon(hull.points[hull.vertices])
         self.gjs = geojson.Feature(geometry=lonlatPoly, properties={})
-        # # --- backup --- #
-        # # pyresample version
-        # import pyproj
-        # from pyresample.gradient import get_polygon
-        # lonlatPoly = get_polygon(pyproj.Proj('EPSG:4326'), area)
-        # self.gjs = geojson.Feature(geometry=lonlatPoly, properties={})
 
         # overlay images on foilum map
+        self.marker = marker
+        self.export_dir = export_dir
+        self.draw_polygon = draw_polygon
         self.plot_folium()
 
     def plot_wind(self, source='ERA5', position='bottomright'):
@@ -308,14 +262,15 @@ class Map():
         sensor_name = self.ds[self.varnames[0]].attrs['sensor']
 
         # add swath poly
-        style = {'fillColor': '#00000000', 'color': 'dodgerblue'}
-        folium.GeoJson(self.gjs,
-                       control=False,
-                       tooltip=self.time_str,
-                       zoom_on_click=False,
-                       style_function=lambda x: style,
-                       # highlight_function= lambda feat: {'fillColor': 'blue'},
-                       ).add_to(self.map)
+        if self.draw_polygon:
+            style = {'fillColor': '#00000000', 'color': 'dodgerblue'}
+            folium.GeoJson(self.gjs,
+                           control=False,
+                           tooltip=self.time_str,
+                           zoom_on_click=False,
+                           style_function=lambda x: style,
+                           # highlight_function= lambda feat: {'fillColor': 'blue'},
+                           ).add_to(self.map)
 
         # add the group which controls all subgroups (varnames)
         self.fg = folium.FeatureGroup(name=f'{self.time_str} group ({sensor_name})')
@@ -326,8 +281,15 @@ class Map():
             gplot = FeatureGroupSubGroup(self.fg, layer_name, show=self.show_layers[index])
             self.map.add_child(gplot)
 
-            output_png = Path(self.ds[varname].attrs['filename'].replace(
-                '.', f'_{varname}.').replace('_RAD', '').replace('L1', 'L2')).with_suffix('.png')
+            if self.export_dir is None:
+                output_png = Path(self.ds[varname].attrs['filename'].replace(
+                    '.', f'_{varname}.').replace('_RAD', '').replace('L1', 'L2')).with_suffix('.png')
+            else:
+                output_png = Path(os.path.join(self.export_dir,
+                                               os.path.basename(self.ds[varname].attrs['filename']
+                                                                ).replace('.', f'_{varname}.')
+                                               .replace('_RAD', '').replace('L1', 'L2'))).with_suffix('.png')
+
             raster = folium.raster_layers.ImageOverlay(image=str(output_png),
                                                        opacity=self.opacities[index],
                                                        bounds=self.img_bounds,
@@ -339,13 +301,18 @@ class Map():
         self.plot_wind(source='ERA5')
         self.plot_wind(source='GEOS-FP')
 
+        if self.marker is not None:
+            # add a yellow circle marker (lat, lon)
+            folium.Circle([self.marker[0], self.marker[1]], radius=100, color='yellow').add_to(self.map)
+
     def export(self, savename=None):
         """Export plotted folium map to html file"""
         layer_control = folium.LayerControl(collapsed=False, position='topleft', draggable=True)
         self.map.add_child(layer_control)
 
         if savename is None:
-            savename = str(Path(self.ds[self.varnames[0]].attrs['filename'].replace('_RAD', '').replace('L1', 'L2')).with_suffix('.html'))
+            savename = str(Path(self.ds[self.varnames[0]].attrs['filename'].replace(
+                '_RAD', '').replace('L1', 'L2')).with_suffix('.html'))
 
         LOG.info(
             f'Export folium map to {savename}')
