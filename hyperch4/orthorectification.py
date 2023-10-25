@@ -24,7 +24,7 @@ from rasterio import warp
 from rasterio.enums import Resampling
 
 # the target UTM resolution for orthorectified data
-ORTHO_RES = {'hsi_l1b': 30,  'hyc_l1': 30, 'emit_l1b': 60}
+ORTHO_RES = {'hsi_l1b': 30, 'emit_l1b': 60}
 
 LOG = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ class Ortho():
         # hardcode the ortho res
         #   it is better to set it as same as the input data
         reader = list(self.scene._readers.keys())[0]
-        self.ortho_res = ORTHO_RES[reader]
+        self.ortho_res = ORTHO_RES.get(reader, None)
 
         # check already loaded vars
         loaded_varnames = [key['name'] for key in self.scene._datasets]
@@ -151,12 +151,16 @@ class Ortho():
             da_ortho (DataArray): the orthorectified data
             dst_transform (Affine): the target transform (Affine order)
         """
-        target_area = AreaDefinition.from_ul_corner(area_id=f"{self.scene[self.varname].attrs['sensor']}_utm",
-                                                    projection=f'EPSG:{self.utm_epsg}',
-                                                    shape=(da_ortho.sizes['y'], da_ortho.sizes['x']),
-                                                    upper_left_extent=(dst_transform[2], dst_transform[5]),
-                                                    resolution=self.ortho_res
-                                                    )
+        if self.ortho_res is not None:
+            target_area = AreaDefinition.from_ul_corner(area_id=f"{self.scene[self.varname].attrs['sensor']}_utm",
+                                                        projection=f'EPSG:{self.utm_epsg}',
+                                                        shape=(da_ortho.sizes['y'], da_ortho.sizes['x']),
+                                                        upper_left_extent=(dst_transform[2], dst_transform[5]),
+                                                        resolution=self.ortho_res
+                                                        )
+        else:
+            raise ValueError('ortho_res dict is empty for your instrument')
+
         da_ortho.attrs['area'] = target_area
 
     def apply_ortho(self):
