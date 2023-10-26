@@ -9,12 +9,16 @@
 
 import logging
 import os
+from datetime import datetime
 from math import cos, pi, radians
 
 import numpy as np
 import yaml
 
-logger = logging.getLogger(__name__)
+LOG = logging.getLogger(__name__)
+
+MODE = {0: 'tropical', 1: 'midlatitudesummer', 2: 'midlatitudewinter',
+        3: 'subarcticsummer', 4: 'subarcticwinter', 5: 'standard'}
 
 
 class unit_spec():
@@ -50,19 +54,63 @@ class unit_spec():
         self.fit_unit = fit_unit
 
         # read ref data
+        date_time = radiance.attrs['start_time']
+        self.doy = (date_time - datetime(date_time.year, 1, 1)).days + 1
+        self.lat = radiance.attrs['area'].get_lonlats()[1].mean()
         self.refdata = self._read_refdata()
 
         # calculate rads based on conc
         self.conc, self.rads = self.convolve_rads()
 
+    def _model(self):
+        """ Determine atmospheric model
+        0 - Tropical
+        1 - Mid-Latitude Summer
+        2 - Mid-Latitude Winter
+        3 - Sub-Arctic Summer
+        4 - Sub-Arctic Winter
+        5 - US Standard Atmosphere
+        """
+        # Determine season
+        if self.doy < 121 or self.doy > 274:
+            if self.lat < 0:
+                summer = True
+            else:
+                summer = False
+        else:
+            if self.lat < 0:
+                summer = False
+            else:
+                summer = True
+        # Determine model
+        if abs(self.lat) <= 15:
+            model = 0
+        elif abs(self.lat) >= 60:
+            if summer:
+                model = 3
+            else:
+                model = 4
+        else:
+            if summer:
+                model = 1
+            else:
+                model = 2
+
+        self.model = model
+
     def _read_abs(self, species):
         '''Read the absorption file'''
+        abs_filename = f'absorption_cs_{species}_ALL_{MODE[self.model]}.csv'
+        LOG.debug(f'Reading the absorption file: {abs_filename}')
         return np.genfromtxt(os.path.join(self.absorption_dir,
-                                          f'absorption_cs_{species}_SWIR_midlatitudesummer.csv'),
+                                          abs_filename),
                              delimiter=',')
 
     def _read_refdata(self):
         '''Read reference data'''
+        # determine the model name
+        self._model()
+
         # read absorption data
         sigma_H2O = self._read_abs('H2O')
         sigma_CO2 = self._read_abs('CO2')
@@ -71,7 +119,8 @@ class unit_spec():
         sigma_CH4 = self._read_abs('CH4')
 
         # read typical absorption data
-        atm_filename = 'atmosphere_midlatitudesummer.dat'
+        atm_filename = f'atmosphere_{MODE[self.model]}.dat'
+        LOG.debug(f'Read atm file: {atm_filename}')
         data_abs = np.loadtxt(os.path.join(self.absorption_dir, atm_filename))
 
         # read solar irradiance data
@@ -119,7 +168,7 @@ class unit_spec():
         nN2O[0] = nN2O[0] + del_omega['N2O'] * 6.023e+23 / 10000
         nCO[0] = nCO[0] + del_omega['CO'] * 6.023e+23 / 10000
         nCH4[0] = nCH4[0] + del_omega['CH4'] * 6.023e+23 / 10000
-        logger.debug(f"RadianceCalc omega2 : {nCH4[0]}")
+        LOG.debug(f"RadianceCalc omega2 : {nCH4[0]}")
 
         nLayer = nH2O.shape[0]
 
