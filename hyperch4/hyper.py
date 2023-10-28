@@ -18,6 +18,7 @@ from .orthorectification import Ortho
 from .retrieve import MatchedFilter
 from .tle import TLE
 from .wind import Wind
+from .denoise import Denoise
 
 AVAILABLE_READERS = ['hsi_l1b', 'emit_l1b', 'hyc_l1']
 LOG = logging.getLogger(__name__)
@@ -245,3 +246,9 @@ class Hyper():
         da_ortho = Ortho(self.scene, varname, rpcs=rpcs).apply_ortho()
 
         return da_ortho
+
+    def denoise(self, varname='ch4', method='tv_filter'):
+        """Denoise the random noise"""
+        da_denoise = Denoise(self.scene, varname, method=method).smooth()
+
+        return da_denoise
