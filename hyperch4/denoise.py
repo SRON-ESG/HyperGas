@@ -44,10 +44,9 @@ class Denoise():
             # add first index
             split_idx = np.insert(split_idx, 0, 0)
             # add last index
-            if split_idx[-1] != self.data.sizes['y']-1:
-                split_idx = np.append(split_idx, self.data.sizes['y']-1)
+            split_idx = np.append(split_idx, self.data.sizes['y']-1)
 
-            self.split_idx = split_idx
+            self.split_idx = np.unique(split_idx)
         else:
             self.split_idx = None
 
