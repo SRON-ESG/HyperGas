@@ -135,11 +135,12 @@ class Map():
 
         self.map = m
 
-    def plot(self, out_epsg=3857, show_layers=None, opacities=None, marker=None, export_dir=None, draw_polygon=True):
+    def plot(self, out_epsg=3857, vmax=300, show_layers=None, opacities=None, marker=None, export_dir=None, draw_polygon=True):
         """Plot data and export to png files
 
         Args:
             out_epsg (int): EPSG code of the output projection (3857 is the proj of folium Map)
+            vmax (float): the cmap vmax for plotting species (ppb)
             show_layers (boolean list): Whether the layers will be shown on opening (the length should be as same as varnames)
             opacities (float list): the opacities of layer (the length should be as same as varnames)
             marker (list): the coords ([lat, lon], deg) for a yellow circle marker
@@ -177,7 +178,7 @@ class Map():
                 # it should be ch4 (ppb)
                 cmap = 'plasma'
                 vmin = 0
-                vmax = 600
+                vmax = vmax
 
             import matplotlib.pyplot as plt
             fig, ax = plt.subplots(subplot_kw=dict(projection=self._get_cartopy_crs_from_epsg(out_epsg)))
