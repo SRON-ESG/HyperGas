@@ -193,9 +193,12 @@ class Hyper():
             scn['radiance'] = scn['radiance'].where(~water_mask, drop=True)
 
         # load wind data
-        wind = Wind(scn)
-        scn['u10'] = wind.u10
-        scn['v10'] = wind.v10
+        try:
+            wind = Wind(scn)
+            scn['u10'] = wind.u10
+            scn['v10'] = wind.v10
+        except:
+            LOG.warning("Can't find any wind data for the date.")
 
         # save into scene and generate RGB composite
         self.scene = scn
