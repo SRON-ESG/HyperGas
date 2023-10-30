@@ -9,9 +9,10 @@
 
 import sys
 
-import spectral.algorithms as algo
 import numpy as np
+import spectral.algorithms as algo
 import xarray as xr
+from roaring_landmask import RoaringLandmask
 from spectral.algorithms.detectors import matched_filter
 
 from .unit_spectrum import unit_spec
@@ -24,7 +25,7 @@ SCALING = 1e5
 class MatchedFilter():
     """The MatchedFilter Class."""
 
-    def __init__(self, radiance, wvl_intervals, fit_unit='lognormal'):
+    def __init__(self, radiance, wvl_intervals, fit_unit='lognormal', land_mask=False, mode='column'):
         """Initialize MatchedFilter.
 
         To apply matched filter, `radiance` must be specified::
@@ -42,6 +43,9 @@ class MatchedFilter():
                 Deafult: [2110, 2450].
             fit_unit (str): The fitting method ('lognormal', 'poly', or 'linear') to calculate the unit CH4 spectrum
                             Default: 'lognormal'
+            land_mask (boolean): whether apply land mask (only use data over land to estimate background statistics)
+            mode (str): the mode ("column" or "scene") to apply matched filter.
+                        Default: 'column'.
         """
         # set the wavelength range for matched filter
         self.wvl_min = wvl_intervals[0]
@@ -52,8 +56,8 @@ class MatchedFilter():
         radiance = radiance.where(wvl_mask, drop=True)
 
         self.radiance = radiance
-
-        # --- test norm ---
+        self.land_mask = land_mask
+        self.mode = mode
 
         # calculate unit spectrum
         self.fit_unit = fit_unit
@@ -72,12 +76,22 @@ class MatchedFilter():
     #         scaler.fit(self.radiance)
     #     return scaler.transform(data)
 
-    def col_matched_filter(self, radiance, K):
+    def col_matched_filter(self, radiance, landmask, K):
         """Calculate stats of data."""
-        # create nan mask
-        mask = ~np.isnan(radiance).any(axis=1)
         # calculate stats
-        background = algo.calc_stats(radiance, mask=mask, index=None)
+        if self.mode == 'column':
+            # create nan mask
+            mask = ~np.isnan(radiance).any(axis=-1)
+            if (~landmask).all() or landmask.sum() <= 10:
+                # all/most pixels are not over land, then we do not need landmask
+                background = algo.calc_stats(radiance, mask=mask, index=None)
+            else:
+                background = algo.calc_stats(radiance, mask=mask*landmask, index=None)
+        elif self.mode == 'scene':
+            background = self.background
+        else:
+            raise ValueError(f'Wrong mode: {self.mode}. It should be "column" or "scene".')
+
         # get mean value
         mu = background.mean
 
@@ -122,11 +136,33 @@ class MatchedFilter():
         #     # concat data
         #     alpha = np.concatenate((alpha, a), axis=1)
 
+        if self.land_mask:
+            # create land mask
+            roaring = RoaringLandmask.new()
+            lons, lats = self.radiance.attrs['area'].get_lonlats()
+            landmask = roaring.contains_many(lons.ravel(), lats.ravel()).reshape(lons.shape)
+        else:
+            # include all pixels
+            landmask = np.full((self.radiance.sizes['y'], self.radiance.sizes['x']), 1)
+        # save as DataArray
+        self.landmask = xr.DataArray(landmask, dims=['y', 'x'])
+
+        if self.mode == 'scene':
+            # calculate the background of whole scene
+            radiance_scene = self.radiance.transpose(..., 'bands').values
+            mask_scene = ~np.isnan(radiance_scene).any(axis=-1)
+            if (~self.landmask).all() or self.landmask.sum() <= 10:
+                # all/most pixels are not over land, then we do not need landmask
+                self.background = algo.calc_stats(radiance_scene, mask=mask_scene, index=None)
+            else:
+                self.background = algo.calc_stats(radiance_scene, mask=mask_scene*self.landmask.data, index=None)
+
         alpha = xr.apply_ufunc(self.col_matched_filter,
                                self.radiance.transpose(..., 'bands'),
+                               self.landmask,
                                kwargs={'K': self.K},
                                exclude_dims=set(('y', 'bands')),
-                               input_core_dims=[['y', 'bands']],
+                               input_core_dims=[['y', 'bands'], ['y']],
                                output_core_dims=[['y', 'bands']],
                                vectorize=True,
                                dask='parallelized',

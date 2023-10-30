@@ -14,11 +14,11 @@ import xarray as xr
 from pyorbital import orbital
 from satpy import DataQuery, Scene
 
+from .denoise import Denoise
 from .orthorectification import Ortho
 from .retrieve import MatchedFilter
 from .tle import TLE
 from .wind import Wind
-from .denoise import Denoise
 
 AVAILABLE_READERS = ['hsi_l1b', 'emit_l1b', 'hyc_l1']
 LOG = logging.getLogger(__name__)
@@ -205,7 +205,8 @@ class Hyper():
         self._rgb_composite()
 
     def retrieve(self, wvl_intervals=[2110, 2450],
-                 algo='smf', fit_unit='lognormal'):
+                 algo='smf', fit_unit='lognormal',
+                 land_mask=False, mode='column'):
         """Retrieve methane enhancements
 
         Args:
@@ -218,8 +219,13 @@ class Hyper():
                 2. ctmf: cluster-tuned matched filter
                         This algorithm clusters similar pixels to improve the mean and cov calculation.
                 Default: 'smf'
+            fit_unit (str): The fitting method ('lognormal', 'poly', or 'linear') to calculate the unit CH4 spectrum
+                            Default: 'lognormal'
+            land_mask (boolean): whether apply land mask (only use data over land to estimate background statistics)
+            mode (str): the mode ("column" or "scene") to apply matched filter.
+                        Default: 'column'.
         """
-        ch4 = getattr(MatchedFilter(self.scene['radiance'], wvl_intervals, fit_unit), algo)()
+        ch4 = getattr(MatchedFilter(self.scene['radiance'], wvl_intervals, fit_unit, land_mask, mode), algo)()
         if ch4.chunks is not None:
             # load the data
             ch4.load()
