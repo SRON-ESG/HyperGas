@@ -299,8 +299,11 @@ class Map():
             raster.add_to(gplot)
 
         # plot wind
-        self.plot_wind(source='ERA5')
-        self.plot_wind(source='GEOS-FP')
+        try:
+            self.plot_wind(source='ERA5')
+            self.plot_wind(source='GEOS-FP')
+        except:
+            LOG.warning('Wind data is not available in this file. Skip plotting wind arrows.')
 
         if self.marker is not None:
             # add a yellow circle marker (lat, lon)
