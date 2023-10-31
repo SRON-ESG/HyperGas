@@ -46,7 +46,7 @@ class Wind():
         """Load wind data."""
         # get the wind data
         u10_era5, v10_era5 = self.load_era5()
-        u10_geosfp, v10_geosfp = self.load_geosfp()
+        u10_geosfp, v10_geosfp, sp_geosfp = self.load_geosfp()
 
         # combine them into DataArrays
         u10 = xr.DataArray(np.array([u10_era5, u10_geosfp]),
@@ -54,20 +54,30 @@ class Wind():
                            coords={'source': ['ERA5', 'GEOS-FP']},
                            name='u10',
                            )
+
         v10 = xr.DataArray(np.array([v10_era5, v10_geosfp]),
                            dims='source',
                            coords={'source': ['ERA5', 'GEOS-FP']},
                            name='v10',
                            )
 
+        sp = xr.DataArray(np.array([sp_geosfp]),
+                           dims='source',
+                           coords={'source': ['GEOS-FP']},
+                           name='sp',
+                           )
+
         # set attrs
         u10.attrs['long_name'] = '10 metre U wind component'
         v10.attrs['long_name'] = '10 metre V wind component'
+        sp.attrs['long_name'] = 'surface pressure'
         u10.attrs['units'] = 'm s-1'
         v10.attrs['units'] = 'm s-1'
+        sp.attrs['units'] = 'Pa'
 
         self.u10 = u10
         self.v10 = v10
+        self.sp = sp
 
     def load_era5(self):
         """Load ERA5 wind data."""
@@ -107,4 +117,8 @@ class Wind():
                                        lat=self.center_lat,
                                        method='nearest')
 
-        return u10.item(), v10.item()
+        sp = ds_geosfp['PS'].interp(lon=self.center_lon,
+                                    lat=self.center_lat,
+                                    method='nearest')
+
+        return u10.item(), v10.item(), sp.item()

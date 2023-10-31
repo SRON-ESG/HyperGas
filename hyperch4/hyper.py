@@ -197,6 +197,7 @@ class Hyper():
             wind = Wind(scn)
             scn['u10'] = wind.u10
             scn['v10'] = wind.v10
+            scn['sp'] = wind.sp
         except Exception as e:
             LOG.warning(e)
             LOG.warning("It seems we can't find any wind data for the date. Please check.")
