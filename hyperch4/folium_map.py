@@ -302,7 +302,8 @@ class Map():
         try:
             self.plot_wind(source='ERA5')
             self.plot_wind(source='GEOS-FP')
-        except:
+        except Exception as e:
+            LOG.warning(e)
             LOG.warning('Wind data is not available in this file. Skip plotting wind arrows.')
 
         if self.marker is not None:
