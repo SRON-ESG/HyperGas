@@ -152,7 +152,7 @@ with col3:
         # button for removing plume files
         clean_button = st.form_submit_button("Clean all mask files (nc, html, and png)")
         if clean_button:
-            if 'plume' in filename:
+            if 'plume' in os.path.basename(filename):
                 mask_files = glob(filename.replace('html', 'nc'))
                 mask_files.extend([filename])
                 mask_files.extend([filename.replace('html', 'png')])
@@ -177,7 +177,7 @@ with col3:
                 longitude = pick_loc[1]
 
                 # read L2 data
-                if 'plume' in filename:
+                if 'plume' in os.path.basename(filename):
                     ds_name = '_'.join(filename.replace('L3', 'L2').split('_')[:-1]) + '.nc'
                 else:
                     ds_name = filename.replace('.html', '.nc')
@@ -189,7 +189,7 @@ with col3:
                                                                               only_plume)
 
                 # export masked data (plume)
-                if 'plume' in filename:
+                if 'plume' in os.path.basename(filename):
                     plume_nc_filename = filename.replace('.html', '.nc')
                 else:
                     plume_nc_filename = filename.replace('.html', f'_{pick_plume_name}.nc').replace('L2', 'L3')
@@ -247,7 +247,7 @@ with col3:
         if submitted:
             with st.spinner('Calculating emission rate ...'):
                 # set output name
-                if 'plume' in filename:
+                if 'plume' in os.path.basename(filename):
                     plume_nc_filename = filename.replace('.html', '.nc')
                 else:
                     plume_nc_filename = filename.replace('L2', 'L3').replace('.html', f'_{pick_plume_name}.nc')
