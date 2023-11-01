@@ -169,8 +169,8 @@ with col3:
 
         clean_button = st.form_submit_button("Clean all mask files (nc and png)")
         if clean_button:
-            plume_nc_filename = glob(filename.replace('.html', '_plume*nc'))
-            mask_png = glob(filename.replace('.html', '*.png'))
+            plume_nc_filename = glob(filename.replace('L2', 'L3').replace('.html', '_plume*nc'))
+            mask_png = glob(filename.replace('L2', 'L3').replace('.html', '*.png'))
 
             if len(plume_nc_filename) > 0:
                 for file_nc in plume_nc_filename:
