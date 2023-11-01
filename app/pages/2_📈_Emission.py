@@ -194,7 +194,7 @@ with col3:
                 else:
                     plume_nc_filename = filename.replace('.html', f'_{pick_plume_name}.nc').replace('L2', 'L3')
                 ch4_mask = ds['ch4'].where(mask)
-                xr.merge([ch4_mask, ds['u10'], ds['v10']]).to_netcdf(plume_nc_filename)
+                xr.merge([ch4_mask, ds['u10'], ds['v10'], ds['sp']]).to_netcdf(plume_nc_filename)
 
             st.success(
                 f'Exported to: \n \n {plume_html_filename} \n \n You can type "R" to refresh this page for checking the plume mask.', icon="✅")

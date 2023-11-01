@@ -25,7 +25,6 @@ warnings.filterwarnings('ignore')
 # calculate IME (kg m-2)
 mass = 16.04e-3  # molar mass CH4 [kg/mol]
 mass_dry_air = 28.964e-3  # molas mass dry air [kg/mol]
-sp = 101325  # surface pressure (Pa)
 grav = 9.8  # gravity (m s-2)
 
 
@@ -219,11 +218,15 @@ def plot_mask(filename, ds, ch4, mask, lon_sample, lat_sample, pick_plume_name, 
         m = Map(ds, varnames=['rgb', 'ch4', 'ch4_comb', 'ch4_comb_denoise',
                 'plume'], center_map=[lat_sample, lon_sample])
         m.initialize()
-        m.plot(show_layers=[False, False, False, False, True], opacities=[0.9, 0.7, 0.7, 0.7, 0.7],
+        m.plot(show_layers=[False, False, False, False, True], opacities=[0.9, 0.8, 0.8, 0.8, 0.8],
                marker=[lat_sample, lon_sample], export_dir=os.path.dirname(filename), draw_polygon=False)
 
     # export to html file
-    plume_html_filename = filename.replace('L2', 'L3').replace('.html', f'_{pick_plume_name}.html')
+    if 'plume' in filename:
+        plume_html_filename = filename
+    else:
+        plume_html_filename = filename.replace('L2', 'L3').replace('.html', f'_{pick_plume_name}.html')
+
     m.export(plume_html_filename)
 
     return plume_html_filename
@@ -289,7 +292,7 @@ def wind_error_frac(method: str, wind_speed: float):
         return 0.0
 
 
-def calc_random_err(ch4, ch4_mask, area):
+def calc_random_err(ch4, ch4_mask, area, sp):
     """Calculate random error by moving plume around the whole scene"""
     # crop ch4 to valid region
     ch4_mask_crop = ch4_mask.where(~ch4_mask.isnull()).dropna(dim='y', how='all').dropna(dim='x', how='all')
@@ -353,6 +356,7 @@ def calc_emiss(f_ch4_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.6
     l_eff = np.sqrt(plume_pixel_num * area)
 
     # calculate IME
+    sp = ds['sp'].mean(dim='source').item() # use the mean surface pressure (Pa)
     delta_omega = ch4_mask * 1.0e-9 * (mass / mass_dry_air) * sp / grav
     IME = np.nansum(delta_omega * area)
 
@@ -371,7 +375,7 @@ def calc_emiss(f_ch4_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.6
 
     # ---- uncertainty ----
     # 1. random
-    IME_std = calc_random_err(ds_original['ch4'], ds['ch4'], area)  # , spatial_dims)
+    IME_std = calc_random_err(ds_original['ch4'], ds['ch4'], area, sp)
     err_random = u_eff / l_eff * IME_std
 
     # 2. wind error
