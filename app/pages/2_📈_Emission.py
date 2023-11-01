@@ -88,6 +88,17 @@ col3, col4 = st.columns([7, 3])
 
 
 with col3:
+    # --- print existed mask info --- #
+    if filename is not None:
+        if 'plume' in os.path.basename(filename):
+            file_mask_exist = glob(filename.replace('.html', '.csv'))
+        else:
+            file_mask_exist = glob(filename.replace('L2', 'L3').replace('.html', '*plume*csv'))
+        if len(file_mask_exist) > 0:
+            st.warning('You have alreay created plume masks before. Please take care if you want to renew them:')
+            df = pd.concat(map(pd.read_csv, file_mask_exist)).reset_index(drop=True)
+            st.dataframe(df.T, use_container_width=True)
+
     # --- Create plume mask --- #
     with st.form("mask_form"):
         # --- Generate plume mask by submitting the center location --- #
