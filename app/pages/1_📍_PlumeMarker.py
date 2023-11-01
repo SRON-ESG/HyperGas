@@ -61,7 +61,7 @@ with col2:
         # write the jason file to server
         if uploaded_file is not None:
             with open(filename.replace('html', 'geojson'), 'wb') as output_file:
-                st.success(f'Uploaded to {output_file}')
+                st.success(f'Uploaded ;) Please click the cross button in case files are messed up.')
                 output_file.write(uploaded_file.getbuffer())
 
     else:
