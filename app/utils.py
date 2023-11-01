@@ -222,7 +222,7 @@ def plot_mask(filename, ds, ch4, mask, lon_sample, lat_sample, pick_plume_name, 
                marker=[lat_sample, lon_sample], export_dir=os.path.dirname(filename), draw_polygon=False)
 
     # export to html file
-    if 'plume' in filename:
+    if 'plume' in os.path.basename(filename):
         plume_html_filename = filename
     else:
         plume_html_filename = filename.replace('L2', 'L3').replace('.html', f'_{pick_plume_name}.html')
