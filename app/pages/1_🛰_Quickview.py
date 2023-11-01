@@ -167,10 +167,11 @@ with col3:
 
             st.success(f'Exported to: \n \n {plume_html_filename} \n \n You can open "📌PlumeMask" in a new tab to check it.', icon="✅")
 
-        clean_button = st.form_submit_button("Clean all mask files (nc and png)")
+        clean_button = st.form_submit_button("Clean all mask files (nc, html, and png)")
         if clean_button:
             mask_files = glob(filename.replace('L2', 'L3').replace('.html', '_plume*nc'))
-            mask_files.extend(glob(filename.replace('L2', 'L3')))
+            mask_files.extend(glob(filename.replace('L2', 'L3').replace('.html', '_plume*html')))
+            mask_files.extend(glob(filename.replace('.html', '_plume*png')))
 
             if len(mask_files) > 0:
                 for file_mask in mask_files:
