@@ -238,9 +238,13 @@ with col3:
             pixel_res = 30  # meter
 
         # source type
-        source_tropomi = st.selectbox('Whether TROPOMI captures the source (0: False; 1: True)', [0, 1, None], index=1)
-        source_trace = st.selectbox(
-            'Whether ClimateTrace includes the source (0: False; 1: True)', [0, 1, None], index=1)
+        source_tropomi = st.checkbox('Whether TROPOMI captures the source',
+                                     value=True,
+                                     )
+
+        source_trace = st.checkbox('Whether ClimateTrace dataset contains the source',
+                                     value=True,
+                                     )
 
         submitted = st.form_submit_button("Submit")
 
