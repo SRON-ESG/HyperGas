@@ -165,7 +165,7 @@ with col3:
                 ch4_mask = ds['ch4'].where(mask)
                 xr.merge([ch4_mask, ds['u10'], ds['v10']]).to_netcdf(plume_nc_filename)
 
-            st.success(f'Exported to: \n \n {plume_html_filename} \n \n You can open "📌PlumeMask" tab to check it.', icon="✅")
+            st.success(f'Exported to: \n \n {plume_html_filename} \n \n You can open "📌PlumeMask" in a new tab to check it.', icon="✅")
 
         clean_button = st.form_submit_button("Clean all mask files (nc and png)")
         if clean_button:
