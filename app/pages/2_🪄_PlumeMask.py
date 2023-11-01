@@ -5,7 +5,7 @@
 # This file is part of hyperch4.
 #
 # hyperch4 is a library to retrieve methane from hyperspectral satellite data
-"""Streamlit app for creating plume mask and calculating ch4 emission rates"""
+"""Streamlit app for creating plume mask"""
 
 import os
 import sys
@@ -18,7 +18,7 @@ sys.path.append('..')
 
 st.set_page_config(
     page_title="PlumeMask",
-    page_icon="📌",
+    page_icon="🪄",
     layout="wide",
     initial_sidebar_state="expanded",
 )
