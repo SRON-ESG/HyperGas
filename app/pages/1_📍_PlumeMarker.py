@@ -39,6 +39,8 @@ with col2:
 
         # show basename in the selectbox
         filelist = [os.path.basename(file) for file in html_list]
+        # we do not want to read the html of masked plume
+        filelist = [file for file in filelist if 'plume' not in file]
         filename = st.selectbox("Pick L2 HTML file here:",
                                 filelist,
                                 index=0,
