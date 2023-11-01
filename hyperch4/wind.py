@@ -61,9 +61,10 @@ class Wind():
                            name='v10',
                            )
 
-        sp = xr.DataArray(np.array([sp_geosfp]),
+        # ERA5 sl.grib data does not have sp variable
+        sp = xr.DataArray(np.array([np.nan, sp_geosfp]),
                            dims='source',
-                           coords={'source': ['GEOS-FP']},
+                           coords={'source': ['ERA5', 'GEOS-FP']},
                            name='sp',
                            )
 
