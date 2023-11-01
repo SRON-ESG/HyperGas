@@ -7,7 +7,6 @@
 # hyperch4 is a library to retrieve methane from hyperspectral satellite data
 """Streamlit app for calculating ch4 emission rates"""
 
-from utils import calc_emiss, mask_data
 import os
 import sys
 from glob import glob
@@ -18,6 +17,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 import xarray as xr
 from geopy.geocoders import Nominatim
+from utils import calc_emiss, mask_data
 
 sys.path.append('..')
 
@@ -43,6 +43,12 @@ with col2:
         gjs_filepath_list = sorted(gjs_filepath_list, key=lambda x: os.path.basename(x))
         html_filepath_list = [gjs_str.replace('.geojson', '.html') for gjs_str in gjs_filepath_list]
 
+        # load plume html file if it exists
+        html_filepath_list = [glob(filepath.replace('L2', 'L3').replace('.html', '*plume*html'))[0]
+                              if len(glob(filepath.replace('L2', 'L3').replace('.html', '*plume*html'))) > 0
+                              else filepath
+                              for filepath in html_filepath_list]
+
         # show basename in the selectbox
         filelist = [os.path.basename(file) for file in html_filepath_list]
         filename = st.selectbox("Pick L2 HTML file here:",
@@ -63,7 +69,6 @@ with col2:
         for index, loc in enumerate(geo_df_list):
             plume_dict[f'plume{index}'] = loc
         st.write(plume_dict)
-
     else:
         filename = None
         plume_dict = None
@@ -80,6 +85,7 @@ if filename is not None:
         )
 
 col3, col4 = st.columns([7, 3])
+
 
 with col3:
     # --- Create plume mask --- #
@@ -143,6 +149,25 @@ with col3:
 
         submitted = st.form_submit_button("Submit")
 
+        # button for removing plume files
+        clean_button = st.form_submit_button("Clean all mask files (nc, html, and png)")
+        if clean_button:
+            if 'plume' in filename:
+                mask_files = glob(filename.replace('html', 'nc'))
+                mask_files.extend([filename])
+                mask_files.extend([filename.replace('html', 'png')])
+            else:
+                mask_files = glob(filename.replace('L2', 'L3').replace('.html', '_plume*nc'))
+                mask_files.extend(glob(filename.replace('L2', 'L3').replace('.html', '_plume*html')))
+                mask_files.extend(glob(filename.replace('.html', '_plume*png')))
+
+            if len(mask_files) > 0:
+                for file_mask in mask_files:
+                    if os.path.exists(file_mask):
+                        os.remove(file_mask)
+
+            st.success('Removed all mask files.', icon="🗑️")
+
         if submitted:
             with st.spinner('Wait for it...'):
                 # read the plume loc
@@ -152,33 +177,29 @@ with col3:
                 longitude = pick_loc[1]
 
                 # read L2 data
-                ds = xr.open_dataset(filename.replace('.html', '.nc'))
-
-                # create mask and plume html file
-                mask, lon_mask, lat_mask, plume_html_filename = mask_data(filename, ds, longitude, latitude, pick_plume_name,
-                                                                          wind_source, wind_weights, niter,
-                                                                          size_median, sigma_guass, quantile_value,
-                                                                          only_plume)
+                if 'plume' in filename:
+                    ds_name = '_'.join(filename.replace('L3', 'L2').split('_')[:-1]) + '.nc'
+                else:
+                    ds_name = filename.replace('.html', '.nc')
+                with xr.open_dataset(ds_name) as ds:
+                    # create mask and plume html file
+                    mask, lon_mask, lat_mask, plume_html_filename = mask_data(filename, ds, longitude, latitude, pick_plume_name,
+                                                                              wind_source, wind_weights, niter,
+                                                                              size_median, sigma_guass, quantile_value,
+                                                                              only_plume)
 
                 # export masked data (plume)
-                plume_nc_filename = filename.replace('.html', f'_{pick_plume_name}.nc').replace('L2', 'L3')
+                if 'plume' in filename:
+                    plume_nc_filename = filename.replace('.html', '.nc')
+                else:
+                    plume_nc_filename = filename.replace('.html', f'_{pick_plume_name}.nc').replace('L2', 'L3')
                 ch4_mask = ds['ch4'].where(mask)
                 xr.merge([ch4_mask, ds['u10'], ds['v10']]).to_netcdf(plume_nc_filename)
 
-            st.success(f'Exported to: \n \n {plume_html_filename} \n \n You can open "📌PlumeMask" in a new tab to check it.', icon="✅")
+            st.success(
+                f'Exported to: \n \n {plume_html_filename} \n \n You can type "R" to refresh this page for checking the plume mask.', icon="✅")
 
-        clean_button = st.form_submit_button("Clean all mask files (nc, html, and png)")
-        if clean_button:
-            mask_files = glob(filename.replace('L2', 'L3').replace('.html', '_plume*nc'))
-            mask_files.extend(glob(filename.replace('L2', 'L3').replace('.html', '_plume*html')))
-            mask_files.extend(glob(filename.replace('.html', '_plume*png')))
-
-            if len(mask_files) > 0:
-                for file_mask in mask_files:
-                    os.remove(file_mask)
-
-            st.success('Removed all mask files.', icon="🗑️")
-
+with col3:
     with st.form("emiss_form"):
         # --- Create emission rate --- #
         st.info('Estimating the CH$_4$ emission rate using IME method', icon="3️⃣")
@@ -195,6 +216,7 @@ with col3:
         alpha1 = st.number_input('alpha1 for Ueff', value=0.0, format='%f')
         alpha2 = st.number_input('alpha2 for Ueff (area source: 0.66, point source: 0.42)', value=0.66, format='%f')
         alpha3 = st.number_input('alpha3 for Ueff', value=0.34, format='%f')
+
         wspd = st.number_input(
             'Manual wspd [m/s] (please leave this as "None", if you use the reanalysis wind data)', value=None, format='%f')
 
@@ -225,7 +247,10 @@ with col3:
         if submitted:
             with st.spinner('Calculating emission rate ...'):
                 # set output name
-                plume_nc_filename = filename.replace('L2', 'L3').replace('.html', f'_{pick_plume_name}.nc')
+                if 'plume' in filename:
+                    plume_nc_filename = filename.replace('.html', '.nc')
+                else:
+                    plume_nc_filename = filename.replace('L2', 'L3').replace('.html', f'_{pick_plume_name}.nc')
 
                 # calculate emissions
                 wspd, wdir, l_eff, u_eff, Q, Q_err,\
