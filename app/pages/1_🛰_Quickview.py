@@ -280,6 +280,8 @@ with col3:
                                 'cmf_type': 'mf',
                                 'plume_bounds': [bounds],
                                 'instrument': instrument,
+                                'platform': platform,
+                                # 'provider': provider,
                                 'emission_auto': Q,
                                 'emission_uncertainty_auto': Q_err,
                                 'emission_uncertainty_random_auto': err_random,
@@ -288,8 +290,6 @@ with col3:
                                 'wind_speed_avg_auto': wspd,  # u10
                                 'wind_direction_avg_auto': wdir,
                                 'wind_source_auto': 'era5',
-                                'platform': platform,
-                                'provider': provider,
                                 'ueff_ime': u_eff,
                                 'alpha1': alpha1,
                                 'alpha2': alpha2,
