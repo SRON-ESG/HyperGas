@@ -157,7 +157,7 @@ class Map():
                 f"self.'s length ({len(self.show_layers)}) should be as same as varnames's length ({len(self.varnames)})")
 
         if opacities is None:
-            self.opacities = [0.7]*len(self.varnames)
+            self.opacities = [0.8]*len(self.varnames)
         else:
             self.opacities = opacities
         if len(self.opacities) != len(self.varnames):
