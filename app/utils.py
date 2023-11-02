@@ -211,14 +211,14 @@ def plot_mask(filename, ds, ch4, mask, lon_sample, lat_sample, pick_plume_name, 
         # only plot plume for quick check
         m = Map(ds, varnames=['plume'], center_map=[lat_sample, lon_sample])
         m.initialize()
-        m.plot(show_layers=[True], opacities=[0.9],
+        m.plot(show_layers=[True], opacities=[0.9], vmax=300,
                marker=[lat_sample, lon_sample], export_dir=os.path.dirname(filename), draw_polygon=False)
     else:
         # plot all important data
         m = Map(ds, varnames=['rgb', 'ch4', 'ch4_comb', 'ch4_comb_denoise',
                 'plume'], center_map=[lat_sample, lon_sample])
         m.initialize()
-        m.plot(show_layers=[False, False, False, False, True], opacities=[0.9, 0.8, 0.8, 0.8, 0.8],
+        m.plot(show_layers=[False, False, False, False, True], opacities=[0.9, 0.8, 0.8, 0.8, 0.8],  vmax=300,
                marker=[lat_sample, lon_sample], export_dir=os.path.dirname(filename), draw_polygon=False)
 
     # export to html file
