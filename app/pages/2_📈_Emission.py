@@ -86,6 +86,15 @@ if filename is not None:
 
 col3, col4 = st.columns([7, 3])
 
+# set default params which can be modified from the form
+params = {'niter': 1, 'size_median': 3, 'sigma_guass': 2, 'quantile': 0.98,
+          'wind_source': None, 'wind_weights': True,
+          'alpha1': 0.0, 'alpha2': 0.66, 'alpha3': 0.34,
+          'name': '', 'wind_speed': None, 'platform': None,
+                  'source_tropomi': True, 'source_trace': False}
+
+# copy the params, this should not be modified
+defaults = params.copy()
 
 with col3:
     # --- print existed mask info --- #
@@ -96,146 +105,185 @@ with col3:
             file_mask_exist = glob(filename.replace('L2', 'L3').replace('.html', '*plume*csv'))
         if len(file_mask_exist) > 0:
             st.warning('You have alreay created plume masks before. Please take care if you want to renew them:')
-            df = pd.concat(map(pd.read_csv, file_mask_exist)).reset_index(drop=True)
-            st.dataframe(df.T, use_container_width=True)
+            # read all csv files
+            if plume_dict is not None:
+                # input of several params
+                pick_plume_name = st.selectbox("Pick plume here:",
+                                               list(plume_dict.keys()),
+                                               index=0,
+                                               )
+                if 'plume' in os.path.basename(filename):
+                    csv_file = filename.replace('.html', '.csv')
+                else:
+                    csv_file = filename.replace('.html', f'_{pick_plume_name}.csv')
+                df = pd.read_csv(csv_file)
+                st.dataframe(df.T, use_container_width=True)
 
-    # --- Create plume mask --- #
-    with st.form("mask_form"):
-        # --- Generate plume mask by submitting the center location --- #
-        st.info("Create CH$_4$ plume mask from selected plume.", icon="2️⃣")
-        st.warning(
-            'Don\'t need to run this again, if you already have the plume HTML file.', icon="☕️")
+                # read settings to use directly
+                for key in params.keys():
+                    params.update({key: df[key].item()})
 
-        # form of submitting the center of plume mask
-        st.markdown('**Form for creating plume mask**')
+                # set the toggle in case users want to create a new mask
+                plume_toggle = st.toggle('I still want to create new plume mask.')
+        else:
+            plume_toggle = True
+            if plume_dict is not None:
+                # input of several params
+                pick_plume_name = st.selectbox("Pick plume here:",
+                                               list(plume_dict.keys()),
+                                               index=0,
+                                               )
+    else:
+        plume_toggle = True
+        # copy the default one
+        params = defaults.copy()
 
-        if plume_dict is not None:
-            # input of several params
-            pick_plume_name = st.selectbox("Pick plume here:",
-                                           list(plume_dict.keys()),
-                                           index=0,
+    if plume_toggle:
+        # --- Create plume mask --- #
+        with st.form("mask_form"):
+            # --- Generate plume mask by submitting the center location --- #
+            st.info("Create CH$_4$ plume mask from selected plume.", icon="2️⃣")
+            st.warning(
+                'Don\'t need to run this again, if you already have the plume HTML file.', icon="☕️")
+
+            # form of submitting the center of plume mask
+            st.markdown('**Form for creating plume mask**')
+
+            if plume_dict is not None:
+                # input of several params
+                # pick_plume_name = st.selectbox("Pick plume here:",
+                #                               list(plume_dict.keys()),
+                #                               index=0,
+                #                               )
+
+                niter = st.number_input("Set the number of iteration for dilation",
+                                        min_value=0,
+                                        step=1,
+                                        value=params['niter'],
+                                        format='%d'
+                                        )
+
+                size_median = st.number_input("Set the size for median filter",
+                                              min_value=0,
+                                              step=1,
+                                              value=params['size_median'],
+                                              format='%d'
+                                              )
+
+                sigma_guass = st.number_input("Set the sigma for guassian filter",
+                                              min_value=0,
+                                              step=1,
+                                              value=params['sigma_guass'],
+                                              format='%d'
+                                              )
+
+                quantile = st.number_input("Set quantile for the low limit of plume mask",
+                                           min_value=0.,
+                                           max_value=1.,
+                                           step=0.005,
+                                           value=params['quantile'],
+                                           format='%f'
                                            )
 
-            niter = st.number_input("Set the number of iteration for dilation",
-                                    min_value=0,
-                                    step=1,
-                                    value=1,
-                                    format='%d'
-                                    )
-
-            size_median = st.number_input("Set the size for median filter",
-                                          min_value=0,
-                                          step=1,
-                                          value=3,
-                                          format='%d'
-                                          )
-
-            sigma_guass = st.number_input("Set the sigma for guassian filter",
-                                          min_value=0,
-                                          step=1,
-                                          value=2,
-                                          format='%d'
-                                          )
-
-            quantile_value = st.number_input("Set quantile for the low limit of plume mask",
-                                             min_value=0.,
-                                             max_value=1.,
-                                             step=0.005,
-                                             value=0.99,
-                                             format='%f'
-                                             )
-
-            wind_source = st.selectbox("Pick wind source:",
-                                       ['ERA5', 'GEOS-FP'],
-                                       index=0,
-                                       )
-
-            wind_weights = st.checkbox('Whether apply the wind weights',
-                                       value=True,
-                                       )
-
-            only_plume = st.checkbox('Whether only plot ch4 plume',
-                                     value=True,
-                                     )
-
-        submitted = st.form_submit_button("Submit")
-
-        # button for removing plume files
-        clean_button = st.form_submit_button("Clean all mask files (nc, html, and png)")
-        if clean_button:
-            if 'plume' in os.path.basename(filename):
-                mask_files = glob(filename.replace('.html', '.nc'))
-                mask_files.extend([filename])
-                mask_files.extend([filename.replace('.html', '.png')])
-            else:
-                mask_files = glob(filename.replace('L2', 'L3').replace('.html', '_plume*nc'))
-                mask_files.extend(glob(filename.replace('L2', 'L3').replace('.html', '_plume*html')))
-                mask_files.extend(glob(filename.replace('.html', '_plume*png')))
-
-            if len(mask_files) > 0:
-                for file_mask in mask_files:
-                    if os.path.exists(file_mask):
-                        os.remove(file_mask)
-
-            st.success('Removed all mask files.', icon="🗑️")
-
-        if submitted:
-            with st.spinner('Wait for it...'):
-                # read the plume loc
-                pick_loc = plume_dict[pick_plume_name]
-                st.write('You picked location (lat, lon): ', str(pick_loc))
-                latitude = pick_loc[0]
-                longitude = pick_loc[1]
-
-                # read L2 data
-                if 'plume' in os.path.basename(filename):
-                    ds_name = '_'.join(filename.replace('L3', 'L2').split('_')[:-1]) + '.nc'
+                wind_source_names = ['ERA5', 'GEOS-FP']
+                if params['wind_source'] is None:
+                    wind_source = st.selectbox("Pick wind source:",
+                                               wind_source_names,
+                                               index=0,
+                                               )
                 else:
-                    ds_name = filename.replace('.html', '.nc')
-                with xr.open_dataset(ds_name) as ds:
-                    # create mask and plume html file
-                    mask, lon_mask, lat_mask, plume_html_filename = mask_data(filename, ds, longitude, latitude, pick_plume_name,
-                                                                              wind_source, wind_weights, niter,
-                                                                              size_median, sigma_guass, quantile_value,
-                                                                              only_plume)
+                    wind_source = st.selectbox("Pick wind source:",
+                                               wind_source_names,
+                                               index=wind_source_names.index(params['wind_source']),
+                                               )
 
-                # export masked data (plume)
+                wind_weights = st.checkbox('Whether apply the wind weights',
+                                           value=params['wind_weights'],
+                                           )
+
+                only_plume = st.checkbox('Whether only plot ch4 plume',
+                                         value=True,
+                                         )
+
+            submitted = st.form_submit_button("Submit")
+
+            # button for removing plume files
+            clean_button = st.form_submit_button("Clean all mask files (nc, html, and png)")
+            if clean_button:
                 if 'plume' in os.path.basename(filename):
-                    plume_nc_filename = filename.replace('.html', '.nc')
+                    mask_files = glob(filename.replace('.html', '.nc'))
+                    mask_files.extend([filename])
+                    mask_files.extend([filename.replace('.html', '.png')])
                 else:
-                    plume_nc_filename = filename.replace('.html', f'_{pick_plume_name}.nc').replace('L2', 'L3')
-                ch4_mask = ds['ch4'].where(mask)
-                xr.merge([ch4_mask, ds['u10'], ds['v10'], ds['sp']]).to_netcdf(plume_nc_filename)
+                    mask_files = glob(filename.replace('L2', 'L3').replace('.html', '_plume*nc'))
+                    mask_files.extend(glob(filename.replace('L2', 'L3').replace('.html', '_plume*html')))
+                    mask_files.extend(glob(filename.replace('.html', '_plume*png')))
 
-            st.success(
-                f'Exported to: \n \n {plume_html_filename} \n \n You can type "R" to refresh this page for checking the plume mask.', icon="✅")
+                if len(mask_files) > 0:
+                    for file_mask in mask_files:
+                        if os.path.exists(file_mask):
+                            os.remove(file_mask)
+
+                st.success('Removed all mask files.', icon="🗑️")
+
+            if submitted:
+                with st.spinner('Wait for it...'):
+                    # read the plume loc
+                    pick_loc = plume_dict[pick_plume_name]
+                    st.write('You picked location (lat, lon): ', str(pick_loc))
+                    latitude = pick_loc[0]
+                    longitude = pick_loc[1]
+
+                    # read L2 data
+                    if 'plume' in os.path.basename(filename):
+                        ds_name = '_'.join(filename.replace('L3', 'L2').split('_')[:-1]) + '.nc'
+                    else:
+                        ds_name = filename.replace('.html', '.nc')
+                    with xr.open_dataset(ds_name) as ds:
+                        # create mask and plume html file
+                        mask, lon_mask, lat_mask, plume_html_filename = mask_data(filename, ds, longitude, latitude, pick_plume_name,
+                                                                                  wind_source, wind_weights, niter,
+                                                                                  size_median, sigma_guass, quantile,
+                                                                                  only_plume)
+
+                    # export masked data (plume)
+                    if 'plume' in os.path.basename(filename):
+                        plume_nc_filename = filename.replace('.html', '.nc')
+                    else:
+                        plume_nc_filename = filename.replace('.html', f'_{pick_plume_name}.nc').replace('L2', 'L3')
+                    ch4_mask = ds['ch4'].where(mask)
+                    xr.merge([ch4_mask, ds['u10'], ds['v10'], ds['sp']]).to_netcdf(plume_nc_filename)
+
+                st.success(
+                    f'Exported to: \n \n {plume_html_filename} \n \n You can type "R" to refresh this page for checking the plume mask.', icon="✅")
+    else:
+        # update variables by passing existed csv file content
+        for name, value in params.items():
+            print(name, value)
+            globals()[name] = value
+
 
 with col3:
     with st.form("emiss_form"):
         # --- Create emission rate --- #
         st.info('Estimating the CH$_4$ emission rate using IME method', icon="3️⃣")
 
-        if plume_dict is not None:
-            # pick plume
-            pick_plume_name = st.selectbox("Pick plume here:",
-                                           list(plume_dict.keys()),
-                                           index=0,
-                                           )
-
         # input alphas for calculating U_eff
         st.success('U_eff = alpha1 * np.log(wind_speed_average) + alpha2 + alpha3 * wind_speed_average', icon='🧮')
-        alpha1 = st.number_input('alpha1 for Ueff', value=0.0, format='%f')
-        alpha2 = st.number_input('alpha2 for Ueff (area source: 0.66, point source: 0.42)', value=0.66, format='%f')
-        alpha3 = st.number_input('alpha3 for Ueff', value=0.34, format='%f')
-
-        wspd = st.number_input(
-            'Manual wspd [m/s] (please leave this as "None", if you use the reanalysis wind data)', value=None, format='%f')
+        alpha1 = st.number_input('alpha1 for Ueff', value=params['alpha1'], format='%f')
+        alpha2 = st.number_input('alpha2 for Ueff (area source: 0.66, point source: 0.42)',
+                                 value=params['alpha2'], format='%f')
+        alpha3 = st.number_input('alpha3 for Ueff', value=params['alpha3'], format='%f')
 
         # sitename for csv export
-        sitename = st.text_input('Sitename (any name you like)', value='')
+        name = st.text_input('Sitename (any name you like)', value=params['name'])
 
         # platform for csv output
-        platform = st.selectbox('Platform', ('EnMAP', 'EMIT', 'PRISMA'))
+        platform_names = ('EnMAP', 'EMIT', 'PRISMA')
+        if params['platform'] is None:
+            platform = st.selectbox('Platform', platform_names)
+        else:
+            platform = st.selectbox('Platform', platform_names, index=platform_names.index(params['platform']))
 
         # set pixel resolution
         if platform == 'EMIT':
@@ -250,12 +298,16 @@ with col3:
 
         # source type
         source_tropomi = st.checkbox('Whether TROPOMI captures the source',
-                                     value=True,
+                                     value=params['source_tropomi'],
                                      )
 
         source_trace = st.checkbox('Whether ClimateTrace dataset contains the source',
-                                     value=True,
-                                     )
+                                   value=params['source_trace'],
+                                   )
+
+        # manual wind speed
+        wind_speed = st.number_input(
+            'Manual wspd [m/s] (please leave this as "None", if you use the reanalysis wind data)', value=None, format='%f')
 
         submitted = st.form_submit_button("Submit")
 
@@ -268,14 +320,14 @@ with col3:
                     plume_nc_filename = filename.replace('L2', 'L3').replace('.html', f'_{pick_plume_name}.nc')
 
                 # calculate emissions
-                wspd, wdir, l_eff, u_eff, Q, Q_err,\
+                wind_speed, wdir, l_eff, u_eff, Q, Q_err, \
                     err_random, err_wind, err_shape = calc_emiss(plume_nc_filename, pick_plume_name,
                                                                  pixel_res=pixel_res,
                                                                  alpha1=alpha1,
                                                                  alpha2=alpha2,
                                                                  alpha3=alpha3,
                                                                  wind_source=wind_source,
-                                                                 wspd=wspd,
+                                                                 wspd=wind_speed,
                                                                  )
 
                 # print the emission data
@@ -313,21 +365,21 @@ with col3:
                                 'country': address.get('country', ''),
                                 'state': address.get('state', ''),
                                 'city': address.get('city', ''),
-                                'name': sitename,
+                                'name': name,
                                 'gas': 'CH4',
                                 'cmf_type': 'mf',
                                 'plume_bounds': [bounds],
                                 'instrument': instrument,
                                 'platform': platform,
                                 # 'provider': provider,
-                                'emission_auto': Q,
-                                'emission_uncertainty_auto': Q_err,
-                                'emission_uncertainty_random_auto': err_random,
-                                'emission_uncertainty_wind_auto': err_wind,
-                                'emission_uncertainty_shape_auto': err_shape,
-                                'wind_speed_avg_auto': wspd,  # u10
-                                'wind_direction_avg_auto': wdir,
-                                'wind_source_auto': wind_source,
+                                'emission': Q,
+                                'emission_uncertainty': Q_err,
+                                'emission_uncertainty_random': err_random,
+                                'emission_uncertainty_wind': err_wind,
+                                'emission_uncertainty_shape': err_shape,
+                                'wind_speed': wind_speed,  # u10
+                                'wind_direction': wdir,
+                                'wind_source': wind_source,
                                 'ueff_ime': u_eff,
                                 'alpha1': alpha1,
                                 'alpha2': alpha2,
@@ -335,7 +387,7 @@ with col3:
                                 'niter': niter,
                                 'size_median': size_median,
                                 'sigma_guass': sigma_guass,
-                                'quantile': quantile_value,
+                                'quantile': quantile,
                                 'wind_weights': wind_weights,
                                 'source_tropomi': source_tropomi,
                                 'source_trace': source_trace,
