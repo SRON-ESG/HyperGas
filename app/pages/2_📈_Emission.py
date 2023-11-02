@@ -164,9 +164,9 @@ with col3:
         clean_button = st.form_submit_button("Clean all mask files (nc, html, and png)")
         if clean_button:
             if 'plume' in os.path.basename(filename):
-                mask_files = glob(filename.replace('html', 'nc'))
+                mask_files = glob(filename.replace('.html', '.nc'))
                 mask_files.extend([filename])
-                mask_files.extend([filename.replace('html', 'png')])
+                mask_files.extend([filename.replace('.html', '.png')])
             else:
                 mask_files = glob(filename.replace('L2', 'L3').replace('.html', '_plume*nc'))
                 mask_files.extend(glob(filename.replace('L2', 'L3').replace('.html', '_plume*html')))
@@ -343,7 +343,6 @@ with col3:
 
                 # convert to DataFrame and export data as csv file
                 df = pd.DataFrame(data=ime_results, index=[0])
-                savename = plume_nc_filename.replace('nc', 'csv')
-                savepath = os.path.join(os.path.dirname(filename), savename)
-                df.to_csv(savepath, index=False)
+                savename = plume_nc_filename.replace('.nc', '.csv')
+                df.to_csv(savename, index=False)
                 st.success(f'Results are exported to \n \n {savepath}')

@@ -60,7 +60,7 @@ with col2:
 
         # write the jason file to server
         if uploaded_file is not None:
-            with open(filename.replace('html', 'geojson'), 'wb') as output_file:
+            with open(filename.replace('.html', '.geojson'), 'wb') as output_file:
                 st.success(f'Uploaded ;) Please click the cross button in case files are messed up.')
                 output_file.write(uploaded_file.getbuffer())
 
@@ -84,7 +84,7 @@ col3, col4 = st.columns([7, 3])
 with col3:
     # --- print marker dict if geojson file exists --- #
     if filename is not None:
-        gjs_filename = filename.replace('html', 'geojson')
+        gjs_filename = filename.replace('.html', '.geojson')
         if os.path.exists(gjs_filename):
             geo_df = gpd.read_file(gjs_filename)
             geo_df_list = [[point.xy[1][0], point.xy[0][0]] for point in geo_df.geometry]
