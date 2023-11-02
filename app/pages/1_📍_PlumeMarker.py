@@ -83,12 +83,13 @@ col3, col4 = st.columns([7, 3])
 
 with col3:
     # --- print marker dict if geojson file exists --- #
-    gjs_filename = filename.replace('html', 'geojson')
-    if os.path.exists(gjs_filename):
-        geo_df = gpd.read_file(gjs_filename)
-        geo_df_list = [[point.xy[1][0], point.xy[0][0]] for point in geo_df.geometry]
-        plume_dict = {}
-        for index, loc in enumerate(geo_df_list):
-            plume_dict[f'plume{index}'] = loc
-        st.warning('You have already generated markers before. Please take care if you wanna recreate markers.')
-        st.write(plume_dict)
+    if filename is not None:
+        gjs_filename = filename.replace('html', 'geojson')
+        if os.path.exists(gjs_filename):
+            geo_df = gpd.read_file(gjs_filename)
+            geo_df_list = [[point.xy[1][0], point.xy[0][0]] for point in geo_df.geometry]
+            plume_dict = {}
+            for index, loc in enumerate(geo_df_list):
+                plume_dict[f'plume{index}'] = loc
+            st.warning('You have already generated markers before. Please take care if you wanna recreate markers.')
+            st.write(plume_dict)
