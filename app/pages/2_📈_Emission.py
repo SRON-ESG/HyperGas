@@ -327,7 +327,7 @@ with col3:
                                 'emission_uncertainty_shape_auto': err_shape,
                                 'wind_speed_avg_auto': wspd,  # u10
                                 'wind_direction_avg_auto': wdir,
-                                'wind_source_auto': 'era5',
+                                'wind_source_auto': wind_source,
                                 'ueff_ime': u_eff,
                                 'alpha1': alpha1,
                                 'alpha2': alpha2,
