@@ -345,4 +345,4 @@ with col3:
                 df = pd.DataFrame(data=ime_results, index=[0])
                 savename = plume_nc_filename.replace('.nc', '.csv')
                 df.to_csv(savename, index=False)
-                st.success(f'Results are exported to \n \n {savepath}')
+                st.success(f'Results are exported to \n \n {savename}')
