@@ -28,7 +28,7 @@ class Denoise():
     def _split_data(self):
         """Split data in case of NaN rows"""
         # get index of nan values
-        null_idx = np.where(self.data.isnull().all('x'))[0]
+        null_idx = np.where(self.data.squeeze().isnull().all('x'))[0]
 
         if len(null_idx) > 0:
             # calculate the difference
