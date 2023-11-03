@@ -120,10 +120,14 @@ class Hyper():
 
     def _calc_sensor_angle(self):
         """Calculate the VAA and VZA from TLE file"""
-        et = self.start_time + timedelta(days=1)
+        delta_day = timedelta(days=1)
 
         # get the TLE info
-        tles = TLE(self.platform_name).get_tle(self.start_time, et)
+        tles = TLE(self.platform_name).get_tle(self.start_time-delta_day, self.start_time+delta_day)
+        while len(tles) == 0:
+            # in case tle file is not available for three days
+            delta_day += timedelta(days=1)
+            tles = TLE(self.platform_name).get_tle(self.start_time-delta_day, self.start_time+delta_day)
 
         # pass tle to Orbital
         orbit = orbital.Orbital(self.platform_name, line1=tles[0], line2=tles[1])
