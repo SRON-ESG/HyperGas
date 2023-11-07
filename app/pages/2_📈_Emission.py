@@ -66,7 +66,8 @@ with col2:
         filename = html_filepath_list[index]
 
         # read the plume source info from geojson file
-        gjs_filename = list(filter(lambda x: filename.replace('L3', 'L2').split('plume')[0] in x, gjs_filepath_list))[0]
+        prefix = os.path.join(os.path.dirname(filename), os.path.basename(filename.replace('L3', 'L2')).split('_plume')[0]).replace('.html', '')
+        gjs_filename = list(filter(lambda x: prefix in x, gjs_filepath_list))[0]
         geo_df = gpd.read_file(gjs_filename)
         geo_df_list = [[point.xy[1][0], point.xy[0][0]] for point in geo_df.geometry]
 
@@ -108,7 +109,6 @@ with col3:
         # --- print existed mask info --- #
         if 'plume' in os.path.basename(filename):
             file_mask_exist = glob(filename.replace('.html', '.csv'))
-            pick_plume_name = file_mask_exist[-10:-4]
             csv_file = filename.replace('.html', '.csv')
             df = pd.read_csv(csv_file)
             st.dataframe(df.T, use_container_width=True)
@@ -120,19 +120,6 @@ with col3:
 
             # set the toggle in case users want to create a new mask
             plume_toggle = st.toggle('I still want to create new plume mask.')
-            # if os.path.exists(csv_file):
-            #    df = pd.read_csv(csv_file)
-            #    st.dataframe(df.T, use_container_width=True)
-
-            #    # read settings to use directly
-            #    for key in params.keys():
-            #        if key in df.keys():
-            #            params.update({key: df[key].item()})
-
-            #    # set the toggle in case users want to create a new mask
-            #    plume_toggle = st.toggle('I still want to create new plume mask.')
-            # else:
-            #    plume_toggle = True
         else:
             plume_toggle = True
     else:
@@ -153,9 +140,15 @@ with col3:
 
             if plume_dict is not None:
                 # input of several params
+                plume_names = list(plume_dict.keys())
+                if 'plume' in os.path.basename(filename):
+                    file_mask_exist = glob(filename.replace('.html', '.csv'))[0]
+                    pick_plume_name_default = file_mask_exist[-10:-4]
+                else:
+                    pick_plume_name_default = plume_names[0]
                 pick_plume_name = st.selectbox("Pick plume here:",
-                                               list(plume_dict.keys()),
-                                               index=0,
+                                               plume_names,
+                                               index=plume_names.index(pick_plume_name_default),
                                                )
 
                 niter = st.number_input("Set the number of iteration for dilation",
