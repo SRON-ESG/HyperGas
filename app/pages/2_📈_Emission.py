@@ -128,11 +128,11 @@ with col3:
         else:
             plume_toggle = True
             if plume_dict is not None:
-                # input of several params
+                # pick plume
                 pick_plume_name = st.selectbox("Pick plume here:",
                                                list(plume_dict.keys()),
                                                index=0,
-                                               )
+                                                       )
     else:
         plume_toggle = True
         # copy the default one
@@ -151,10 +151,10 @@ with col3:
 
             if plume_dict is not None:
                 # input of several params
-                # pick_plume_name = st.selectbox("Pick plume here:",
-                #                               list(plume_dict.keys()),
-                #                               index=0,
-                #                               )
+                pick_plume_name = st.selectbox("Pick plume here:",
+                                              list(plume_dict.keys()),
+                                              index=0,
+                                              )
 
                 niter = st.number_input("Set the number of iteration for dilation",
                                         min_value=0,
@@ -248,7 +248,11 @@ with col3:
 
                     # export masked data (plume)
                     if 'plume' in os.path.basename(filename):
-                        plume_nc_filename = filename.replace('.html', '.nc')
+                        if pick_plume_name == 'plume0':
+                            plume_nc_filename = filename.replace('.html', '.nc')
+                        else:
+                            # rename the filenames if there are more than one plume in the file
+                            plume_nc_filename = filename.replace('plume0', pick_plume_name).replace('.html', '.nc')
                     else:
                         plume_nc_filename = filename.replace('.html', f'_{pick_plume_name}.nc').replace('L2', 'L3')
                     ch4_mask = ds['ch4'].where(mask)
@@ -315,7 +319,11 @@ with col3:
             with st.spinner('Calculating emission rate ...'):
                 # set output name
                 if 'plume' in os.path.basename(filename):
-                    plume_nc_filename = filename.replace('.html', '.nc')
+                    if pick_plume_name == 'plume0':
+                        plume_nc_filename = filename.replace('.html', '.nc')
+                    else:
+                        # rename the filenames if there are more than one plume in the file
+                        plume_nc_filename = filename.replace('plume0', pick_plume_name).replace('.html', '.nc')
                 else:
                     plume_nc_filename = filename.replace('L2', 'L3').replace('.html', f'_{pick_plume_name}.nc')
 
