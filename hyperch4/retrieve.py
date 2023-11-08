@@ -25,7 +25,7 @@ SCALING = 1e5
 class MatchedFilter():
     """The MatchedFilter Class."""
 
-    def __init__(self, radiance, wvl_intervals, fit_unit='lognormal', land_mask=False, mode='column'):
+    def __init__(self, radiance, wvl_intervals, fit_unit='lognormal', land_mask=True, mode='column'):
         """Initialize MatchedFilter.
 
         To apply matched filter, `radiance` must be specified::
