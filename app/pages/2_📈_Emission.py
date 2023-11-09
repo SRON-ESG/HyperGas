@@ -296,14 +296,14 @@ with col3:
         platform_names = ('EnMAP', 'EMIT', 'PRISMA')
 
         # check the platform by filename automatically
-        if 'ENMAP' in filename:
-            platform_default = 'EnMAP'
-        elif 'EMIT' in filename:
-            platform_default = 'EMIT'
-        elif 'PRS' in filename:
-            platform_default = 'PRISMA'
-        else:
-            platform_default = 'EnMAP'
+        platform_default = 'EnMAP'
+        if filename is not None:
+            if 'ENMAP' in filename:
+                platform_default = 'EnMAP'
+            elif 'EMIT' in filename:
+                platform_default = 'EMIT'
+            elif 'PRS' in filename:
+                platform_default = 'PRISMA'
 
         platform = st.selectbox('Platform', platform_names, index=platform_names.index(platform_default))
 
