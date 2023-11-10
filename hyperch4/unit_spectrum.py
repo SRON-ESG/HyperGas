@@ -24,7 +24,7 @@ MODE = {0: 'tropical', 1: 'midlatitudesummer', 2: 'midlatitudewinter',
 class unit_spec():
     """Calculate the unit spectrum."""
 
-    def __init__(self, radiance, wvl_min, wvl_max, fit_unit='lognormal'):
+    def __init__(self, radiance, wvl_min, wvl_max, species='ch4', fit_unit='lognormal'):
         """Initialize unit_spec class.
 
         Args:
@@ -35,6 +35,9 @@ class unit_spec():
                 The upper limit of wavelength [nm] for matched filter
             fit_unit (str): the method ('lognormal', 'poly', or 'linear') of fitting the relationship between rads and conc
                 Default: 'lognormal'
+            species (str): The species to be retrieved
+                'ch4' or 'co2'
+                Default: 'ch4'
         """
         # load settings
         _dirname = os.path.dirname(__file__)
@@ -59,8 +62,18 @@ class unit_spec():
         self.lat = radiance.attrs['area'].get_lonlats()[1].mean()
         self.refdata = self._read_refdata()
 
+        # create an array of concentrations
+        #   you can modify it, but please keep the first one as zero
+        self.species = species.upper()
+        if self.species == 'CH4':
+            self.conc = np.array([0, 100, 200, 400, 800, 1600, 3200, 6400])  # ppb
+        elif self.species == 'CO2':
+            self.conc = np.array([0, 2500, 5000, 10000, 20000, 40000, 80000, 160000])  # ppb
+        else:
+            raise ValueError(f"Please input a correct species name (ch4 or co2). {species} is not supported.")
+
         # calculate rads based on conc
-        self.conc, self.rads = self.convolve_rads()
+        self.rads = self.convolve_rads()
 
     def _model(self):
         """ Determine atmospheric model
@@ -269,13 +282,11 @@ class unit_spec():
             conc (1d array): the manually set concentrations
             rads (2d array, [conc*wvl]): radiances or transmissions for `conc`
         """
-        # create an array of CH4 concentrations
-        #   you can modify it, but please keep the first one as zero
-        conc = np.array([0, 100, 200, 400, 800, 1600, 3200, 6400])  # ppb
 
         # set the enhancement of multiple gases
         #   xch4 is converted from ppb to mol/m2 by divideing by 2900
-        delta_omega = {'H2O': 0, 'CO2': 0, 'N2O': 0, 'CO': 0, 'CH4': conc/2900}
+        delta_omega = {'H2O': 0, 'CO2': 0, 'N2O': 0, 'CO': 0, 'CH4': 0}
+        delta_omega.update({self.species: self.conc/2900})
 
         # calculate the transmission or sensor-reaching radiance with these gases
         # reference
@@ -283,23 +294,23 @@ class unit_spec():
 
         # calculate the rads with 1 ppm CH4 for `unit_spec`
         tmp_omega = delta_omega.copy()
-        tmp_omega.update({'CH4': 1000/2900})
+        tmp_omega.update({self.species: 1000/2900})
         self.wvl_highres, rad_unit = self._radianceCalc(tmp_omega)
         self.rad_unit = self._convolve(rad_unit)
 
         # create array for saving radiance data
-        rads = np.zeros((len(conc), len(w0)))
+        rads = np.zeros((len(self.conc), len(w0)))
 
         # iterate each conc and calculate the tau
-        for i, omega in enumerate(delta_omega['CH4']):
+        for i, omega in enumerate(delta_omega[self.species]):
             tmp_omega = delta_omega.copy()
-            tmp_omega.update({'CH4': omega})
+            tmp_omega.update({self.species: omega})
             wvl_highres, rad = self._radianceCalc(tmp_omega)
             rads[i, :] = rad
 
         resampled = self._convolve(rads)
 
-        return conc, resampled
+        return resampled
 
     def fit_slope(self):
         """Fit the slope for conc and rads"""

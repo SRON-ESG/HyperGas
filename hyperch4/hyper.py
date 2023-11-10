@@ -21,6 +21,7 @@ from .tle import TLE
 from .wind import Wind
 
 AVAILABLE_READERS = ['hsi_l1b', 'emit_l1b', 'hyc_l1']
+SPECIES_NAME = {'ch4': 'methane', 'co2': 'carbon dioxide'}
 LOG = logging.getLogger(__name__)
 
 
@@ -210,7 +211,7 @@ class Hyper():
         self.scene = scn
         self._rgb_composite()
 
-    def retrieve(self, wvl_intervals=[2110, 2450],
+    def retrieve(self, wvl_intervals=None, species='ch4',
                  algo='smf', fit_unit='lognormal',
                  land_mask=False, mode='column'):
         """Retrieve methane enhancements
@@ -231,23 +232,41 @@ class Hyper():
             mode (str): the mode ("column" or "scene") to apply matched filter.
                         Default: 'column'.
         """
-        ch4 = getattr(MatchedFilter(self.scene['radiance'], wvl_intervals, fit_unit, land_mask, mode), algo)()
-        if ch4.chunks is not None:
+        # set default wvl_interval and units
+        if species == 'ch4':
+            units = 'ppb'
+            unit_scale = 1
+            if wvl_intervals is None:
+                wvl_intervals = [2110, 2450]
+        elif species == 'co2':
+            units = 'ppm'
+            unit_scale = 1e-3  # output unit is ppb, scale it to ppm
+            if wvl_intervals is None:
+                wvl_intervals = [1930, 2200]
+        else:
+            raise ValueError(f"Please input a correct species name (ch4 or co2). {species} is not supported.")
+
+        enhancement = getattr(MatchedFilter(self.scene['radiance'],
+                              wvl_intervals, species, fit_unit, land_mask, mode), algo)()
+        if enhancement.chunks is not None:
             # load the data
-            ch4.load()
+            enhancement.load()
 
         # copy attrs and add units
-        ch4.attrs = self.scene['radiance'].attrs
-        ch4.attrs['units'] = 'ppb'
-        ch4.attrs['standard_name'] = 'methane_enhancement'
-        ch4.attrs[
-            'description'] = f'methane enhancement derived by the {wvl_intervals[0]}~{wvl_intervals[1]} nm window'
+        enhancement.attrs = self.scene['radiance'].attrs
+        enhancement.attrs['standard_name'] = f'{SPECIES_NAME[species]}_enhancement'
+        enhancement.attrs[
+            'description'] = f'{SPECIES_NAME[species]} enhancement derived by the {wvl_intervals[0]}~{wvl_intervals[1]} nm window'
+
+        # set units
+        enhancement *= unit_scale
+        enhancement.attrs['units'] = units
 
         # remove useless attrs
-        if 'calibration' in ch4.attrs:
-            del ch4.attrs['calibration']
+        if 'calibration' in enhancement.attrs:
+            del enhancement.attrs['calibration']
 
-        self.scene['ch4'] = ch4.rename('ch4')
+        self.scene[species] = enhancement.rename(species)
 
     def terrain_corr(self, varname='rgb', rpcs=None):
         """Apply orthorectification

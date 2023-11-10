@@ -25,7 +25,8 @@ SCALING = 1e5
 class MatchedFilter():
     """The MatchedFilter Class."""
 
-    def __init__(self, radiance, wvl_intervals, fit_unit='lognormal', land_mask=True, mode='column'):
+    def __init__(self, radiance, wvl_intervals, species='ch4',
+                 fit_unit='lognormal', land_mask=True, mode='column'):
         """Initialize MatchedFilter.
 
         To apply matched filter, `radiance` must be specified::
@@ -41,6 +42,9 @@ class MatchedFilter():
             wvl_intervals (list): The wavelength range [nm] used in matched filter. It can be one list or nested list.
                 e.g. [2110, 2450] or [[1600, 1750], [2110, 2450]]
                 Deafult: [2110, 2450].
+            species (str): The species to be retrieved
+                'ch4' or 'co2'
+                Default: 'ch4'
             fit_unit (str): The fitting method ('lognormal', 'poly', or 'linear') to calculate the unit CH4 spectrum
                             Default: 'lognormal'
             land_mask (boolean): whether apply land mask (only use data over land to estimate background statistics)
@@ -60,8 +64,9 @@ class MatchedFilter():
         self.mode = mode
 
         # calculate unit spectrum
+        self.species = species
         self.fit_unit = fit_unit
-        self.K = unit_spec(self.radiance, self.wvl_min, self.wvl_max, self.fit_unit).fit_slope()
+        self.K = unit_spec(self.radiance, self.wvl_min, self.wvl_max, self.species, self.fit_unit).fit_slope()
 
     def _printt(self, outm):
         """Refreshing print."""
