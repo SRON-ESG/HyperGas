@@ -14,6 +14,7 @@ import xarray as xr
 from pyorbital import orbital
 from satpy import DataQuery, Scene
 
+from .hsi2rgb import Hsi2rgb
 from .denoise import Denoise
 from .orthorectification import Ortho
 from .retrieve import MatchedFilter
@@ -87,37 +88,59 @@ class Hyper():
 
     def _rgb_composite(self):
         """Create RGB composite"""
-        def gamma_norm(band):
-            """Apply gamma_norm to create RGB composite"""
-            gamma = 50
-            band_gamma = np.power(band, 1/gamma)
-            band_min, band_max = (np.nanmin(band_gamma), np.nanmax(band_gamma))
+        # slice data to VIS range
+        da_vis = self.scene['radiance'].sortby('bands').sel(bands=slice(380, 750))
+        data = da_vis.stack(z=['y', 'x']).transpose(..., 'bands')
 
-            return ((band_gamma-band_min)/((band_max - band_min)))
+        # generate RGB img
+        rgb = Hsi2rgb(data.coords['bands'], data.data,
+                      da_vis.sizes['y'], da_vis.sizes['x'],
+                      65, 1e-3)
 
-        rgb = self.scene['radiance'].sortby('bands').sel(bands=[650, 560, 470], method='nearest')
-
-        if rgb.chunks is not None:
-            rgb.load()
-
-        rgb = xr.apply_ufunc(gamma_norm,
-                             rgb.transpose(..., 'bands'),
-                             exclude_dims=set(('y', 'x')),
-                             input_core_dims=[['y', 'x']],
-                             output_core_dims=[['y', 'x']],
-                             vectorize=True)
+        # save to DataArray
+        rgb = xr.DataArray(rgb, dims=['y', 'x', 'bands'], coords={'bands': np.array([650, 560, 470])})
 
         # copy attrs
         rgb.attrs = self.scene['radiance'].attrs
         rgb.attrs['units'] = '1'
         rgb.attrs['standard_name'] = 'true_color'
 
-        # remove useless attrs
-        if 'calibration' in rgb.attrs:
-            del rgb.attrs['calibration']
-
         rgb = rgb.rename('rgb')
         self.scene['rgb'] = rgb
+
+        # --- bak nearest method ---
+        # def gamma_norm(band):
+        #     """Apply gamma_norm to create RGB composite"""
+        #     gamma = 50
+        #     band_gamma = np.power(band, 1/gamma)
+        #     band_min, band_max = (np.nanmin(band_gamma), np.nanmax(band_gamma))
+
+        #     return ((band_gamma-band_min)/((band_max - band_min)))
+
+        # rgb = self.scene['radiance'].sortby('bands').sel(bands=[650, 560, 470], method='nearest')
+
+        # if rgb.chunks is not None:
+        #     rgb.load()
+
+        # rgb = xr.apply_ufunc(gamma_norm,
+        #                      rgb.transpose(..., 'bands'),
+        #                      exclude_dims=set(('y', 'x')),
+        #                      input_core_dims=[['y', 'x']],
+        #                      output_core_dims=[['y', 'x']],
+        #                      vectorize=True)
+
+        # # copy attrs
+        # rgb.attrs = self.scene['radiance'].attrs
+        # rgb.attrs['units'] = '1'
+        # rgb.attrs['standard_name'] = 'true_color'
+
+        # # remove useless attrs
+        # if 'calibration' in rgb.attrs:
+        #     del rgb.attrs['calibration']
+
+        # rgb = rgb.rename('rgb')
+        # self.scene['rgb'] = rgb
+        # --- bak nearest method ---
 
     def _calc_sensor_angle(self):
         """Calculate the VAA and VZA from TLE file"""
