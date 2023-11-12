@@ -88,59 +88,62 @@ class Hyper():
 
     def _rgb_composite(self):
         """Create RGB composite"""
-        # slice data to VIS range
-        da_vis = self.scene['radiance'].sortby('bands').sel(bands=slice(380, 750))
-        data = da_vis.stack(z=['y', 'x']).transpose(..., 'bands')
+        try:
+            # --- HSI2RGB method ---
+            LOG.debug('Use HSI2RGB method for RGB image')
+            # slice data to VIS range
+            da_vis = self.scene['radiance'].sortby('bands').sel(bands=slice(380, 750))
+            data = da_vis.stack(z=['y', 'x']).transpose(..., 'bands')
+            # generate RGB img
+            rgb = Hsi2rgb(data.coords['bands'], data.data,
+                          da_vis.sizes['y'], da_vis.sizes['x'],
+                          65, 1e-3)
 
-        # generate RGB img
-        rgb = Hsi2rgb(data.coords['bands'], data.data,
-                      da_vis.sizes['y'], da_vis.sizes['x'],
-                      65, 1e-3)
+            # save to DataArray with correct dim order
+            rgb = xr.DataArray(rgb, dims=['y', 'x', 'bands'], coords={'bands': np.array([650, 560, 470])})
+            rgb = rgb.transpose('bands', ...)
 
-        # save to DataArray
-        rgb = xr.DataArray(rgb, dims=['y', 'x', 'bands'], coords={'bands': np.array([650, 560, 470])})
+            # copy attrs
+            rgb.attrs = self.scene['radiance'].attrs
+            rgb.attrs['units'] = '1'
+            rgb.attrs['standard_name'] = 'true_color'
 
-        # copy attrs
-        rgb.attrs = self.scene['radiance'].attrs
-        rgb.attrs['units'] = '1'
-        rgb.attrs['standard_name'] = 'true_color'
+            rgb = rgb.rename('rgb')
+            self.scene['rgb'] = rgb
+        except:
+            # --- nearest method ---
+            LOG.debug('Use Nearest method for RGB image')
+            def gamma_norm(band):
+                """Apply gamma_norm to create RGB composite"""
+                gamma = 50
+                band_gamma = np.power(band, 1/gamma)
+                band_min, band_max = (np.nanmin(band_gamma), np.nanmax(band_gamma))
 
-        rgb = rgb.rename('rgb')
-        self.scene['rgb'] = rgb
+                return ((band_gamma-band_min)/((band_max - band_min)))
 
-        # --- bak nearest method ---
-        # def gamma_norm(band):
-        #     """Apply gamma_norm to create RGB composite"""
-        #     gamma = 50
-        #     band_gamma = np.power(band, 1/gamma)
-        #     band_min, band_max = (np.nanmin(band_gamma), np.nanmax(band_gamma))
+            rgb = self.scene['radiance'].sortby('bands').sel(bands=[650, 560, 470], method='nearest')
 
-        #     return ((band_gamma-band_min)/((band_max - band_min)))
+            if rgb.chunks is not None:
+                rgb.load()
 
-        # rgb = self.scene['radiance'].sortby('bands').sel(bands=[650, 560, 470], method='nearest')
+            rgb = xr.apply_ufunc(gamma_norm,
+                                 rgb.transpose(..., 'bands'),
+                                 exclude_dims=set(('y', 'x')),
+                                 input_core_dims=[['y', 'x']],
+                                 output_core_dims=[['y', 'x']],
+                                 vectorize=True)
 
-        # if rgb.chunks is not None:
-        #     rgb.load()
+            # copy attrs
+            rgb.attrs = self.scene['radiance'].attrs
+            rgb.attrs['units'] = '1'
+            rgb.attrs['standard_name'] = 'true_color'
 
-        # rgb = xr.apply_ufunc(gamma_norm,
-        #                      rgb.transpose(..., 'bands'),
-        #                      exclude_dims=set(('y', 'x')),
-        #                      input_core_dims=[['y', 'x']],
-        #                      output_core_dims=[['y', 'x']],
-        #                      vectorize=True)
+            # remove useless attrs
+            if 'calibration' in rgb.attrs:
+                del rgb.attrs['calibration']
 
-        # # copy attrs
-        # rgb.attrs = self.scene['radiance'].attrs
-        # rgb.attrs['units'] = '1'
-        # rgb.attrs['standard_name'] = 'true_color'
-
-        # # remove useless attrs
-        # if 'calibration' in rgb.attrs:
-        #     del rgb.attrs['calibration']
-
-        # rgb = rgb.rename('rgb')
-        # self.scene['rgb'] = rgb
-        # --- bak nearest method ---
+            rgb = rgb.rename('rgb')
+            self.scene['rgb'] = rgb
 
     def _calc_sensor_angle(self):
         """Calculate the VAA and VZA from TLE file"""

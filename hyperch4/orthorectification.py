@@ -184,10 +184,13 @@ class Ortho():
 
         elif self.ortho_source == 'glt':
             LOG.debug('Orthorectify data using glt')
-            # the value is 0 if no data is available
+            # Adjust for One based Index
+            #   the value is 0 if no data is available
             glt_valid_mask = (self.scene['glt_x'] != 0) & (self.scene['glt_y'] != 0)
             self.scene['glt_y'].load()
             self.scene['glt_x'].load()
+
+            # select value and set fill_value to nan
             da_ortho = self.scene[self.varname][:, self.scene['glt_y']-1, self.scene['glt_x']-1].where(glt_valid_mask)
 
             # create temporary array because we perfer using AreaDefinition later
