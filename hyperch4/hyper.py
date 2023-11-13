@@ -239,7 +239,7 @@ class Hyper():
 
     def retrieve(self, wvl_intervals=None, species='ch4',
                  algo='smf', fit_unit='lognormal',
-                 land_mask=False, mode='column'):
+                 land_mask=True, mode='column'):
         """Retrieve methane enhancements
 
         Args:
