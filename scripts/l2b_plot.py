@@ -11,12 +11,16 @@ import gc
 import logging
 import multiprocessing
 import os
+import pkgutil
 import warnings
 from glob import glob
 from itertools import chain
 from pathlib import Path
 
+import pandas as pd
 import xarray as xr
+import yaml
+
 from hyperch4.folium_map import Map
 
 warnings.filterwarnings('ignore')
@@ -58,7 +62,23 @@ class L2B_plot():
         """Plot data on folium map."""
         LOG.debug('Plot the data on map')
         # the length of `show_layers` and `opacities` should be as same as VARNAMES
-        self.m.plot(show_layers=[False]*(len(VARNAMES)-1)+[True], opacities=[0.9]+[0.7]*(len(VARNAMES)-1))
+        self.m.plot(show_layers=[False]*(len(VARNAMES)-1)+[True],
+                    opacities=[0.9]+[0.7]*(len(VARNAMES)-1), df_marker=df_marker)
+
+
+def read_markers():
+    # read pre-saved markers if it exists
+    path_hyper = os.path.dirname(pkgutil.get_loader('hyperch4').path)
+    with open(os.path.join(path_hyper, 'config.yaml')) as f:
+        settings = yaml.safe_load(f)
+
+    filename_marker = settings['markers_filename']
+    if os.path.exists(filename_marker):
+        df_marker = pd.read_csv(filename_marker)
+    else:
+        df_marker = None
+
+    return df_marker
 
 
 def get_dirs(root_dir):
@@ -148,6 +168,14 @@ if __name__ == '__main__':
     # root dir of hyper data
     root_dir = '/data/xinz/Hyper_TROPOMI/'
     lowest_dirs = get_dirs(root_dir)
+
+    # whether plot pre-saved markers on map
+    plot_markers = True
+
+    if plot_markers:
+        df_marker = read_markers()
+    else:
+        df_marker = None
 
     for data_dir in lowest_dirs:
         LOG.info(f'Plotting data under {data_dir}')

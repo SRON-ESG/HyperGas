@@ -135,7 +135,8 @@ class Map():
 
         self.map = m
 
-    def plot(self, out_epsg=3857, vmax=300, show_layers=None, opacities=None, marker=None, export_dir=None, draw_polygon=True):
+    def plot(self, out_epsg=3857, vmax=300, show_layers=None, opacities=None,
+             marker=None, df_marker=None, export_dir=None, draw_polygon=True):
         """Plot data and export to png files
 
         Args:
@@ -144,6 +145,7 @@ class Map():
             show_layers (boolean list): Whether the layers will be shown on opening (the length should be as same as varnames)
             opacities (float list): the opacities of layer (the length should be as same as varnames)
             marker (list): the coords ([lat, lon], deg) for a yellow circle marker
+            df_marker (DataFrame): the DataFrame (columns: latitude, longitude) for adding blue circle markers
             export_dir (str): the directory to save plotted images (Default: the same path as filename attrs)
             draw_polygon (boolean): whether plot the scene boundary polygon (Default: True)
         """
@@ -218,6 +220,7 @@ class Map():
 
         # overlay images on foilum map
         self.marker = marker
+        self.df_marker = df_marker
         self.export_dir = export_dir
         self.draw_polygon = draw_polygon
         self.plot_folium()
@@ -309,6 +312,18 @@ class Map():
         if self.marker is not None:
             # add a yellow circle marker (lat, lon)
             folium.Circle([self.marker[0], self.marker[1]], radius=100, color='yellow').add_to(self.map)
+
+        if self.df_marker is not None:
+            # loop dataframe to add CircleMarker with popup table
+            for (index, row) in self.df_marker.iterrows():
+                html = self.df_marker.iloc[index]\
+                         .to_frame().to_html(classes="table table-striped table-hover table-condensed table-responsive")
+                popup = folium.Popup(html, max_width=500)
+
+                folium.CircleMarker(location=[row.loc['latitude'], row.loc['longitude']], radius=6,
+                                    color='dodgerblue', fill_color='dodgerblue', fill_opacity=0.3,
+                                    popup=popup,
+                                    ).add_to(self.map)
 
     def export(self, savename=None):
         """Export plotted folium map to html file"""
