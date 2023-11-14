@@ -26,7 +26,7 @@ class MatchedFilter():
     """The MatchedFilter Class."""
 
     def __init__(self, radiance, wvl_intervals, species='ch4',
-                 fit_unit='lognormal', land_mask=True, mode='column'):
+                 fit_unit='lognormal', mode='column'):
         """Initialize MatchedFilter.
 
         To apply matched filter, `radiance` must be specified::
@@ -47,7 +47,6 @@ class MatchedFilter():
                 Default: 'ch4'
             fit_unit (str): The fitting method ('lognormal', 'poly', or 'linear') to calculate the unit CH4 spectrum
                             Default: 'lognormal'
-            land_mask (boolean): whether apply land mask (only use data over land to estimate background statistics)
             mode (str): the mode ("column" or "scene") to apply matched filter.
                         Default: 'column'.
         """
@@ -60,7 +59,6 @@ class MatchedFilter():
         radiance = radiance.where(wvl_mask, drop=True)
 
         self.radiance = radiance
-        self.land_mask = land_mask
         self.mode = mode
 
         # calculate unit spectrum
@@ -68,10 +66,22 @@ class MatchedFilter():
         self.fit_unit = fit_unit
         self.K = unit_spec(self.radiance, self.wvl_min, self.wvl_max, self.species, self.fit_unit).fit_slope()
 
+        # calculate the land/ocean segmentation
+        self.land_segmentation()
+
     def _printt(self, outm):
         """Refreshing print."""
         sys.stdout.write("\r" + outm)
         sys.stdout.flush()
+
+    def land_segmentation(self):
+        """Create the segmentation for land and ocean types"""
+        # 0: ocean, 1: land
+        roaring = RoaringLandmask.new()
+        lons, lats = self.radiance.attrs['area'].get_lonlats()
+        landmask = roaring.contains_many(lons.ravel().astype('float64'), lats.ravel().astype('float64')).reshape(lons.shape)
+        # save to DataArray
+        self.segmentation = xr.DataArray(landmask, dims=['y', 'x'])
 
     # def _norm(self):
     #         from sklearn.preprocessing import MinMaxScaler
@@ -81,32 +91,50 @@ class MatchedFilter():
     #         scaler.fit(self.radiance)
     #     return scaler.transform(data)
 
-    def col_matched_filter(self, radiance, landmask, K):
+    def col_matched_filter(self, radiance, segmentation, K):
         """Calculate stats of data."""
-        # calculate stats
         if self.mode == 'column':
-            # create nan mask
-            mask = ~np.isnan(radiance).any(axis=-1)
-            if (~landmask).all() or landmask.sum() <= 10:
-                # all/most pixels are not over land, then we do not need landmask
-                background = algo.calc_stats(radiance, mask=mask, index=None)
-            else:
-                background = algo.calc_stats(radiance, mask=mask*landmask, index=None)
+            # create empty alpha with shape: [nrows('y'), 1]
+            alpha = np.full((radiance.shape[0], 1), fill_value=np.nan, dtype=float)
+
+            # iterate unique label to apply the matched filter
+            for label in np.unique(segmentation):
+                # create nan*label mask
+                segmentation_mask = segmentation == label
+                mask = ~np.isnan(radiance).any(axis=-1)
+                mask = mask*segmentation_mask
+
+                # calculate the background stats if there're many valid values
+                if mask.sum() > 1:
+                    background = algo.calc_stats(radiance, mask=mask, index=None, allow_nan=True)
+
+                    # get mean value
+                    mu = background.mean
+
+                    # calculate the target spectrum
+                    target = K * mu
+
+                    # apply the matched filter
+                    a = matched_filter(radiance, target, background)
+
+                    # concat data
+                    alpha[:, 0][mask] = a[:, 0][mask]
+
         elif self.mode == 'scene':
             background = self.background
+            # get mean value
+            mu = background.mean
+
+            # calculate the target spectrum
+            target = K * mu
+
+            # apply matched filter
+            alpha = matched_filter(radiance, target, background)
+
         else:
             raise ValueError(f'Wrong mode: {self.mode}. It should be "column" or "scene".')
 
-        # get mean value
-        mu = background.mean
-
-        # calculate the target spectrum
-        target = K * mu
-
-        # apply matched filter
-        a = matched_filter(radiance, target, background)
-
-        return a
+        return alpha
 
     def smf(self):
         """Standard/Robust matched filter
@@ -116,55 +144,15 @@ class MatchedFilter():
         Returns:
             Methane enhancements (ppb)
         """
-
-        # rows = self.radiance.sizes['y']
-        # cols = self.radiance.sizes['x']
-        # alpha = np.zeros((rows, 0), dtype=float)
-
-        # # iterate across track direction
-        # for ncol in range(cols):
-        #     self._printt(str(ncol))
-        #     # sel by col and sort dims for matched filter algo
-        #     radiance_col = self.radiance.isel(x=ncol).transpose(..., 'bands')
-
-        #     # calculate stats of data
-        #     background = algo.calc_stats(radiance_col.data, mask=None, index=None)
-        #     mu = background.mean
-
-        #     # calculate the target spectrum
-        #     target = self.K * mu
-
-        #     # apply matched filter
-        #     print(background.inv_cov)
-        #     a = matched_filter(radiance_col.data, target, background)
-
-        #     # concat data
-        #     alpha = np.concatenate((alpha, a), axis=1)
-
-        if self.land_mask:
-            # create land mask
-            roaring = RoaringLandmask.new()
-            lons, lats = self.radiance.attrs['area'].get_lonlats()
-            landmask = roaring.contains_many(lons.ravel(), lats.ravel()).reshape(lons.shape)
-        else:
-            # include all pixels
-            landmask = np.full((self.radiance.sizes['y'], self.radiance.sizes['x']), 1)
-        # save as DataArray
-        self.landmask = xr.DataArray(landmask, dims=['y', 'x'])
-
         if self.mode == 'scene':
             # calculate the background of whole scene
             radiance_scene = self.radiance.transpose(..., 'bands').values
             mask_scene = ~np.isnan(radiance_scene).any(axis=-1)
-            if (~self.landmask).all() or self.landmask.sum() <= 10:
-                # all/most pixels are not over land, then we do not need landmask
-                self.background = algo.calc_stats(radiance_scene, mask=mask_scene, index=None)
-            else:
-                self.background = algo.calc_stats(radiance_scene, mask=mask_scene*self.landmask.data, index=None)
+            self.background = algo.calc_stats(radiance_scene, mask=mask_scene, index=None)
 
         alpha = xr.apply_ufunc(self.col_matched_filter,
                                self.radiance.transpose(..., 'bands'),
-                               self.landmask,
+                               self.segmentation,
                                kwargs={'K': self.K},
                                exclude_dims=set(('y', 'bands')),
                                input_core_dims=[['y', 'bands'], ['y']],
@@ -179,6 +167,11 @@ class MatchedFilter():
 
         # set the dims order to the same as radiance
         alpha = alpha.transpose(*self.radiance.dims)
+
+        # fill nan values by interpolation
+        #   this usually happens for pixels with only one segmentation labels in a specific column.
+        #   if data is not available for the whole row, then the row values should still be nan.
+        alpha = alpha.interpolate_na(dim='y', method='linear')
 
         return alpha*SCALING
 

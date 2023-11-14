@@ -239,7 +239,7 @@ class Hyper():
 
     def retrieve(self, wvl_intervals=None, species='ch4',
                  algo='smf', fit_unit='lognormal',
-                 land_mask=True, mode='column'):
+                 mode='column'):
         """Retrieve methane enhancements
 
         Args:
@@ -254,7 +254,6 @@ class Hyper():
                 Default: 'smf'
             fit_unit (str): The fitting method ('lognormal', 'poly', or 'linear') to calculate the unit CH4 spectrum
                             Default: 'lognormal'
-            land_mask (boolean): whether apply land mask (only use data over land to estimate background statistics)
             mode (str): the mode ("column" or "scene") to apply matched filter.
                         Default: 'column'.
         """
@@ -273,7 +272,7 @@ class Hyper():
             raise ValueError(f"Please input a correct species name (ch4 or co2). {species} is not supported.")
 
         enhancement = getattr(MatchedFilter(self.scene['radiance'],
-                              wvl_intervals, species, fit_unit, land_mask, mode), algo)()
+                              wvl_intervals, species, fit_unit, mode), algo)()
         if enhancement.chunks is not None:
             # load the data
             enhancement.load()
