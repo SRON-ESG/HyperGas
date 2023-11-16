@@ -43,19 +43,27 @@ with col2:
         gjs_filepath_list = glob(folderPath + '/**/*L2*.geojson', recursive=True)
         gjs_filepath_list = sorted(gjs_filepath_list, key=lambda x: os.path.basename(x))
 
-        # load all html files
+        # load html files
         html_filepath_list = [gjs_str.replace('.geojson', '.html') for gjs_str in gjs_filepath_list]
+
+        # whether only load plume html files
+        only_plume_html = st.toggle('I only want to check plume html files.')
+
         # the filename could be *L(2/3)*(plume_<num>).html
         #   L2 is the original file, L3*plume is the masked plume file
-        html_filepath_list = [glob(filepath.replace('L2', '*').replace('.html', '*html'))
-                              for filepath in html_filepath_list]
+        if only_plume_html:
+            html_filepath_list = [glob(filepath.replace('L2', '*').replace('.html', '*plume*html'))
+                                  for filepath in html_filepath_list]
+        else:
+            html_filepath_list = [glob(filepath.replace('L2', '*').replace('.html', '*html'))
+                                  for filepath in html_filepath_list]
 
         # join sublists into one list
         html_filepath_list = list(itertools.chain(*html_filepath_list))
 
         # show basename in the selectbox
         filelist = [os.path.basename(file) for file in html_filepath_list]
-        filename = st.selectbox("Pick HTML file here:",
+        filename = st.selectbox("**Pick HTML file here:**",
                                 filelist,
                                 index=0,
                                 )
