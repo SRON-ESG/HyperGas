@@ -145,6 +145,7 @@ def plot_data(filelist, df_marker, len_chunklist, index):
     del l2b_map_allinone.m, l2b_map_allinone
     gc.collect()
 
+
 def main(chunk=8, skip_exist=True, plot_markers=False):
     # get the filname list
     filelist = list(chain(*[glob(os.path.join(data_dir, pattern), recursive=True) for pattern in PATTERNS]))
@@ -160,13 +161,19 @@ def main(chunk=8, skip_exist=True, plot_markers=False):
         df_marker = None
 
     if skip_exist:
+        # get the html names which should be exported after running the plotting script
+        html_files = [filename.replace('.nc', '.html') for filename in filelist]
+
+        # check if all html files exist
+        all_html_exist = all([os.path.isfile(filename) for filename in html_files])
         html_dir = os.path.dirname(filelist[0])
-        html_list = glob(os.path.join(html_dir, Path(filelist[0]).parent.parts[-1] + '*.html'))
-        if len(html_list) > 0:
+
+        if all_html_exist:
             skip_exist = True
-            LOG.info(f'Skip plotting files under {html_dir} which already contains {html_list}')
+            LOG.info(f'Skip plotting files under {html_dir} which already contains all L2 html files')
         else:
             skip_exist = False
+            LOG.info(f'Replotting all L2 data under {html_dir} which does not contain all L2 html files')
 
     if not skip_exist:
         for index, filelist in enumerate(filelist_chunk):
