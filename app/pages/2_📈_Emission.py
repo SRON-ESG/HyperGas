@@ -103,10 +103,10 @@ col3, col4 = st.columns([6, 3])
 
 # set default params which can be modified from the form
 params = {'niter': 1, 'size_median': 3, 'sigma_guass': 2, 'quantile': 0.98,
-          'wind_source': None, 'wind_weights': True,
+          'wind_source': None, 'wind_weights': True, 'wind_speed': None,
           'alpha1': 0.0, 'alpha2': 0.66, 'alpha3': 0.34,
-          'name': '', 'wind_speed': None, 'platform': None,
-          'source_tropomi': True, 'source_trace': False
+          'name': '', 'ipcc_sector': 'Solid Waste (6A)',
+          'platform': None, 'source_tropomi': True, 'source_trace': False
           }
 
 # copy the params, this should not be modified
@@ -300,6 +300,10 @@ with col3:
         # sitename for csv export
         name = st.text_input('Sitename (any name you like)', value=params['name'])
 
+        # ipcc sector name
+        sectors = ('Electricity Generation (1A1)', 'Coal Mining (1B1a)', 'Oil & Gas (1B2)', 'Livestock (4B)', 'Solid Waste (6A)', 'Solid Waste (6A)', 'Other')
+        ipcc_sector = st.selectbox('IPCC sector', sectors, index=sectors.index(params['ipcc_sector']))
+
         # platform for csv output
         platform_names = ('EnMAP', 'EMIT', 'PRISMA')
 
@@ -393,6 +397,7 @@ with col3:
                                'state': address.get('state', ''),
                                'city': address.get('city', ''),
                                'name': name,
+                               'ipcc_sector': ipcc_sector,
                                'gas': 'CH4',
                                'cmf_type': 'mf',
                                'plume_bounds': [bounds],
