@@ -63,6 +63,7 @@ class L2B():
             self.hyp = self.load()
             self.denoise()
             self.ortho()
+            self.to_netcdf()
         else:
             LOG.info(f'Skipped processing {self.filename}, because L2 data is already existed.')
 
@@ -193,8 +194,6 @@ def main():
     for filename in filelist:
         LOG.info(f'Processing {filename}')
         l2b_scene = L2B(filename, skip_exist)
-        if not l2b_scene.skip:
-            l2b_scene.to_netcdf()
 
         del l2b_scene
 
