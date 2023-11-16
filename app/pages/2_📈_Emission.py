@@ -63,7 +63,7 @@ with col2:
 
         # show basename in the selectbox
         filelist = [os.path.basename(file) for file in html_filepath_list]
-        filename = st.selectbox("**Pick HTML file here:**",
+        filename = st.selectbox(f"**Pick HTML file here: (1/{len(filelist)})**",
                                 filelist,
                                 index=0,
                                 )
