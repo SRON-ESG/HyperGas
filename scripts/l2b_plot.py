@@ -144,24 +144,32 @@ def plot_data(filelist, len_chunklist, index):
     del l2b_map_allinone.m, l2b_map_allinone
     gc.collect()
 
-
-def main():
+def main(chunk=8, skip_exist=True):
     # get the filname list
     filelist = list(chain(*[glob(os.path.join(data_dir, pattern), recursive=True) for pattern in PATTERNS]))
     filelist = list(sorted(filelist))
 
     # split the list into chunks in case of RAM error
-    chunk = 8
     filelist_chunk = [filelist[i:i+chunk] for i in range(0, len(filelist), chunk)]
     len_chunklist = len(filelist_chunk)
 
-    for index, filelist in enumerate(filelist_chunk):
-        # I have tried to del var and release memory, but it doesn't work
-        #   so I use the process trick here.
-        p = multiprocessing.Pool(1)
-        p.starmap(plot_data, [(filelist, len_chunklist, index)])
-        p.terminate()
-        p.join()
+    if skip_exist:
+        html_dir = os.path.dirname(filelist[0])
+        html_list = glob(os.path.join(html_dir, Path(filelist[0]).parent.parts[-1] + '*.html'))
+        if len(html_list) > 0:
+            skip_exist = True
+            LOG.info(f'Skip plotting files under {html_dir} which already contains {html_list}')
+        else:
+            skip_exist = False
+
+    if not skip_exist:
+        for index, filelist in enumerate(filelist_chunk):
+            # I have tried to del var and release memory, but it doesn't work
+            #   so I use the process trick here.
+            p = multiprocessing.Pool(1)
+            p.starmap(plot_data, [(filelist, len_chunklist, index)])
+            p.terminate()
+            p.join()
 
 
 if __name__ == '__main__':
@@ -169,8 +177,15 @@ if __name__ == '__main__':
     root_dir = '/data/xinz/Hyper_TROPOMI/'
     lowest_dirs = get_dirs(root_dir)
 
+    # whether skip dir which contains exported html
+    skip_exist = True
+
     # whether plot pre-saved markers on map
     plot_markers = True
+
+    # the chunk of files for each html file
+    #   don't set it too high if you meet RAM error
+    chunk = 8
 
     if plot_markers:
         df_marker = read_markers()
@@ -179,4 +194,4 @@ if __name__ == '__main__':
 
     for data_dir in lowest_dirs:
         LOG.info(f'Plotting data under {data_dir}')
-        main()
+        main(chunk, skip_exist)
