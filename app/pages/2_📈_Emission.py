@@ -271,8 +271,13 @@ with col3:
                                 'wind_weights': wind_weights,
                                 }
 
+                # read settings to use directly
+                for key in params.keys():
+                    if key in mask_setting.keys():
+                        params.update({key: mask_setting[key]})
+
                 # convert to DataFrame and export data as csv file
-                df = pd.DataFrame(data=mask_setting, index=[0])
+                df = pd.DataFrame(data=params, index=[0])
                 mask_filename = plume_nc_filename.replace('.nc', '.csv')
                 df.to_csv(mask_filename, index=False)
                 st.success(f'HTML file is exported to: \n \n {plume_html_filename} \
