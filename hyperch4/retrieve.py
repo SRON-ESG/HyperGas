@@ -15,7 +15,7 @@ import xarray as xr
 from roaring_landmask import RoaringLandmask
 from spectral.algorithms.detectors import matched_filter
 
-from .unit_spectrum import unit_spec
+from .unit_spectrum import Unit_spec
 
 # the scaling factor for alpha
 #   this should be set as same as that in `unit_spectrum.py`
@@ -26,7 +26,7 @@ class MatchedFilter():
     """The MatchedFilter Class."""
 
     def __init__(self, radiance, wvl_intervals, species='ch4',
-                 fit_unit='lognormal', mode='column'):
+                 fit_unit='lognormal', mode='column', land_mask=True):
         """Initialize MatchedFilter.
 
         To apply matched filter, `radiance` must be specified::
@@ -64,10 +64,19 @@ class MatchedFilter():
         # calculate unit spectrum
         self.species = species
         self.fit_unit = fit_unit
-        self.K = unit_spec(self.radiance, self.wvl_min, self.wvl_max, self.species, self.fit_unit).fit_slope()
+
+        self.K = Unit_spec(self.radiance, self.wvl_min, self.wvl_max, self.species, self.fit_unit).fit_slope()
 
         # calculate the land/ocean segmentation
-        self.land_segmentation()
+        self.land_mask = land_mask
+
+        if land_mask:
+            self.land_segmentation()
+        else:
+            # set all pixels as the same type
+            self.segmentation = xr.DataArray(np.zeros((self.radiance.sizes['y'],
+                                                      self.radiance.sizes['x'])),
+                                             dims=['y', 'x'])
 
     def _printt(self, outm):
         """Refreshing print."""
@@ -90,6 +99,7 @@ class MatchedFilter():
     #         scaler = MinMaxScaler()
     #         scaler.fit(self.radiance)
     #     return scaler.transform(data)
+
 
     def col_matched_filter(self, radiance, segmentation, K):
         """Calculate stats of data."""
@@ -148,7 +158,12 @@ class MatchedFilter():
             # calculate the background of whole scene
             radiance_scene = self.radiance.transpose(..., 'bands').values
             mask_scene = ~np.isnan(radiance_scene).any(axis=-1)
-            self.background = algo.calc_stats(radiance_scene, mask=mask_scene, index=None)
+            if self.land_mask:
+                # only calculate background over land
+                mask = mask_scene * self.segmentation.data
+            else:
+                mask = mask_scene
+            self.background = algo.calc_stats(radiance_scene, mask=mask, index=None)
 
         alpha = xr.apply_ufunc(self.col_matched_filter,
                                self.radiance.transpose(..., 'bands'),

@@ -92,7 +92,7 @@ class Hyper():
             # --- HSI2RGB method ---
             LOG.debug('Use HSI2RGB method for RGB image')
             # slice data to VIS range
-            da_vis = self.scene['radiance'].sortby('bands').sel(bands=slice(380, 750))
+            da_vis = self.scene['radiance'].sel(bands=slice(380, 750))
             data = da_vis.stack(z=['y', 'x']).transpose(..., 'bands')
             # generate RGB img
             rgb = Hsi2rgb(data.coords['bands'], data.data,
@@ -121,7 +121,7 @@ class Hyper():
 
                 return ((band_gamma-band_min)/((band_max - band_min)))
 
-            rgb = self.scene['radiance'].sortby('bands').sel(bands=[650, 560, 470], method='nearest')
+            rgb = self.scene['radiance'].sel(bands=[650, 560, 470], method='nearest')
 
             if rgb.chunks is not None:
                 rgb.load()
@@ -195,8 +195,10 @@ class Hyper():
         else:
             scn['radiance'] = scn['radiance']
 
-        # drop duplicated bands which is the case for PRISMA
+        # drop duplicated bands and sort it
+        #   this is the case for PRISMA
         scn['radiance'] = scn['radiance'].drop_duplicates(dim='bands')
+        scn['radiance'] = scn['radiance'].sortby('bands')
 
         # get attrs
         self.start_time = scn['radiance'].attrs['start_time']
@@ -239,7 +241,7 @@ class Hyper():
 
     def retrieve(self, wvl_intervals=None, species='ch4',
                  algo='smf', fit_unit='lognormal',
-                 mode='column'):
+                 mode='column', land_mask=True):
         """Retrieve methane enhancements
 
         Args:
@@ -272,7 +274,7 @@ class Hyper():
             raise ValueError(f"Please input a correct species name (ch4 or co2). {species} is not supported.")
 
         enhancement = getattr(MatchedFilter(self.scene['radiance'],
-                              wvl_intervals, species, fit_unit, mode), algo)()
+                              wvl_intervals, species, fit_unit, mode, land_mask), algo)()
         if enhancement.chunks is not None:
             # load the data
             enhancement.load()
