@@ -11,6 +11,7 @@ import logging
 import os
 from datetime import datetime
 from math import cos, pi, radians
+from scipy import optimize, interpolate
 
 import numpy as np
 import yaml
@@ -21,10 +22,11 @@ MODE = {0: 'tropical', 1: 'midlatitudesummer', 2: 'midlatitudewinter',
         3: 'subarcticsummer', 4: 'subarcticwinter', 5: 'standard'}
 
 
-class unit_spec():
+class Unit_spec():
     """Calculate the unit spectrum."""
 
-    def __init__(self, radiance, wvl_min, wvl_max, species='ch4', fit_unit='lognormal'):
+    def __init__(self, radiance, wvl_min, wvl_max,
+                 species='ch4', fit_unit='lognormal'):
         """Initialize unit_spec class.
 
         Args:
@@ -33,11 +35,11 @@ class unit_spec():
                 The lower limit of wavelength [nm] for matched filter
             wvl_max (float):
                 The upper limit of wavelength [nm] for matched filter
-            fit_unit (str): the method ('lognormal', 'poly', or 'linear') of fitting the relationship between rads and conc
-                Default: 'lognormal'
             species (str): The species to be retrieved
                 'ch4' or 'co2'
                 Default: 'ch4'
+            fit_unit (str): the method ('lognormal', 'poly', or 'linear') of fitting the relationship between rads and conc
+                Default: 'lognormal'
         """
         # load settings
         _dirname = os.path.dirname(__file__)
@@ -48,8 +50,9 @@ class unit_spec():
         self.irradiance_dir = os.path.join(_dirname, settings['irradiance_dir'])
 
         # load variables from "radiance" DataArray
-        self.wvl_lowres = radiance['bands'].data
-        self.fwhm = radiance['fwhm'].data
+        self.radiance = radiance
+        self.wvl_sensor = radiance['bands']
+        self.fwhm_sensor = radiance['fwhm']
         self.sza = radiance.attrs['sza']
         self.vza = radiance.attrs['vza']
         self.wvl_min = wvl_min
@@ -72,8 +75,6 @@ class unit_spec():
         else:
             raise ValueError(f"Please input a correct species name (ch4 or co2). {species} is not supported.")
 
-        # calculate rads based on conc
-        self.rads = self.convolve_rads()
 
     def _model(self):
         """ Determine atmospheric model
@@ -151,21 +152,21 @@ class unit_spec():
 
         return data
 
-    def _radianceCalc(self, del_omega, A=0.1, type='transmission'):
+    def _radianceCalc(self, del_omega, albedo=0.15, return_type='transmission'):
         """Function to calculate spectral radiance over selected band range
         based on methane del_omega (mol/m2) added to the first layer of atmosphere
 
         Args:
             del_omega (float):
                 Methane column enhancement [mol/m2]
-            A (float):
-                albedo. This is cancelled out.
-            type (str):
+            albedo (float):
+                albedo. This is cancelled out in the matched filter.
+            return_type (str):
                 returned data type: 'transmission' or 'radiance'
 
         Return:
             Wavelength range [nm] in the solar_irradiance data
-            Transmission (if type is 'transmission') or spectral radiance [1/(s*cm^2*sr*nm), if type is 'radiance'] for the band range,
+            Transmission (if return_type is 'transmission') or spectral radiance [1/(s*cm^2*sr*nm), if return_type is 'radiance'] for the band range,
         """
         # column number density [cm^-2]
         # we need to assign the copied data, otherwise it will be overwrited in each loop
@@ -227,9 +228,10 @@ class unit_spec():
         tau_lambda = amf * tau_vert
         transmission = np.exp(-tau_lambda)
 
-        if type == 'transmission':
-            return wavelength, transmission
-        elif type == 'radiance':
+        if return_type == 'transmission':
+            # ascending order of wavelength
+            return wavelength[::-1], transmission[::-1]
+        elif return_type == 'radiance':
             E_lambda = np.zeros([w.shape[0]])
             w = np.round(w, 2)
 
@@ -243,13 +245,15 @@ class unit_spec():
                 E_lambda[i] = Edata_subset[index, 1]
 
             # irradiance to radiance
-            consTerm = A * cos(radians(self.sza)) / pi
-            L_lambda = consTerm * np.exp(-1*tau_lambda) * E_lambda
-            return wavelength, L_lambda
+            self.albedo = albedo
+            consTerm = albedo * cos(radians(self.sza)) / pi
+            L_lambda = consTerm * np.exp(-tau_lambda) * E_lambda
+            # ascending order of wavelength
+            return wavelength[::-1], L_lambda[::-1]
         else:
-            raise ValueError(f"Unrecognized type: {type}. It should be 'transmission' or 'radiance'")
+            raise ValueError(f"Unrecognized return_type: {return_type}. It should be 'transmission' or 'radiance'")
 
-    def _convolve(self, rads):
+    def _convolve(self, wvl_sensor, fwhm_sensor, wvl_lut, rad_lut):
         '''Convert high-resolution spectral radiance to low-resolution signal
         and create the unit methane absorption spectrum
 
@@ -257,13 +261,18 @@ class unit_spec():
             https://github.com/markusfoote/mag1c/blob/8b9ceae186f4e125bc9f628db82f41bce4c6011f/mag1c/mag1c.py#L229-L243
             https://github.com/Prikaziuk/retrieval_rtmo/blob/master/src/%2Bhelpers/create_sensor_from_fwhm.m
         '''
-        sigma = self.fwhm / (2.0 * np.sqrt(2.0 * np.log(2.0)))
+        # convert to numpy array
+        if not isinstance(wvl_sensor, np.ndarray):
+            wvl_sensor = wvl_sensor.data
+        if not isinstance(fwhm_sensor, np.ndarray):
+            fwhm_sensor = fwhm_sensor.data
+
+        sigma = fwhm_sensor / (2.0 * np.sqrt(2.0 * np.log(2.0)))
 
         # Evaluate normal distribution explicitly
         var = sigma ** 2
         denom = (2 * np.pi * var) ** 0.5
-        numer = np.exp(-(self.wvl_highres[:, None] - self.wvl_lowres[None, :])**2 / (2*var))
-        # numer = np.exp(-(np.asarray(self.wvl_highres)[:, None] - self.wvl_lowres[None, :])**2 / (2*var))
+        numer = np.exp(-(wvl_lut[:, None] - wvl_sensor[None, :])**2 / (2*var))
         response = numer / denom
 
         # Normalize each gaussian response to sum to 1.
@@ -271,7 +280,7 @@ class unit_spec():
             axis=0), where=response.sum(axis=0) > 0, out=response)
 
         # implement resampling as matrix multiply
-        resampled = rads.dot(response)
+        resampled = rad_lut.dot(response)
 
         return resampled
 
@@ -290,32 +299,35 @@ class unit_spec():
 
         # calculate the transmission or sensor-reaching radiance with these gases
         # reference
-        w0, rad0 = self._radianceCalc({x: 0 for x in delta_omega})
+        self.wvl_lut, self.rad_lut = self._radianceCalc({x: 0 for x in delta_omega}, return_type='radiance')
 
         # calculate the rads with 1 ppm CH4 for `unit_spec`
         tmp_omega = delta_omega.copy()
         tmp_omega.update({self.species: 1000/2900})
-        self.wvl_highres, rad_unit = self._radianceCalc(tmp_omega)
-        self.rad_unit = self._convolve(rad_unit)
+        _, rad_unit = self._radianceCalc(tmp_omega)
+        self.rad_unit = self._convolve(self.wvl_sensor, self.fwhm_sensor, self.wvl_lut, rad_unit)
 
         # create array for saving radiance data
-        rads = np.zeros((len(self.conc), len(w0)))
+        rads_omega = np.zeros((len(self.conc), len(self.wvl_lut)))
 
         # iterate each conc and calculate the tau
         for i, omega in enumerate(delta_omega[self.species]):
             tmp_omega = delta_omega.copy()
             tmp_omega.update({self.species: omega})
-            wvl_highres, rad = self._radianceCalc(tmp_omega)
-            rads[i, :] = rad
+            _, rad = self._radianceCalc(tmp_omega)
+            rads_omega[i, :] = rad
 
-        resampled = self._convolve(rads)
+        resampled = self._convolve(self.wvl_sensor, self.fwhm_sensor, self.wvl_lut, rads_omega)
 
         return resampled
 
     def fit_slope(self):
         """Fit the slope for conc and rads"""
+        # calculate rads based on conc
+        rads = self.convolve_rads()
+
         if self.fit_unit == 'lognormal':
-            lograd = np.log(self.rads, out=np.zeros_like(self.rads), where=self.rads > 0)
+            lograd = np.log(rads, out=np.zeros_like(rads), where=rads > 0)
 
             # calculate slope [ln(Δradiance)/ Δc]: ln(xm) = ln(xr) - kΔc
             #   Ref: Schaum (2021) and Pei (2023)
@@ -327,12 +339,12 @@ class unit_spec():
         elif self.fit_unit == 'poly':
             # Degree of the polynomial: y = ax^2 + bx + c
             n_pol_jac = 2
-            jac_gas = np.zeros((n_pol_jac+1, self.rads.shape[1]))
-            delta_rad = self.rads / self.rads[0, :]  # Equivalent to L1/L0
+            jac_gas = np.zeros((n_pol_jac+1, rads.shape[1]))
+            delta_rad = rads / rads[0, :]  # Equivalent to L1/L0
             # Change in methane concentration = Delta_XCH4 = XCH4(L1)-XCH4(L0), the first conc is 0
             delta_mr = self.conc
 
-            for i in range(self.rads.shape[1]):
+            for i in range(rads.shape[1]):
                 # Function that relates L1/L0 and Delta_XCH4: Second order Polynomial
                 jac_gas[:, i] = np.polyfit(delta_mr, delta_rad[:, i], n_pol_jac)
 
@@ -343,7 +355,7 @@ class unit_spec():
         elif self.fit_unit == 'linear':
             unit_conc = 1000  # ppb
             # first-order Taylor expansion: xm = xr(1-kΔc)
-            K = (self.rad_unit-self.rads[0, :]) / unit_conc / (self.rads[0, :] + 1e-12)
+            K = (self.rad_unit-rads[0, :]) / unit_conc / (rads[0, :] + 1e-12)
 
         # ensuring numerical stability
         SCALING = 1e5
