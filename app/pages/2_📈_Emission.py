@@ -380,12 +380,13 @@ with col3:
 
                 # calculate plume bounds
                 with xr.open_dataset(plume_nc_filename) as ds:
-                    lon_mask = ds['longitude']
-                    lat_mask = ds['latitude']
+                    plume_mask = ~ds['ch4'].isnull()
+                    lon_mask = ds['longitude'].where(plume_mask, drop=True)
+                    lat_mask = ds['latitude'].where(plume_mask, drop=True)
                     t_overpass = pd.to_datetime(ds['ch4'].attrs['start_time'])
 
-                bounds = [lon_mask.min(skipna=True).item(), lat_mask.min(skipna=True).item(),
-                          lat_mask.min(skipna=True).item(), lat_mask.max(skipna=True).item()]
+                bounds = [lon_mask.min().item(), lat_mask.min().item(),
+                          lon_mask.max().item(), lat_mask.max().item()]
 
                 # get the location attrs
                 geolocator = Nominatim(user_agent='hyper')
