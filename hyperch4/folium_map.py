@@ -175,20 +175,21 @@ class Map():
                 da_ortho = da_ortho.transpose(..., 'bands')
                 cmap = None
                 vmin = None
-                vmax = None
+                cmap_vmax = None
             else:
                 # it should be ch4 (ppb)
                 cmap = 'plasma'
                 vmin = 0
-                vmax = vmax
+                cmap_vmax = vmax
 
             import matplotlib.pyplot as plt
             fig, ax = plt.subplots(subplot_kw=dict(projection=self._get_cartopy_crs_from_epsg(out_epsg)))
 
             # because we use longitude and latitude, we need to specify the transform.
             input_crs = self._get_cartopy_crs_from_epsg(4326)
-            ax.pcolormesh(self.ds.longitude, self.ds.latitude, da_ortho, vmin=vmin, vmax=vmax, cmap=cmap,
+            m = ax.pcolormesh(self.ds.longitude, self.ds.latitude, da_ortho, vmin=vmin, vmax=cmap_vmax, cmap=cmap,
                           transform=input_crs, antialiased=True)
+            plt.colorbar(m)
 
             # turn off axis
             ax.axis('off')
