@@ -8,6 +8,7 @@
 """Plot orthorectified data and overlay images on folium maps"""
 
 import base64
+import gc
 import logging
 import os
 from pathlib import Path
@@ -15,6 +16,7 @@ from pathlib import Path
 import cartopy.crs as ccrs
 import folium
 import geojson
+import matplotlib.pyplot as plt
 import numpy as np
 from cartopy.crs import epsg as ccrs_from_epsg
 from folium.features import DivIcon
@@ -135,9 +137,61 @@ class Map():
 
         self.map = m
 
+    def plot_png(self, out_epsg=3857, vmax=300, export_dir=None):
+        """Plot data and export to png files"""
+        for varname in self.varnames:
+            # load data
+            da_ortho = self.ds[varname]
+
+            if varname == 'rgb':
+                # transpose the bands
+                da_ortho = da_ortho.transpose(..., 'bands')
+                cmap = None
+                vmin = None
+                cmap_vmax = None
+            else:
+                # it should be ch4 (ppb)
+                cmap = 'plasma'
+                vmin = 0
+                cmap_vmax = vmax
+
+            fig, ax = plt.subplots(subplot_kw=dict(projection=self._get_cartopy_crs_from_epsg(out_epsg)))
+
+            # because we use longitude and latitude, we need to specify the transform.
+            input_crs = self._get_cartopy_crs_from_epsg(4326)
+            ax.pcolormesh(self.ds.longitude, self.ds.latitude, da_ortho, vmin=vmin, vmax=cmap_vmax, cmap=cmap,
+                          transform=input_crs, antialiased=True)
+
+            # turn off axis
+            ax.axis('off')
+
+            # set png filename
+            #   hard code for renaming EMIT RAD filename
+            if export_dir is None:
+                output_png = Path(da_ortho.attrs['filename'].replace(
+                    '.', f'_{varname}.').replace('_RAD', '').replace('L1', 'L2')).with_suffix('.png')
+            else:
+                output_png = Path(os.path.join(export_dir,
+                                               os.path.basename(da_ortho.attrs['filename']).replace('.', f'_{varname}.')
+                                               .replace('_RAD', '').replace('L1', 'L2'))).with_suffix('.png')
+
+            # delete pads and remove edges
+            fig.savefig(output_png, bbox_inches='tight', pad_inches=0.0, edgecolor=None, transparent=True, dpi=1000)
+
+
+        # calculate the bounds
+        #   we need to use bounds for image overlay on folium map
+        extent_4326 = ax.get_extent(crs=ccrs.PlateCarree())
+
+        self.img_bounds = [[extent_4326[2], extent_4326[0]], [extent_4326[3], extent_4326[1]]]
+
+        # clean vars
+        del da_ortho, fig, ax
+        gc.collect()
+
     def plot(self, out_epsg=3857, vmax=300, show_layers=None, opacities=None,
              marker=None, df_marker=None, export_dir=None, draw_polygon=True):
-        """Plot data and export to png files
+        """Plot data, export to png files, plot folium map, and export to html files
 
         Args:
             out_epsg (int): EPSG code of the output projection (3857 is the proj of folium Map)
@@ -166,51 +220,8 @@ class Map():
             raise ValueError(
                 f"opacities's length ({len(self.opacities)}) should be as same as varnames's length ({len(self.varnames)})")
 
-        for varname in self.varnames:
-            # load data
-            da_ortho = self.ds[varname]
-
-            if varname == 'rgb':
-                # transpose the bands
-                da_ortho = da_ortho.transpose(..., 'bands')
-                cmap = None
-                vmin = None
-                cmap_vmax = None
-            else:
-                # it should be ch4 (ppb)
-                cmap = 'plasma'
-                vmin = 0
-                cmap_vmax = vmax
-
-            import matplotlib.pyplot as plt
-            fig, ax = plt.subplots(subplot_kw=dict(projection=self._get_cartopy_crs_from_epsg(out_epsg)))
-
-            # because we use longitude and latitude, we need to specify the transform.
-            input_crs = self._get_cartopy_crs_from_epsg(4326)
-            ax.pcolormesh(self.ds.longitude, self.ds.latitude, da_ortho, vmin=vmin, vmax=cmap_vmax, cmap=cmap,
-                          transform=input_crs, antialiased=True)
-
-            # turn off axis
-            ax.axis('off')
-
-            # set png filename
-            #   hard code for renaming EMIT RAD filename
-            if export_dir is None:
-                output_png = Path(da_ortho.attrs['filename'].replace(
-                    '.', f'_{varname}.').replace('_RAD', '').replace('L1', 'L2')).with_suffix('.png')
-            else:
-                output_png = Path(os.path.join(export_dir,
-                                               os.path.basename(da_ortho.attrs['filename']).replace('.', f'_{varname}.')
-                                               .replace('_RAD', '').replace('L1', 'L2'))).with_suffix('.png')
-
-            # delete pads and remove edges
-            fig.savefig(output_png, bbox_inches='tight', pad_inches=0.0, edgecolor=None, transparent=True, dpi=1000)
-
-        # calculate the bounds
-        #   we need to use bounds for image overlay on folium map
-        extent_4326 = ax.get_extent(crs=ccrs.PlateCarree())
-
-        self.img_bounds = [[extent_4326[2], extent_4326[0]], [extent_4326[3], extent_4326[1]]]
+        # plot png images
+        self.plot_png(out_epsg=out_epsg, vmax=vmax, export_dir=export_dir)
 
         # get the swath polygon from area boundary
         area = SwathDefinition(lons=self.ds.longitude, lats=self.ds.latitude)
@@ -224,6 +235,10 @@ class Map():
         self.export_dir = export_dir
         self.draw_polygon = draw_polygon
         self.plot_folium()
+
+        # delete vars
+        del self.gjs
+        gc.collect()
 
     def plot_wind(self, source='ERA5', position='bottomright'):
         """plot the wind as html element
@@ -319,7 +334,7 @@ class Map():
             # loop dataframe to add CircleMarker with popup table
             for (index, row) in self.df_marker.iterrows():
                 html = self.df_marker.iloc[index]\
-                         .to_frame().to_html(classes="table table-striped table-hover table-condensed table-responsive")
+                    .to_frame().to_html(classes="table table-striped table-hover table-condensed table-responsive")
                 popup = folium.Popup(html, max_width=500)
 
                 folium.CircleMarker(location=[row.loc['latitude'], row.loc['longitude']], radius=6,
