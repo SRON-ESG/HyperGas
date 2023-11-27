@@ -10,6 +10,7 @@
 import sys
 
 import numpy as np
+import pandas as pd
 import spectral.algorithms as algo
 import xarray as xr
 from roaring_landmask import RoaringLandmask
@@ -25,7 +26,7 @@ SCALING = 1e5
 class MatchedFilter():
     """The MatchedFilter Class."""
 
-    def __init__(self, radiance, wvl_intervals, species='ch4',
+    def __init__(self, scn, wvl_intervals, species='ch4',
                  fit_unit='lognormal', mode='column', land_mask=True):
         """Initialize MatchedFilter.
 
@@ -34,11 +35,13 @@ class MatchedFilter():
             alpha = MatchedFilter(radiance=<DataArray>)
 
         Args:
-            radiance (xarray DataArray):
-                name: "radiance"
-                dims: ['bands', 'y', 'x']
-                units: mW m^-2 sr^-1 nm^-1,
-                coordinates: at least 1) "wavelength" (nm) and 2) "fwhm" (nm).
+            scn (Satpy Scene):
+                including at least one variable named "radiance"
+                    radiance (xarray DataArray):
+                        name: "radiance"
+                        dims: ['bands', 'y', 'x']
+                        units: mW m^-2 sr^-1 nm^-1,
+                        coordinates: at least 1) "wavelength" (nm) and 2) "fwhm" (nm).
             wvl_intervals (list): The wavelength range [nm] used in matched filter. It can be one list or nested list.
                 e.g. [2110, 2450] or [[1600, 1750], [2110, 2450]]
                 Deafult: [2110, 2450].
@@ -55,6 +58,7 @@ class MatchedFilter():
         self.wvl_max = wvl_intervals[1]
 
         # subset data to selected wavelength range for matched filter
+        radiance = scn['radiance']
         wvl_mask = (radiance['bands'] >= self.wvl_min) & (radiance['bands'] <= self.wvl_max)
         radiance = radiance.where(wvl_mask, drop=True)
 
@@ -65,7 +69,19 @@ class MatchedFilter():
         self.species = species
         self.fit_unit = fit_unit
 
-        self.K = Unit_spec(self.radiance, self.wvl_min, self.wvl_max, self.species, self.fit_unit).fit_slope()
+        loaded_names = [x['name'] for x in scn.keys()]
+        if 'central_wavelengths' in loaded_names:
+            # calculate K by column because we have central wavelength per column
+            central_wavelengths = scn['central_wavelengths'].where(wvl_mask, drop=True)
+            K = Unit_spec(self.radiance, central_wavelengths,
+                          self.wvl_min, self.wvl_max, self.species, self.fit_unit).fit_slope()
+            self.K = xr.DataArray(K, dims=['bands', 'x'],
+                                  coords={'bands': self.radiance.coords['bands']})
+        else:
+            # calculate K using the default dim named 'bands'
+            K = Unit_spec(self.radiance, self.radiance.coords['bands'],
+                          self.wvl_min, self.wvl_max, self.species, self.fit_unit).fit_slope()
+            self.K = xr.DataArray(K, dims='bands', coords={'bands': self.radiance.coords['bands']})
 
         # calculate the land/ocean segmentation
         self.land_mask = land_mask
@@ -168,9 +184,9 @@ class MatchedFilter():
         alpha = xr.apply_ufunc(self.col_matched_filter,
                                self.radiance.transpose(..., 'bands'),
                                self.segmentation,
-                               kwargs={'K': self.K},
+                               self.K,
                                exclude_dims=set(('y', 'bands')),
-                               input_core_dims=[['y', 'bands'], ['y']],
+                               input_core_dims=[['y', 'bands'], ['y'], ['bands']],
                                output_core_dims=[['y', 'bands']],
                                vectorize=True,
                                dask='parallelized',

@@ -80,7 +80,7 @@ class Hyper():
         elif self.reader == 'hyc_l1':
             swir_rad_id = DataQuery(name='swir', calibration='radiance')
             vnir_rad_id = DataQuery(name='vnir', calibration='radiance')
-            dataset_names = [swir_rad_id, vnir_rad_id]
+            dataset_names = [swir_rad_id, vnir_rad_id]#, 'cw_vnir', 'cw_swir']
         else:
             raise ValueError(f"'reader' must be a list of available readers: {AVAILABLE_READERS}")
 
@@ -195,10 +195,21 @@ class Hyper():
         else:
             scn['radiance'] = scn['radiance']
 
+        # merge 2D VNIR and SWIR central wavelength into one DataArray (PRISMA)
+        #   output dims: (bands, x)
+        if all(x in self.available_dataset_names for x in ['cw_vnir', 'cw_swir']):
+            scn['central_wavelengths'] = xr.concat([scn['cw_vnir'].rename({'bands_vnir': 'bands', 'fwhm_vnir': 'fwhm'}),
+                                                    scn['cw_swir'].rename({'bands_swir': 'bands', 'fwhm_swir': 'fwhm'})
+                                                   ],
+                                                   'bands')
+            scn['central_wavelengths'] = scn['central_wavelengths'].drop_duplicates(dim='bands')
+            # sort bands and remove zero values
+            scn['central_wavelengths'] = scn['central_wavelengths'].sortby('bands').sel(bands=slice(1e-7, None))
+
         # drop duplicated bands and sort it
         #   this is the case for PRISMA
         scn['radiance'] = scn['radiance'].drop_duplicates(dim='bands')
-        scn['radiance'] = scn['radiance'].sortby('bands')
+        scn['radiance'] = scn['radiance'].sortby('bands').sel(bands=slice(1e-7, None))
 
         # get attrs
         self.start_time = scn['radiance'].attrs['start_time']
@@ -207,7 +218,7 @@ class Hyper():
 
         # make sure the mean "sza" and "vza" are set as attrs of `scn['radiance']`
         #   we need these for radianceCalc later
-        loaded_names = [x['name'] for x in scn._datasets.keys()]
+        loaded_names = [x['name'] for x in scn.keys()]
         if 'sza' not in scn['radiance'].attrs:
             scn['radiance'].attrs['sza'] = scn['sza'].mean().load().item()
 
@@ -224,6 +235,8 @@ class Hyper():
             bands = scn['radiance']['bands']
             water_mask = ((1358 < bands) & (bands < 1453)) | ((1814 < bands) & (bands < 1961))
             scn['radiance'] = scn['radiance'].where(~water_mask, drop=True)
+            if 'central_wavelengths' in loaded_names:
+                scn['central_wavelengths'] = scn['central_wavelengths'].where(~water_mask, drop=True)
 
         # load wind data
         try:
@@ -273,7 +286,7 @@ class Hyper():
         else:
             raise ValueError(f"Please input a correct species name (ch4 or co2). {species} is not supported.")
 
-        enhancement = getattr(MatchedFilter(self.scene['radiance'],
+        enhancement = getattr(MatchedFilter(self.scene,
                               wvl_intervals, species, fit_unit, mode, land_mask), algo)()
         if enhancement.chunks is not None:
             # load the data

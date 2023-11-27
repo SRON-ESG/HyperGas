@@ -25,12 +25,14 @@ MODE = {0: 'tropical', 1: 'midlatitudesummer', 2: 'midlatitudewinter',
 class Unit_spec():
     """Calculate the unit spectrum."""
 
-    def __init__(self, radiance, wvl_min, wvl_max,
+    def __init__(self, radiance, wvl_sensor, wvl_min, wvl_max,
                  species='ch4', fit_unit='lognormal'):
         """Initialize unit_spec class.
 
         Args:
             radiance (DataArray)
+            wvl_sensor (1D['bands'] or 2D['bands','x'] DataArray):
+                The central_wavelengths of sensor
             wvl_min (float):
                 The lower limit of wavelength [nm] for matched filter
             wvl_max (float):
@@ -51,7 +53,7 @@ class Unit_spec():
 
         # load variables from "radiance" DataArray
         self.radiance = radiance
-        self.wvl_sensor = radiance['bands']
+        self.wvl_sensor = wvl_sensor
         self.fwhm_sensor = radiance['fwhm']
         self.sza = radiance.attrs['sza']
         self.vza = radiance.attrs['vza']
@@ -305,7 +307,10 @@ class Unit_spec():
         tmp_omega = delta_omega.copy()
         tmp_omega.update({self.species: 1000/2900})
         _, rad_unit = self._radianceCalc(tmp_omega)
-        self.rad_unit = self._convolve(self.wvl_sensor, self.fwhm_sensor, self.wvl_lut, rad_unit)
+        if self.fit_unit == 'linear':
+            # the rad_unit is only needed for linear fitting
+            # To fix for 2d central wavelength
+            self.rad_unit = self._convolve(self.wvl_sensor, self.fwhm_sensor, self.wvl_lut, rad_unit)
 
         # create array for saving radiance data
         rads_omega = np.zeros((len(self.conc), len(self.wvl_lut)))
@@ -317,9 +322,50 @@ class Unit_spec():
             _, rad = self._radianceCalc(tmp_omega)
             rads_omega[i, :] = rad
 
-        resampled = self._convolve(self.wvl_sensor, self.fwhm_sensor, self.wvl_lut, rads_omega)
+        if len(self.wvl_sensor.dims) == 1:
+            resampled = self._convolve(self.wvl_sensor, self.fwhm_sensor, self.wvl_lut, rads_omega)
+        elif len(self.wvl_sensor.dims) == 2:
+            resampled_list = []
+            for x in range(self.wvl_sensor.sizes['x']):
+                wvl_sensor = self.wvl_sensor.isel(x=x)
+                resampled_tmp = self._convolve(wvl_sensor, self.fwhm_sensor, self.wvl_lut, rads_omega)
+                resampled_list.append(resampled_tmp)
+                resampled = np.stack(resampled_list)  # dims: x, conc, bands
+        else:
+            raise ValeError(f'self.wvl_sensor should be 1D or 2D. Your input is {self.wvl_sensor.sizes}')
+
 
         return resampled
+
+    def _lognormal_fit(self, rads):
+        lograd = np.log(rads, out=np.zeros_like(rads), where=rads > 0)
+
+        # calculate slope [ln(Δradiance)/ Δc]: ln(xm) = ln(xr) - kΔc
+        #   Ref: Schaum (2021) and Pei (2023)
+        slope, residuals, _, _ = np.linalg.lstsq(
+            np.stack((np.ones_like(self.conc), self.conc)).T, lograd, rcond=None)
+
+        K = slope[1, :]
+
+        return K
+
+    def _poly_fit(self, rads):
+        # Degree of the polynomial: y = ax^2 + bx + c
+        n_pol_jac = 2
+        jac_gas = np.zeros((n_pol_jac+1, rads.shape[1]))
+        delta_rad = rads / rads[0, :]  # Equivalent to L1/L0
+        # Change in methane concentration = Delta_XCH4 = XCH4(L1)-XCH4(L0), the first conc is 0
+        delta_mr = self.conc
+
+        for i in range(rads.shape[1]):
+            # Function that relates L1/L0 and Delta_XCH4: Second order Polynomial
+            jac_gas[:, i] = np.polyfit(delta_mr, delta_rad[:, i], n_pol_jac)
+
+        # get the derivate with 1 ppm for the unit spectrum
+        unit_conc = 1000  # ppb
+        K = 2 * jac_gas[0, :] * unit_conc + jac_gas[1, :]  # Derivative of the Second order Poynomial
+
+        return K
 
     def fit_slope(self):
         """Fit the slope for conc and rads"""
@@ -327,30 +373,20 @@ class Unit_spec():
         rads = self.convolve_rads()
 
         if self.fit_unit == 'lognormal':
-            lograd = np.log(rads, out=np.zeros_like(rads), where=rads > 0)
-
-            # calculate slope [ln(Δradiance)/ Δc]: ln(xm) = ln(xr) - kΔc
-            #   Ref: Schaum (2021) and Pei (2023)
-            slope, residuals, _, _ = np.linalg.lstsq(
-                np.stack((np.ones_like(self.conc), self.conc)).T, lograd, rcond=None)
-
-            K = slope[1, :]
+            if len(rads.shape) == 2:
+                K = self._lognormal_fit(rads)
+            elif len(rads.shape) == 3:
+                K_list = []
+                for x in range(rads.shape[0]):
+                    K = self._lognormal_fit(rads[x, ...])
+                    K_list.append(K)
+                K = np.stack(K_list).T  # dims: bands, x
 
         elif self.fit_unit == 'poly':
-            # Degree of the polynomial: y = ax^2 + bx + c
-            n_pol_jac = 2
-            jac_gas = np.zeros((n_pol_jac+1, rads.shape[1]))
-            delta_rad = rads / rads[0, :]  # Equivalent to L1/L0
-            # Change in methane concentration = Delta_XCH4 = XCH4(L1)-XCH4(L0), the first conc is 0
-            delta_mr = self.conc
-
-            for i in range(rads.shape[1]):
-                # Function that relates L1/L0 and Delta_XCH4: Second order Polynomial
-                jac_gas[:, i] = np.polyfit(delta_mr, delta_rad[:, i], n_pol_jac)
-
-            # get the derivate with 1 ppm for the unit spectrum
-            unit_conc = 1000  # ppb
-            K = 2 * jac_gas[0, :] * unit_conc + jac_gas[1, :]  # Derivative of the Second order Poynomial
+            if len(rads.shape) == 2:
+                K = self._poly_fit(rads)
+            else:
+                raise ValueError(f'Polyfit only supports 2D rads (conc, bands). Your input is {rads.shape}')
 
         elif self.fit_unit == 'linear':
             unit_conc = 1000  # ppb
