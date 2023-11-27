@@ -187,9 +187,8 @@ class Map():
 
             # because we use longitude and latitude, we need to specify the transform.
             input_crs = self._get_cartopy_crs_from_epsg(4326)
-            m = ax.pcolormesh(self.ds.longitude, self.ds.latitude, da_ortho, vmin=vmin, vmax=cmap_vmax, cmap=cmap,
+            ax.pcolormesh(self.ds.longitude, self.ds.latitude, da_ortho, vmin=vmin, vmax=cmap_vmax, cmap=cmap,
                           transform=input_crs, antialiased=True)
-            plt.colorbar(m)
 
             # turn off axis
             ax.axis('off')
@@ -268,6 +267,8 @@ class Map():
 
         # add swath poly
         if self.draw_polygon:
+            fg_poly = folium.FeatureGroup(name='Swath polygons')
+            self.map.add_child(fg_poly)
             style = {'fillColor': '#00000000', 'color': 'dodgerblue'}
             folium.GeoJson(self.gjs,
                            control=False,
@@ -275,7 +276,7 @@ class Map():
                            zoom_on_click=False,
                            style_function=lambda x: style,
                            # highlight_function= lambda feat: {'fillColor': 'blue'},
-                           ).add_to(self.map)
+                           ).add_to(fg_poly)
 
         # add the group which controls all subgroups (varnames)
         self.fg = folium.FeatureGroup(name=f'{self.time_str} group ({sensor_name})')
