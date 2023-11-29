@@ -98,7 +98,7 @@ class L2B():
     def _ortho_enmap(self):
         rgb_corr = self.hyp.terrain_corr(varname='rgb', rpcs=self.hyp.scene['rpc_coef_vnir'].sel(
             bands_vnir=650, method='nearest').item())
-        radiance_2100_corr = self.hyp.terrain_corr(varname='radiance', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
+        radiance_2100_corr = self.hyp.terrain_corr(varname='radiance_2100', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
             bands_swir=2300, method='nearest').item())
         ch4_corr = self.hyp.terrain_corr(varname='ch4', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
             bands_swir=2300, method='nearest').item())
