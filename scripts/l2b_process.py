@@ -144,8 +144,15 @@ class L2B():
     def denoise(self):
         """Denoise random noise"""
         LOG.info('Denoising ch4 data')
-        self.hyp.scene['ch4_denoise'] = self.hyp.denoise(varname='ch4')
-        self.hyp.scene['ch4_comb_denoise'] = self.hyp.denoise(varname='ch4_comb')
+
+        # we need a higher weight for denoising PRISMA data
+        if self.reader == 'hyc_l1':
+            weight = 90
+        else:
+            weight = 50
+
+        self.hyp.scene['ch4_denoise'] = self.hyp.denoise(varname='ch4', weight=weight)
+        self.hyp.scene['ch4_comb_denoise'] = self.hyp.denoise(varname='ch4_comb', weight=weight)
 
     def to_netcdf(self):
         """Save scene to netcdf file."""
@@ -188,8 +195,23 @@ class L2B():
 
 
 def main():
+    # set params
+    skip_exist = True
+    data_dir = '/data/xinz/Hyper_TROPOMI/'
+
     filelist = list(chain(*[glob(os.path.join(data_dir, '**', pattern), recursive=True) for pattern in PATTERNS]))
     filelist = list(sorted(filelist))
+
+    # # multiprocessing
+    # import functools
+    # from concurrent.futures import ProcessPoolExecutor as Pool
+
+    # with Pool(max_workers=3) as pool:
+    #     # data process in parallel
+    #     try:
+    #         pool.map(functools.partial(L2B, skip_exist=skip_exist), filelist)
+    #     except Exception as exc:
+    #         LOG.info(exc)
 
     for filename in filelist:
         LOG.info(f'Processing {filename}')
@@ -199,6 +221,4 @@ def main():
 
 
 if __name__ == '__main__':
-    skip_exist = True
-    data_dir = '/data/xinz/Hyper_TROPOMI/'
     main()
