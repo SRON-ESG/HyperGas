@@ -11,9 +11,9 @@ import logging
 import os
 from datetime import datetime
 from math import cos, pi, radians
-from scipy import optimize, interpolate
 
 import numpy as np
+import xarray as xr
 import yaml
 
 LOG = logging.getLogger(__name__)
@@ -76,7 +76,6 @@ class Unit_spec():
             self.conc = np.array([0, 2500, 5000, 10000, 20000, 40000, 80000, 160000])  # ppb
         else:
             raise ValueError(f"Please input a correct species name (ch4 or co2). {species} is not supported.")
-
 
     def _model(self):
         """ Determine atmospheric model
@@ -323,17 +322,29 @@ class Unit_spec():
             rads_omega[i, :] = rad
 
         if len(self.wvl_sensor.dims) == 1:
+            # dims: conc, bands
             resampled = self._convolve(self.wvl_sensor, self.fwhm_sensor, self.wvl_lut, rads_omega)
         elif len(self.wvl_sensor.dims) == 2:
-            resampled_list = []
-            for x in range(self.wvl_sensor.sizes['x']):
-                wvl_sensor = self.wvl_sensor.isel(x=x)
-                resampled_tmp = self._convolve(wvl_sensor, self.fwhm_sensor, self.wvl_lut, rads_omega)
-                resampled_list.append(resampled_tmp)
-                resampled = np.stack(resampled_list)  # dims: x, conc, bands
+            # dims: x, conc, bands
+            self.wvl_sensor.load()
+            resampled = xr.apply_ufunc(self._convolve,
+                                       self.wvl_sensor,
+                                       kwargs={'fwhm_sensor': self.fwhm_sensor,
+                                               'wvl_lut': self.wvl_lut,
+                                               'rad_lut': rads_omega},
+                                       exclude_dims=set(('bands',)),
+                                       input_core_dims=[['bands',]],
+                                       output_core_dims=[['conc', 'bands']],
+                                       vectorize=True,
+                                       dask='parallelized',
+                                       output_dtypes=['float64'],
+                                       dask_gufunc_kwargs=dict(output_sizes={'x': self.wvl_sensor.sizes['x'],
+                                                                             'conc': len(self.conc),
+                                                                             'bands': self.wvl_sensor.sizes['bands']
+                                                                             })
+                                       )
         else:
-            raise ValeError(f'self.wvl_sensor should be 1D or 2D. Your input is {self.wvl_sensor.sizes}')
-
+            raise ValueError(f'self.wvl_sensor should be 1D or 2D. Your input is {self.wvl_sensor.sizes}')
 
         return resampled
 
@@ -370,7 +381,9 @@ class Unit_spec():
     def fit_slope(self):
         """Fit the slope for conc and rads"""
         # calculate rads based on conc
+        LOG.info('Convolving rads ...')
         rads = self.convolve_rads()
+        LOG.info('Convolving rads (Done)')
 
         if self.fit_unit == 'lognormal':
             if len(rads.shape) == 2:

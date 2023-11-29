@@ -80,7 +80,7 @@ class Hyper():
         elif self.reader == 'hyc_l1':
             swir_rad_id = DataQuery(name='swir', calibration='radiance')
             vnir_rad_id = DataQuery(name='vnir', calibration='radiance')
-            dataset_names = [swir_rad_id, vnir_rad_id]#, 'cw_vnir', 'cw_swir']
+            dataset_names = [swir_rad_id, vnir_rad_id, 'cw_vnir', 'cw_swir']
         else:
             raise ValueError(f"'reader' must be a list of available readers: {AVAILABLE_READERS}")
 
@@ -321,8 +321,8 @@ class Hyper():
 
         return da_ortho
 
-    def denoise(self, varname='ch4', method='tv_filter'):
+    def denoise(self, varname='ch4', method='tv_filter', weight=50):
         """Denoise the random noise"""
-        da_denoise = Denoise(self.scene, varname, method=method).smooth()
+        da_denoise = Denoise(self.scene, varname, method=method, weight=weight).smooth()
 
         return da_denoise
