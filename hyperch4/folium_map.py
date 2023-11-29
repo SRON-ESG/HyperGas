@@ -149,6 +149,10 @@ class Map():
                 cmap = None
                 vmin = None
                 cmap_vmax = None
+            elif varname == 'radiance_2100':
+                cmap = 'viridis'
+                vmin = da_ortho.quantile(0.05)
+                cmap_vmax = da_ortho.quantile(0.95)
             else:
                 # it should be ch4 (ppb)
                 cmap = 'plasma'

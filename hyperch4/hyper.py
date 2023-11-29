@@ -248,6 +248,15 @@ class Hyper():
             LOG.warning(e)
             LOG.warning("It seems we can't find any wind data for the date. Please check.")
 
+        # get the radiance at 2100 nm
+        scn['radiance_2100'] = scn['radiance'].sel(bands=2100, method='nearest').rename('radiance_2100').expand_dims('bands')
+        scn['radiance_2100'].attrs['description'] = 'TOA radiance at 2100 nm'
+
+        # drop useless coords of radiance_2100
+        coords = list(scn['radiance_2100'].coords)
+        if len(coords) > 0:
+            scn['radiance_2100'] = scn['radiance_2100'].drop_vars(coords)
+
         # save into scene and generate RGB composite
         self.scene = scn
         self._rgb_composite()
