@@ -98,6 +98,8 @@ class L2B():
     def _ortho_enmap(self):
         rgb_corr = self.hyp.terrain_corr(varname='rgb', rpcs=self.hyp.scene['rpc_coef_vnir'].sel(
             bands_vnir=650, method='nearest').item())
+        radiance_2100_corr = self.hyp.terrain_corr(varname='radiance', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
+            bands_swir=2300, method='nearest').item())
         ch4_corr = self.hyp.terrain_corr(varname='ch4', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
             bands_swir=2300, method='nearest').item())
         ch4_comb_corr = self.hyp.terrain_corr(
@@ -111,6 +113,7 @@ class L2B():
         rgb.attrs['area'] = ch4_corr.attrs['area']
 
         self.hyp.scene['rgb'] = rgb
+        self.hyp.scene['radiance_2100'] = radiance_2100_corr
         self.hyp.scene['ch4'] = ch4_corr
         self.hyp.scene['ch4_comb'] = ch4_comb_corr
         self.hyp.scene['ch4_denoise'] = ch4_denoise_corr
@@ -119,6 +122,7 @@ class L2B():
     def _ortho_emit(self):
         # orthorectification
         rgb_corr = self.hyp.terrain_corr(varname='rgb')
+        radiance_2100_corr = self.hyp.terrain_corr(varname='radiance_2100')
         ch4_corr = self.hyp.terrain_corr(varname='ch4')
         ch4_comb_corr = self.hyp.terrain_corr(varname='ch4_comb')
         ch4_denoise_corr = self.hyp.terrain_corr(varname='ch4_denoise')
@@ -126,6 +130,7 @@ class L2B():
 
         # save into Scene
         self.hyp.scene['rgb'] = rgb_corr
+        self.hyp.scene['radiance_2100'] = radiance_2100_corr
         self.hyp.scene['ch4'] = ch4_corr
         self.hyp.scene['ch4_comb'] = ch4_comb_corr
         self.hyp.scene['ch4_denoise'] = ch4_denoise_corr
@@ -165,24 +170,19 @@ class L2B():
                         # 'description': 'Orthorectified L2B data',
                         }
 
-        # set compression and saved variables
-        vnames = ['u10', 'v10', 'sp', 'rgb', 'ch4', 'ch4_comb', 'ch4_denoise', 'ch4_comb_denoise']
+        # set saved variables
+        vnames = ['u10', 'v10', 'sp', 'rgb', 'radiance_2100', 'ch4', 'ch4_comb', 'ch4_denoise', 'ch4_comb_denoise']
+        loaded_names = [x['name'] for x in self.hyp.scene.keys()]
+        # drop not loaded vnames
+        vnames = [vname for vname in vnames if vname in loaded_names]
 
         # remove the bands dim for ch4
-        self.hyp.scene['ch4'] = self.hyp.scene['ch4'].squeeze()
-        self.hyp.scene['ch4_comb'] = self.hyp.scene['ch4_comb'].squeeze()
-        self.hyp.scene['ch4_denoise'] = self.hyp.scene['ch4_denoise'].squeeze()
-        self.hyp.scene['ch4_comb_denoise'] = self.hyp.scene['ch4_comb_denoise'].squeeze()
+        for vname in vnames:
+            self.hyp.scene[vname] = self.hyp.scene[vname].squeeze()
 
         # export to NetCDF file
-        try:
-            self.hyp.scene.save_datasets(datasets=vnames, filename=self.savename,
-                                         header_attrs=header_attrs, writer='cf')
-        except:
-            # wind data is not available
-            vnames = ['rgb', 'ch4', 'ch4_comb', 'ch4_denoise', 'ch4_comb_denoise']
-            self.hyp.scene.save_datasets(datasets=vnames, filename=self.savename,
-                                         header_attrs=header_attrs, writer='cf')
+        self.hyp.scene.save_datasets(datasets=vnames, filename=self.savename,
+                                     header_attrs=header_attrs, writer='cf')
 
         # # --- backup --- #
         # # xarray version with compression

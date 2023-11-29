@@ -35,7 +35,7 @@ LOG = logging.getLogger(__name__)
 PATTERNS = ['ENMAP01-____L2B*.nc', 'EMIT_L2B*.nc', 'PRS_L2_*.nc']
 
 # the vriabels to be plotted
-VARNAMES = ['rgb', 'ch4', 'ch4_comb', 'ch4_denoise', 'ch4_comb_denoise']
+VARNAMES = ['rgb', 'radiance_2100', 'ch4', 'ch4_comb', 'ch4_denoise', 'ch4_comb_denoise']
 
 
 class L2B_plot():
@@ -151,6 +151,9 @@ def main(chunk=8, skip_exist=True, plot_markers=False):
     filelist = list(chain(*[glob(os.path.join(data_dir, pattern), recursive=True) for pattern in PATTERNS]))
     filelist = list(sorted(filelist))
 
+    if len(filelist) == 0:
+        return
+
     # split the list into chunks in case of RAM error
     filelist_chunk = [filelist[i:i+chunk] for i in range(0, len(filelist), chunk)]
     len_chunklist = len(filelist_chunk)
@@ -198,7 +201,7 @@ if __name__ == '__main__':
 
     # the chunk of files for each html file
     #   don't set it too high if you meet RAM error
-    chunk = 8
+    chunk = 6
 
     for data_dir in lowest_dirs:
         LOG.info(f'Plotting data under {data_dir}')
