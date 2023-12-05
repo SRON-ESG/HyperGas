@@ -150,7 +150,7 @@ class Map():
                 vmin = None
                 cmap_vmax = None
             elif varname == 'radiance_2100':
-                cmap = 'Greys_r'
+                cmap = 'viridis'
                 vmin = da_ortho.quantile(0.05)
                 cmap_vmax = da_ortho.quantile(0.95)
             else:
