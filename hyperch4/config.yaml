@@ -3,15 +3,23 @@ absorption_dir:
   resources/absorption
 irradiance_dir:
   resources/solar_irradiance
+rgb_dir:
+  resources/rgb
 era5_dir:
-  resources/ERA5
   # data structure should be: yyyy/sl*grib
   # if you leave this empty, the package will try to load cloud data
+  resources/ERA5
 geosfp_dir:
-  resources/GEOS-FP
   # data structure should be: yyyy/mm/dd/GEOS.fp.asm.tavg1_2d_slv_Nx.*.V01.nc4
   # if you leave this empty, the package will try to load cloud data
+  resources/GEOS-FP
+markers_filename:
+  # the csv file which saves pre-defined markers
+  #   it should contains at least two columns: "latitude" and "longitude"
+  #   the `l2b_plot.py` will add CircleMarkers on Map and click it to see correcponding DataFrame info
+  resources/markers/markers.csv
 spacetrack_usename:
   <username>
 spacetrack_password:
   <password>
+
