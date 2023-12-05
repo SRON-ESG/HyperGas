@@ -200,6 +200,11 @@ with col3:
                                                index=wind_source_names.index(params['wind_source']),
                                                )
 
+                plume_varname = st.selectbox("Pick varname for creating plume mask:",
+                                            ('ch4_comb_denoise', 'ch4_denoise', 'ch4'),
+                                            index=0,
+                                           )
+
                 wind_weights = st.checkbox('Whether apply the wind weights',
                                            value=params['wind_weights'],
                                            )
@@ -245,7 +250,8 @@ with col3:
 
                     with xr.open_dataset(ds_name) as ds:
                         # create mask and plume html file
-                        mask, lon_mask, lat_mask, plume_html_filename = mask_data(filename, ds, longitude, latitude, pick_plume_name,
+                        mask, lon_mask, lat_mask, plume_html_filename = mask_data(filename, ds, longitude, latitude,
+                                                                                  pick_plume_name, plume_varname,
                                                                                   wind_source, wind_weights, niter,
                                                                                   size_median, sigma_guass, quantile,
                                                                                   only_plume)
@@ -368,7 +374,7 @@ with col3:
                                                                  )
 
                 # print the emission data
-                st.warning(f'''The CH$_4$ emission rate is {Q:.2f} $\pm$ {Q_err:.2f} kg/h.
+                st.warning(f'''The CH$_4$ emission rate is {Q:.2f} kg/h $\pm$ {Q_err/Q*100:.2f}% ({Q_err:.2f} kg/h).
                                [
                                U$_{{eff}}$: {u_eff:.2f} m/s,
                                L$_{{eff}}$: {l_eff:.2f} m,

@@ -124,13 +124,15 @@ def conish_2d(x, y, xc, yc, r):
     return out
 
 
-def plume_mask(ds, lon_sample, lat_sample, wind_source='ERA5', wind_weights=True,
+def plume_mask(ds, lon_sample, lat_sample, plume_varname='ch4_comb_denoise',
+               wind_source='ERA5', wind_weights=True,
                niter=1, quantile_value=0.98, size_median=3, sigma_guass=2):
     """Get the plume mask based on matched filter results
 
     Args:
         lon_sample (float): source longitude for picking plume dilation mask
         lat_sample (float): source latitude for picking plume dilation mask
+        plume_varname (str): the variable used to create plume mask (Default:ch4_comb_denoise)
         wind_source (str): 'ERA5' or 'GEOS-FP'
         wind_weights (boolean): whether apply the wind weights to ch4 fields
         n_iter (int): number of iterations for dilations
@@ -142,7 +144,7 @@ def plume_mask(ds, lon_sample, lat_sample, wind_source='ERA5', wind_weights=True
     lon = ds['longitude']
     lat = ds['latitude']
 
-    ch4 = getattr(ds, 'ch4_comb_denoise', ds['ch4'])
+    ch4 = getattr(ds, plume_varname, ds['ch4'])
 
     if wind_weights:
         # calculate wind angle
@@ -236,7 +238,8 @@ def plot_mask(filename, ds, ch4, mask, lon_sample, lat_sample, pick_plume_name, 
     return plume_html_filename
 
 
-def mask_data(filename, ds, lon_sample, lat_sample, pick_plume_name, wind_source, wind_weights,
+def mask_data(filename, ds, lon_sample, lat_sample, pick_plume_name, plume_varname,
+              wind_source, wind_weights,
               niter, size_median, sigma_guass, quantile_value, only_plume):
     '''Generate and plot masked plume data
 
@@ -246,6 +249,7 @@ def mask_data(filename, ds, lon_sample, lat_sample, pick_plume_name, wind_source
         lon_sample (float): The longitude of plume source
         lat_sample (float): The latitude of plume source
         pick_plume_name (str): the plume name (plume0, plume1, ....)
+        plume_varname (str): the variable used to create plume mask (Default:ch4_comb_denoise)
         wind_source (str): 'ERA5' or 'GEOS-FP'
         wind_weights (boolean): whether apply the wind weights to ch4 fields
         n_iter (int): number of iterations for dilations
@@ -260,7 +264,7 @@ def mask_data(filename, ds, lon_sample, lat_sample, pick_plume_name, wind_source
         plume_html_filename (str): exported plume html filename
         '''
     # create the plume mask
-    ch4, mask, lon_mask, lat_mask = plume_mask(ds, lon_sample, lat_sample,
+    ch4, mask, lon_mask, lat_mask = plume_mask(ds, lon_sample, lat_sample, plume_varname=plume_varname,
                                                wind_source=wind_source, wind_weights=wind_weights, niter=niter, size_median=size_median, sigma_guass=sigma_guass,
                                                quantile_value=quantile_value)
 
