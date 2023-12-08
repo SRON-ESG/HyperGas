@@ -116,6 +116,9 @@ def plot_data(filelist, df_marker, len_chunklist, index):
         l2b_map.make_map()
         l2b_map.plot()
         l2b_map.m.export(savename)
+
+        # get scene center
+        scene_center = l2b_map.m.center_map
         del l2b_map.ds, l2b_map.m, l2b_map
         gc.collect()
 
@@ -127,6 +130,9 @@ def plot_data(filelist, df_marker, len_chunklist, index):
         else:
             # if the background map is already there, just replace the dataset to be plotted
             l2b_map_allinone.m.ds = l2b_map_allinone.ds
+
+        # update scene center
+        l2b_map_allinone.m.center_map = scene_center
 
         # plot the variables
         l2b_map_allinone.plot()
@@ -201,7 +207,7 @@ if __name__ == '__main__':
 
     # the chunk of files for each html file
     #   don't set it too high if you meet RAM error
-    chunk = 6
+    chunk = 5
 
     for data_dir in lowest_dirs:
         LOG.info(f'Plotting data under {data_dir}')
