@@ -143,8 +143,8 @@ def plot_data(filename, savename):
                          u_geosfp, v_geosfp, transform=proj, color='w',
                          )
 
-    ax.text(lon_min+pad/5, lat_min+pad/4, f'{np.round(wspd_era5, 2)} m/s (ERA5)', transform=proj, color='w', fontsize=8)
-    ax.text(lon_min+pad/5, lat_min+pad/9, f'{np.round(wspd_geosfp, 2)} m/s (GEOS-FP)', transform=proj, color='w', fontsize=8)
+    ax.text(lon_min+pad/4, lat_min+pad/4, f'{np.round(wspd_era5, 2)} m/s (ERA5)', transform=proj, color='w', fontsize=10, weight='bold')
+    ax.text(lon_min+pad/4, lat_min+pad/9, f'{np.round(wspd_geosfp, 2)} m/s (GEOS-FP)', transform=proj, color='w', fontsize=10, weight='bold')
 
     # # calculate wind max for wind arrow legend
     # wspd_max = int(max(wspd_era5, wspd_geosfp))
@@ -186,7 +186,7 @@ def main(skip_exist=True):
 
 if __name__ == '__main__':
     # root dir of hyper data
-    root_dir = '/data/xinz/Hyper_TROPOMI/'
+    root_dir = '/data/xinz/Hyper_TROPOMI_plume/'
     lowest_dirs = get_dirs(root_dir)
 
     # whether skip dir which contains exported html
