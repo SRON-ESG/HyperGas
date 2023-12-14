@@ -125,7 +125,7 @@ def conish_2d(x, y, xc, yc, r):
 
 
 def plume_mask(ds, lon_sample, lat_sample, plume_varname='ch4_comb_denoise',
-               wind_source='ERA5', wind_weights=True,
+               wind_source='ERA5', wind_weights=True, land_only=False,
                niter=1, quantile_value=0.98, size_median=3, sigma_guass=2):
     """Get the plume mask based on matched filter results
 
@@ -154,6 +154,16 @@ def plume_mask(ds, lon_sample, lat_sample, plume_varname='ch4_comb_denoise',
         ch4_weights = ch4 * weights
     else:
         ch4_weights = ch4
+
+    # set oceanic pixel values to nan
+    if land_only:
+        from roaring_landmask import RoaringLandmask
+        roaring = RoaringLandmask.new()
+        landmask = roaring.contains_many(lon.stack(z=['y', 'x']).values,
+                                         lat.stack(z=['y', 'x']).values).reshape(lon.shape)
+        # save to DataArray
+        segmentation = xr.DataArray(landmask, dims=['y', 'x'])
+        ch4_weights = ch4_weights.where(segmentation)
 
     # set init mask by the quantile value
     mask_buf = np.zeros(np.shape(ch4))
@@ -239,7 +249,7 @@ def plot_mask(filename, ds, ch4, mask, lon_sample, lat_sample, pick_plume_name, 
 
 
 def mask_data(filename, ds, lon_sample, lat_sample, pick_plume_name, plume_varname,
-              wind_source, wind_weights,
+              wind_source, wind_weights, land_only,
               niter, size_median, sigma_guass, quantile_value, only_plume):
     '''Generate and plot masked plume data
 
@@ -265,7 +275,8 @@ def mask_data(filename, ds, lon_sample, lat_sample, pick_plume_name, plume_varna
         '''
     # create the plume mask
     ch4, mask, lon_mask, lat_mask = plume_mask(ds, lon_sample, lat_sample, plume_varname=plume_varname,
-                                               wind_source=wind_source, wind_weights=wind_weights, niter=niter, size_median=size_median, sigma_guass=sigma_guass,
+                                               wind_source=wind_source, wind_weights=wind_weights, land_only=land_only,
+                                               niter=niter, size_median=size_median, sigma_guass=sigma_guass,
                                                quantile_value=quantile_value)
 
     # plot the mask (png and html)
@@ -328,7 +339,7 @@ def calc_random_err(ch4, ch4_mask, area, sp):
 
 
 def calc_emiss(f_ch4_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.66, alpha3=0.34,
-               wind_source='ERA5', wspd=None):
+               wind_source='ERA5', wspd=None, land_only=False):
     '''Calculate the emission rate (kg/h) using IME method
 
     Args:
@@ -383,6 +394,16 @@ def calc_emiss(f_ch4_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.6
 
     # ---- uncertainty ----
     # 1. random
+    if land_only:
+        from roaring_landmask import RoaringLandmask
+        roaring = RoaringLandmask.new()
+        landmask = roaring.contains_many(ds['longitude'].stack(z=['y', 'x']).values,
+                                         ds['latitude'].stack(z=['y', 'x']).values).reshape(ds['longitude'].shape)
+        # save to DataArray
+        segmentation = xr.DataArray(landmask, dims=['y', 'x'])
+        ds_original['ch4'] = ds_original['ch4'].where(segmentation)
+        ds['ch4'] = ds['ch4'].where(segmentation)
+
     IME_std = calc_random_err(ds_original['ch4'], ds['ch4'], area, sp)
     err_random = u_eff / l_eff * IME_std
 

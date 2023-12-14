@@ -103,7 +103,7 @@ col3, col4 = st.columns([6, 3])
 
 # set default params which can be modified from the form
 params = {'niter': 1, 'size_median': 3, 'sigma_guass': 2, 'quantile': 0.98,
-          'wind_source': None, 'wind_weights': True, 'wind_speed': None,
+        'wind_source': None, 'wind_weights': True, 'land_only': False, 'wind_speed': None,
           'alpha1': 0.0, 'alpha2': 0.66, 'alpha3': 0.34,
           'name': '', 'ipcc_sector': 'Solid Waste (6A)',
           'platform': None, 'source_tropomi': True, 'source_trace': False
@@ -213,6 +213,10 @@ with col3:
                                          value=True,
                                          )
 
+                land_only = st.checkbox('Whether only considering land pixels',
+                                           value=params['land_only'],
+                                           )
+
             submitted = st.form_submit_button("Submit")
 
             # button for removing plume files
@@ -252,8 +256,8 @@ with col3:
                         # create mask and plume html file
                         mask, lon_mask, lat_mask, plume_html_filename = mask_data(filename, ds, longitude, latitude,
                                                                                   pick_plume_name, plume_varname,
-                                                                                  wind_source, wind_weights, niter,
-                                                                                  size_median, sigma_guass, quantile,
+                                                                                  wind_source, wind_weights, land_only,
+                                                                                  niter, size_median, sigma_guass, quantile,
                                                                                   only_plume)
 
                     # export masked data (plume)
@@ -275,6 +279,7 @@ with col3:
                                 'sigma_guass': sigma_guass,
                                 'quantile': quantile,
                                 'wind_weights': wind_weights,
+                                'land_only': land_only,
                                 }
 
                 # read settings to use directly
@@ -350,6 +355,11 @@ with col3:
                                    value=params['source_trace'],
                                    )
 
+        # whether only move mask around land pixels
+        land_only = st.checkbox('Whether only considering land pixels',
+                                   value=params['land_only'],
+                                   )
+
         # manual wind speed
         wind_speed = st.number_input(
             'Manual wspd [m/s] (please leave this as "None", if you use the reanalysis wind data)', value=None, format='%f')
@@ -371,6 +381,7 @@ with col3:
                                                                  alpha3=alpha3,
                                                                  wind_source=wind_source,
                                                                  wspd=wind_speed,
+                                                                 land_only=land_only
                                                                  )
 
                 # print the emission data
