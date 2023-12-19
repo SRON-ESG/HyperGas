@@ -286,29 +286,23 @@ def mask_data(filename, ds, lon_sample, lat_sample, pick_plume_name, plume_varna
     return mask, lon_mask, lat_mask, plume_html_filename
 
 
-def wind_error_frac(method: str, wind_speed: float):
-    """ Gives fractional error based on windspeed
+def calc_wind_error(wspd, IME, l_eff,
+                    alpha1, alpha2, alpha3,
+                    uncertainty=0.5):
+    """Calculate wind error with random distribution"""
+    # Generate U10 distribution with 50% uncertainty
+    wspd_distribution = np.random.normal(wspd, wspd * uncertainty, size=1000)
 
-    - Values are based on a paper by Varon et al.(2018), linear relation is assumed
-    - CAREFUL! this function is only applicable to high-res satellites!
-    """
-    if method == 'IME':
-        if wind_speed <= 2.0:
-            return 0.5
-        elif wind_speed >= 7.0:
-            return 0.15
-        else:
-            return (0.64 - 0.07 * wind_speed)
-    elif method == 'CSF':
-        if wind_speed <= 2.0:
-            return 0.65
-        elif wind_speed >= 7.0:
-            return 0.3
-        else:
-            return (0.79 - 0.07 * wind_speed)
-    else:
-        print("ERROR: Wrong method")
-        return 0.0
+    # Calculate Ueff distribution
+    u_eff_distribution = alpha1 * np.log(wspd) + alpha2 + alpha3 * wspd_distribution
+
+    # Calculate Q distribution
+    Q_distribution = u_eff_distribution * IME / l_eff
+
+    # Calculate standard deviation of Q distribution
+    wind_error = np.std(Q_distribution)
+
+    return wind_error
 
 
 def calc_random_err(ch4, ch4_mask, area, sp):
@@ -375,7 +369,7 @@ def calc_emiss(f_ch4_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.6
     l_eff = np.sqrt(plume_pixel_num * area).item()
 
     # calculate IME
-    sp = ds['sp'].mean(dim='source').item() # use the mean surface pressure (Pa)
+    sp = ds['sp'].mean(dim='source').item()  # use the mean surface pressure (Pa)
     delta_omega = ch4_mask * 1.0e-9 * (mass / mass_dry_air) * sp / grav
     IME = np.nansum(delta_omega * area)
 
@@ -408,14 +402,12 @@ def calc_emiss(f_ch4_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.6
     err_random = u_eff / l_eff * IME_std
 
     # 2. wind error
-    frac = wind_error_frac('IME', wspd)
-    err_wind = Q * frac
+    err_wind = calc_wind_error(wspd, IME, l_eff, alpha1, alpha2, alpha3)
 
     # 3. alpha2 (shape)
     err_shape = (IME / l_eff) * (alpha2 * (0.66-0.42)/0.42)
 
     Q_err = np.sqrt(err_random**2 + err_wind**2 + err_shape**2)
-    print(wspd, wdir, l_eff, u_eff, IME, Q*3600, Q_err*3600, err_random*3600, err_wind*3600, err_shape*3600)
 
-    return wspd, wdir, l_eff, u_eff, IME, Q*3600, Q_err*3600,\
+    return wspd, wdir, l_eff, u_eff, IME, Q*3600, Q_err*3600, \
         err_random*3600, err_wind*3600, err_shape*3600  # kg/h
