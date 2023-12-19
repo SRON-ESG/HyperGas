@@ -323,7 +323,7 @@ def calc_random_err(ch4, ch4_mask, area, sp):
     # Insert plume mask data at a random position
     IME_noplume = []
 
-    while len(IME_noplume) <= 200:
+    while len(IME_noplume) <= 500:
         # Generate random row and column index to place b inside a
         row_idx = np.random.randint(0, bkgd_rows - mask_rows)
         col_idx = np.random.randint(0, bkgd_cols - mask_cols)
@@ -415,6 +415,7 @@ def calc_emiss(f_ch4_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.6
     err_shape = (IME / l_eff) * (alpha2 * (0.66-0.42)/0.42)
 
     Q_err = np.sqrt(err_random**2 + err_wind**2 + err_shape**2)
+    print(wspd, wdir, l_eff, u_eff, IME, Q*3600, Q_err*3600, err_random*3600, err_wind*3600, err_shape*3600)
 
     return wspd, wdir, l_eff, u_eff, IME, Q*3600, Q_err*3600,\
         err_random*3600, err_wind*3600, err_shape*3600  # kg/h
