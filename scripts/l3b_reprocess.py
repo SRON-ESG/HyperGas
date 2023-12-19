@@ -138,8 +138,8 @@ def calc_emiss(df, ds, ds_l2b, land_only=True):
     if land_only:
         from roaring_landmask import RoaringLandmask
         roaring = RoaringLandmask.new()
-        landmask = roaring.contains_many(ds['longitude'].stack(z=['y', 'x']).values,
-                                         ds['latitude'].stack(z=['y', 'x']).values).reshape(ds['longitude'].shape)
+        landmask = roaring.contains_many(ds['longitude'].stack(z=['y', 'x']).astype('float64').values,
+                                         ds['latitude'].stack(z=['y', 'x']).astype('float64').values).reshape(ds['longitude'].shape)
         # save to DataArray
         segmentation = xr.DataArray(landmask, dims=['y', 'x'])
         ds_l2b['ch4'] = ds_l2b['ch4'].where(segmentation)
@@ -199,7 +199,7 @@ def main():
 
 if __name__ == '__main__':
     # root dir of hyper data
-    root_dir = '/data/xinz/Hyper_TROPOMI_plume/Jordan/Mafraq/Al_Akaider/'
+    root_dir = '/data/xinz/Hyper_TROPOMI_plume/'
     lowest_dirs = get_dirs(root_dir)
 
     if input("This script will update emission data in all csv files. Are you sure? (y/n)") != "y":
