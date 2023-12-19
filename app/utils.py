@@ -372,7 +372,7 @@ def calc_emiss(f_ch4_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.6
 
     # calculate Leff using the root method in meter
     plume_pixel_num = (~ch4_mask.isnull()).sum()
-    l_eff = np.sqrt(plume_pixel_num * area)
+    l_eff = np.sqrt(plume_pixel_num * area).item()
 
     # calculate IME
     sp = ds['sp'].mean(dim='source').item() # use the mean surface pressure (Pa)
@@ -416,5 +416,5 @@ def calc_emiss(f_ch4_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.6
 
     Q_err = np.sqrt(err_random**2 + err_wind**2 + err_shape**2)
 
-    return wspd, wdir, l_eff, u_eff, Q.values*3600, Q_err.values*3600,\
-        err_random.values*3600, err_wind.values*3600, err_shape.values*3600  # kg/h
+    return wspd, wdir, l_eff, u_eff, IME, Q*3600, Q_err*3600,\
+        err_random*3600, err_wind*3600, err_shape*3600  # kg/h

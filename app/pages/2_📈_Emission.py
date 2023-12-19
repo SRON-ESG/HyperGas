@@ -373,7 +373,7 @@ with col3:
                 pick_plume_name = filename[-11: -5]
 
                 # calculate emissions
-                wind_speed, wdir, l_eff, u_eff, Q, Q_err, \
+                wind_speed, wdir, l_eff, u_eff, IME, Q, Q_err, \
                     err_random, err_wind, err_shape = calc_emiss(plume_nc_filename, pick_plume_name,
                                                                  pixel_res=pixel_res,
                                                                  alpha1=alpha1,
@@ -389,6 +389,7 @@ with col3:
                                [
                                U$_{{eff}}$: {u_eff:.2f} m/s,
                                L$_{{eff}}$: {l_eff:.2f} m,
+                               IME: {IME:.2f} kg,
                                err_random: {err_random:.2f} kg/h,
                                err_wind: {err_wind:.2f} kg/h,
                                err_shape: {err_shape:.2f} kg/h,
@@ -435,7 +436,9 @@ with col3:
                                'wind_speed': wind_speed,  # u10
                                'wind_direction': wdir,
                                'wind_source': wind_source,
+                               'ime': IME,
                                'ueff_ime': u_eff,
+                               'leff_ime': l_eff,
                                'alpha1': alpha1,
                                'alpha2': alpha2,
                                'alpha3': alpha3,
