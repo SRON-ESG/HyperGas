@@ -103,7 +103,7 @@ col3, col4 = st.columns([6, 3])
 
 # set default params which can be modified from the form
 params = {'niter': 1, 'size_median': 3, 'sigma_guass': 2, 'quantile': 0.98,
-        'wind_source': None, 'wind_weights': True, 'land_only': False, 'wind_speed': None,
+        'wind_source': None, 'wind_weights': True, 'land_only': True, 'wind_speed': None,
           'alpha1': 0.0, 'alpha2': 0.66, 'alpha3': 0.34,
           'name': '', 'ipcc_sector': 'Solid Waste (6A)',
           'platform': None, 'source_tropomi': True, 'source_trace': False
