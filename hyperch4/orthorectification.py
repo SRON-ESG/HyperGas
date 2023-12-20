@@ -94,13 +94,21 @@ class Ortho():
         if not os.path.exists(self.file_dem):
             dst_area_or_point = 'Point'
             dst_ellipsoidal_height = False
-            dem_name = 'srtm_v3'
+            dem_names = ['srtm_v3', 'glo_30']
 
-            # get the DEM data
-            X, p = stitch_dem(self.bounds,
-                              dem_name=dem_name,
-                              dst_ellipsoidal_height=dst_ellipsoidal_height,
-                              dst_area_or_point=dst_area_or_point)
+            # get the DEM data 1) SRTM V3 2) Copernicus GLO-30
+            try:
+                X, p = stitch_dem(self.bounds,
+                                  dem_name=dem_names[0],
+                                  dst_ellipsoidal_height=dst_ellipsoidal_height,
+                                  dst_area_or_point=dst_area_or_point)
+            except Exception as error:
+                LOG.info(error)
+                LOG.info('Downloading GLO-30 instead of SRTMV3')
+                X, p = stitch_dem(self.bounds,
+                                  dem_name=dem_names[1],
+                                  dst_ellipsoidal_height=dst_ellipsoidal_height,
+                                  dst_area_or_point=dst_area_or_point)
 
             # export to tif file
             with rasterio.open(self.file_dem, 'w', **p) as ds:
