@@ -245,9 +245,11 @@ class Hyper():
             scn['u10'] = wind.u10
             scn['v10'] = wind.v10
             scn['sp'] = wind.sp
+            self.wind = True
         except Exception as e:
             LOG.warning(e)
             LOG.warning("It seems we can't find any wind data for the date. Please check.")
+            self.wind = False
 
         # get the radiance at 2100 nm
         scn['radiance_2100'] = scn['radiance'].sel(bands=2100, method='nearest').rename('radiance_2100').expand_dims('bands')

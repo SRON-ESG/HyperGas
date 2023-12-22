@@ -98,24 +98,20 @@ class L2B():
     def _update_scene(self):
         # update Scene values
         self.hyp.scene['rgb'] = self.rgb_corr
-        self.hyp.scene['u10'] = self.u10_corr
-        self.hyp.scene['v10'] = self.v10_corr
-        self.hyp.scene['sp'] = self.sp_corr
         self.hyp.scene['radiance_2100'] = self.radiance_2100_corr
         self.hyp.scene['ch4'] = self.ch4_corr
         self.hyp.scene['ch4_comb'] = self.ch4_comb_corr
         self.hyp.scene['ch4_denoise'] = self.ch4_denoise_corr
         self.hyp.scene['ch4_comb_denoise'] = self.ch4_comb_denoise_corr
 
+        if self.hyp.wind:
+            self.hyp.scene['u10'] = self.u10_corr
+            self.hyp.scene['v10'] = self.v10_corr
+            self.hyp.scene['sp'] = self.sp_corr
+
     def _ortho_enmap(self):
         self.rgb_corr = self.hyp.terrain_corr(varname='rgb', rpcs=self.hyp.scene['rpc_coef_vnir'].sel(
             bands_vnir=650, method='nearest').item())
-        self.u10_corr = self.hyp.terrain_corr(varname='u10', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
-            bands_swir=2300, method='nearest').item())
-        self.v10_corr = self.hyp.terrain_corr(varname='v10', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
-            bands_swir=2300, method='nearest').item())
-        self.sp_corr = self.hyp.terrain_corr(varname='sp', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
-            bands_swir=2300, method='nearest').item())
         self.radiance_2100_corr = self.hyp.terrain_corr(varname='radiance_2100', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
             bands_swir=2300, method='nearest').item())
         self.ch4_corr = self.hyp.terrain_corr(varname='ch4', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
@@ -127,6 +123,14 @@ class L2B():
         self.ch4_comb_denoise_corr = self.hyp.terrain_corr(
             varname='ch4_comb_denoise', rpcs=self.hyp.scene['rpc_coef_swir'].sel(bands_swir=2300, method='nearest').item())
 
+        if self.hyp.wind:
+            self.u10_corr = self.hyp.terrain_corr(varname='u10', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
+                bands_swir=2300, method='nearest').item())
+            self.v10_corr = self.hyp.terrain_corr(varname='v10', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
+                bands_swir=2300, method='nearest').item())
+            self.sp_corr = self.hyp.terrain_corr(varname='sp', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
+                bands_swir=2300, method='nearest').item())
+
         self.rgb_corr = self.rgb_corr.interp_like(self.ch4_corr)
         self.rgb_corr.attrs['area'] = self.ch4_corr.attrs['area']
 
@@ -136,9 +140,10 @@ class L2B():
         # orthorectification
         self.rgb_corr = self.hyp.terrain_corr(varname='rgb')
 
-        self.u10_corr = self.hyp.terrain_corr(varname='u10')
-        self.v10_corr = self.hyp.terrain_corr(varname='v10')
-        self.sp_corr = self.hyp.terrain_corr(varname='sp')
+        if self.hyp.wind:
+            self.u10_corr = self.hyp.terrain_corr(varname='u10')
+            self.v10_corr = self.hyp.terrain_corr(varname='v10')
+            self.sp_corr = self.hyp.terrain_corr(varname='sp')
 
         self.radiance_2100_corr = self.hyp.terrain_corr(varname='radiance_2100')
         self.ch4_corr = self.hyp.terrain_corr(varname='ch4')
