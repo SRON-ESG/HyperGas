@@ -94,7 +94,6 @@ def calc_emiss(df, ds, ds_l2b, land_only=True):
     # read csv info
     platform = df['platform'].item()
     wind_source = df['wind_source'].item()
-    wspd = df['wind_speed'].item()
     alpha1 = df['alpha1'].item()
     alpha2 = df['alpha2'].item()
     alpha3 = df['alpha3'].item()
@@ -121,10 +120,9 @@ def calc_emiss(df, ds, ds_l2b, land_only=True):
     IME = np.nansum(delta_omega * area)
 
     # get wind info
-    u10 = ds['u10'].sel(source=wind_source).item()
-    v10 = ds['v10'].sel(source=wind_source).item()
-    if wspd is None:
-        wspd = np.sqrt(u10**2 + v10**2)
+    u10 = ds['u10'].sel(source=wind_source).mean().item()
+    v10 = ds['v10'].sel(source=wind_source).mean().item()
+    wspd = np.sqrt(u10**2 + v10**2)
     wdir = (270-np.rad2deg(np.arctan2(v10, u10))) % 360
 
     # effective wind speed
@@ -167,11 +165,13 @@ def reprocess_data(filename):
     ds_plume = xr.open_dataset(plume_filename)
     ds_l2b = xr.open_dataset(l2b_filename)
 
-    wind_speed, wdir, l_eff, u_eff, IME, Q, Q_err, \
+    wspd, wdir, l_eff, u_eff, IME, Q, Q_err, \
         err_random, err_wind, err_shape = calc_emiss(df, ds_plume, ds_l2b)
 
     # update emission data
     LOG.info('Updating data ...')
+    df['wind_speed'] = wspd
+    df['wind_direction'] = wdir
     df['leff_ime'] = l_eff
     df['ueff_ime'] = u_eff
     df['ime'] = IME

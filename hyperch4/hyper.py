@@ -107,6 +107,7 @@ class Hyper():
             rgb.attrs = self.scene['radiance'].attrs
             rgb.attrs['units'] = '1'
             rgb.attrs['standard_name'] = 'true_color'
+            rgb.attrs['long_name'] = 'true color (RGB)'
 
             rgb = rgb.rename('rgb')
             self.scene['rgb'] = rgb
@@ -250,6 +251,7 @@ class Hyper():
 
         # get the radiance at 2100 nm
         scn['radiance_2100'] = scn['radiance'].sel(bands=2100, method='nearest').rename('radiance_2100').expand_dims('bands')
+        scn['radiance_2100'].attrs['long_name'] = 'TOA radiance at 2100 nm'
         scn['radiance_2100'].attrs['description'] = 'TOA radiance at 2100 nm'
 
         # drop useless coords of radiance_2100
@@ -304,6 +306,7 @@ class Hyper():
         # copy attrs and add units
         enhancement.attrs = self.scene['radiance'].attrs
         enhancement.attrs['standard_name'] = f'{SPECIES_NAME[species]}_enhancement'
+        enhancement.attrs['long_name'] = f'{SPECIES_NAME[species]}_enhancement'
         enhancement.attrs[
             'description'] = f'{SPECIES_NAME[species]} enhancement derived by the {wvl_intervals[0]}~{wvl_intervals[1]} nm window'
 

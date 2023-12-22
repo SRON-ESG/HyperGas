@@ -11,13 +11,18 @@ import os
 
 import numpy as np
 import xarray as xr
+import pandas as pd
+from xarray import DataArray
 import yaml
+import logging
 
+LOG = logging.getLogger(__name__)
 
 class Wind():
     """Calculate u10 and v10 from reanalysis wind data."""
 
     def __init__(self, scn):
+        LOG.info('Reading wind data ...')
         # load settings
         _dirname = os.path.dirname(__file__)
         with open(os.path.join(_dirname, 'config.yaml')) as f:
@@ -30,17 +35,15 @@ class Wind():
         self.scene = scn
         self.obs_time = scn['radiance'].attrs['start_time']
 
-        # calculate the center location
-        self._calc_center()
+        # calculate the lons and lats
+        self.lons, self.lats = self.scene['radiance'].attrs['area'].get_lonlats()
+        if not isinstance(self.lons, DataArray):
+            self.lons = DataArray(self.lons, dims=("y", "x"))
+            self.lats = DataArray(self.lats, dims=("y", "x"))
 
         # calculate the wind
         self.load_data()
 
-    def _calc_center(self):
-        """Calculate the scene center location."""
-        lons, lats = self.scene['radiance'].attrs['area'].get_lonlats()
-        self.center_lon = lons.mean()
-        self.center_lat = lats.mean()
 
     def load_data(self):
         """Load wind data."""
@@ -49,29 +52,23 @@ class Wind():
         u10_geosfp, v10_geosfp, sp_geosfp = self.load_geosfp()
 
         # combine them into DataArrays
-        u10 = xr.DataArray(np.array([u10_era5, u10_geosfp]),
-                           dims='source',
-                           coords={'source': ['ERA5', 'GEOS-FP']},
-                           name='u10',
-                           )
+        new_dim = pd.Index(['ERA5', 'GEOS-FP'], name='source')
+        u10 = xr.concat([u10_era5, u10_geosfp], new_dim).rename('u10')
+        v10 = xr.concat([v10_era5, v10_geosfp], new_dim).rename('v10')
+        sp = sp_geosfp.rename('sp')
 
-        v10 = xr.DataArray(np.array([v10_era5, v10_geosfp]),
-                           dims='source',
-                           coords={'source': ['ERA5', 'GEOS-FP']},
-                           name='v10',
-                           )
+        # copy shared attrs
+        all_attrs = self.scene['radiance'].attrs
+        attrs_share = {key:all_attrs[key] for key in ['area', 'sensor', 'geotransform', 'spatial_ref', 'filename']
+                       if key in all_attrs}
+        u10.attrs = attrs_share
+        v10.attrs = attrs_share
+        sp.attrs = attrs_share
 
-        # ERA5 sl.grib data does not have sp variable
-        sp = xr.DataArray(np.array([np.nan, sp_geosfp]),
-                           dims='source',
-                           coords={'source': ['ERA5', 'GEOS-FP']},
-                           name='sp',
-                           )
-
-        # set attrs
         u10.attrs['long_name'] = '10 metre U wind component'
         v10.attrs['long_name'] = '10 metre V wind component'
         sp.attrs['long_name'] = 'surface pressure'
+
         u10.attrs['units'] = 'm s-1'
         v10.attrs['units'] = 'm s-1'
         sp.attrs['units'] = 'Pa'
@@ -88,18 +85,22 @@ class Wind():
         ds_era5 = xr.open_dataset(wind_file, engine='cfgrib', indexpath='')
         ds_era5.coords['longitude'] = (ds_era5.coords['longitude'] + 180) % 360 - 180
 
-        # interpolate data to the scene center
+        # interpolate data to the 2d scene
         u10 = ds_era5['u10'].interp(time=self.obs_time.strftime('%Y-%m-%d %H:%M'),
-                                    longitude=self.center_lon,
-                                    latitude=self.center_lat,
-                                    method='nearest')
+                                    longitude=self.lons,
+                                    latitude=self.lats,
+                                    )
 
         v10 = ds_era5['v10'].interp(time=self.obs_time.strftime('%Y-%m-%d %H:%M'),
-                                    longitude=self.center_lon,
-                                    latitude=self.center_lat,
-                                    method='nearest')
+                                    longitude=self.lons,
+                                    latitude=self.lats,
+                                    )
 
-        return u10.item(), v10.item()
+        # remove coords
+        u10 = u10.reset_coords(drop=True)
+        v10 = v10.reset_coords(drop=True)
+
+        return u10, v10
 
     def load_geosfp(self):
         """Load GEOS-FP wind data."""
@@ -109,17 +110,22 @@ class Wind():
         wind_file = os.path.join(self.geosfp_dir, self.obs_time.strftime('%Y/%m/%d'), geosfp_name)
         ds_geosfp = xr.open_dataset(wind_file).isel(time=0)
 
-        # interpolate data to the scene center
-        u10 = ds_geosfp['U10M'].interp(lon=self.center_lon,
-                                       lat=self.center_lat,
-                                       method='nearest')
+        # interpolate data to the 2d scene
+        u10 = ds_geosfp['U10M'].interp(lon=self.lons,
+                                       lat=self.lats,
+                                       )
 
-        v10 = ds_geosfp['V10M'].interp(lon=self.center_lon,
-                                       lat=self.center_lat,
-                                       method='nearest')
+        v10 = ds_geosfp['V10M'].interp(lon=self.lons,
+                                       lat=self.lats,
+                                       )
 
-        sp = ds_geosfp['PS'].interp(lon=self.center_lon,
-                                    lat=self.center_lat,
-                                    method='nearest')
+        sp = ds_geosfp['PS'].interp(lon=self.lons,
+                                    lat=self.lats,
+                                    )
 
-        return u10.item(), v10.item(), sp.item()
+        # remove coords
+        u10 = u10.reset_coords(drop=True)
+        v10 = v10.reset_coords(drop=True)
+        sp = sp.reset_coords(drop=True)
+
+        return u10, v10, sp

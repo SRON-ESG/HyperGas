@@ -82,9 +82,9 @@ class L2B():
 
         # retrieve ch4
         LOG.info('Retrieving ch4')
-        hyp.retrieve(wvl_intervals=[1300, 2500])
+        hyp.retrieve(wvl_intervals=[1300, 2500], land_mask=True)
         ch4_swir = hyp.scene['ch4']
-        hyp.retrieve(wvl_intervals=[2100, 2450])
+        hyp.retrieve(wvl_intervals=[2100, 2450], land_mask=True)
         ch4 = hyp.scene['ch4']
 
         # calculate ch4_comb
@@ -95,46 +95,59 @@ class L2B():
 
         return hyp
 
+    def _update_scene(self):
+        # update Scene values
+        self.hyp.scene['rgb'] = self.rgb_corr
+        self.hyp.scene['u10'] = self.u10_corr
+        self.hyp.scene['v10'] = self.v10_corr
+        self.hyp.scene['sp'] = self.sp_corr
+        self.hyp.scene['radiance_2100'] = self.radiance_2100_corr
+        self.hyp.scene['ch4'] = self.ch4_corr
+        self.hyp.scene['ch4_comb'] = self.ch4_comb_corr
+        self.hyp.scene['ch4_denoise'] = self.ch4_denoise_corr
+        self.hyp.scene['ch4_comb_denoise'] = self.ch4_comb_denoise_corr
+
     def _ortho_enmap(self):
-        rgb_corr = self.hyp.terrain_corr(varname='rgb', rpcs=self.hyp.scene['rpc_coef_vnir'].sel(
+        self.rgb_corr = self.hyp.terrain_corr(varname='rgb', rpcs=self.hyp.scene['rpc_coef_vnir'].sel(
             bands_vnir=650, method='nearest').item())
-        radiance_2100_corr = self.hyp.terrain_corr(varname='radiance_2100', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
+        self.u10_corr = self.hyp.terrain_corr(varname='u10', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
             bands_swir=2300, method='nearest').item())
-        ch4_corr = self.hyp.terrain_corr(varname='ch4', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
+        self.v10_corr = self.hyp.terrain_corr(varname='v10', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
             bands_swir=2300, method='nearest').item())
-        ch4_comb_corr = self.hyp.terrain_corr(
+        self.sp_corr = self.hyp.terrain_corr(varname='sp', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
+            bands_swir=2300, method='nearest').item())
+        self.radiance_2100_corr = self.hyp.terrain_corr(varname='radiance_2100', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
+            bands_swir=2300, method='nearest').item())
+        self.ch4_corr = self.hyp.terrain_corr(varname='ch4', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
+            bands_swir=2300, method='nearest').item())
+        self.ch4_comb_corr = self.hyp.terrain_corr(
             varname='ch4_comb', rpcs=self.hyp.scene['rpc_coef_swir'].sel(bands_swir=2300, method='nearest').item())
-        ch4_denoise_corr = self.hyp.terrain_corr(
+        self.ch4_denoise_corr = self.hyp.terrain_corr(
             varname='ch4_denoise', rpcs=self.hyp.scene['rpc_coef_swir'].sel(bands_swir=2300, method='nearest').item())
-        ch4_comb_denoise_corr = self.hyp.terrain_corr(
+        self.ch4_comb_denoise_corr = self.hyp.terrain_corr(
             varname='ch4_comb_denoise', rpcs=self.hyp.scene['rpc_coef_swir'].sel(bands_swir=2300, method='nearest').item())
 
-        rgb = rgb_corr.interp_like(ch4_corr)
-        rgb.attrs['area'] = ch4_corr.attrs['area']
+        self.rgb_corr = self.rgb_corr.interp_like(self.ch4_corr)
+        self.rgb_corr.attrs['area'] = self.ch4_corr.attrs['area']
 
-        self.hyp.scene['rgb'] = rgb
-        self.hyp.scene['radiance_2100'] = radiance_2100_corr
-        self.hyp.scene['ch4'] = ch4_corr
-        self.hyp.scene['ch4_comb'] = ch4_comb_corr
-        self.hyp.scene['ch4_denoise'] = ch4_denoise_corr
-        self.hyp.scene['ch4_comb_denoise'] = ch4_comb_denoise_corr
+        self._update_scene()
 
     def _ortho_emit(self):
         # orthorectification
-        rgb_corr = self.hyp.terrain_corr(varname='rgb')
-        radiance_2100_corr = self.hyp.terrain_corr(varname='radiance_2100')
-        ch4_corr = self.hyp.terrain_corr(varname='ch4')
-        ch4_comb_corr = self.hyp.terrain_corr(varname='ch4_comb')
-        ch4_denoise_corr = self.hyp.terrain_corr(varname='ch4_denoise')
-        ch4_comb_denoise_corr = self.hyp.terrain_corr(varname='ch4_comb_denoise')
+        self.rgb_corr = self.hyp.terrain_corr(varname='rgb')
 
-        # save into Scene
-        self.hyp.scene['rgb'] = rgb_corr
-        self.hyp.scene['radiance_2100'] = radiance_2100_corr
-        self.hyp.scene['ch4'] = ch4_corr
-        self.hyp.scene['ch4_comb'] = ch4_comb_corr
-        self.hyp.scene['ch4_denoise'] = ch4_denoise_corr
-        self.hyp.scene['ch4_comb_denoise'] = ch4_comb_denoise_corr
+        self.u10_corr = self.hyp.terrain_corr(varname='u10')
+        self.v10_corr = self.hyp.terrain_corr(varname='v10')
+        self.sp_corr = self.hyp.terrain_corr(varname='sp')
+
+        self.radiance_2100_corr = self.hyp.terrain_corr(varname='radiance_2100')
+        self.ch4_corr = self.hyp.terrain_corr(varname='ch4')
+        self.ch4_comb_corr = self.hyp.terrain_corr(varname='ch4_comb')
+        self.ch4_denoise_corr = self.hyp.terrain_corr(varname='ch4_denoise')
+        self.ch4_comb_denoise_corr = self.hyp.terrain_corr(varname='ch4_comb_denoise')
+
+        self._update_scene()
+
 
     def ortho(self):
         """Apply orthorectification."""
@@ -145,6 +158,8 @@ class L2B():
             self._ortho_emit()
         elif self.reader == 'hyc_l1':
             LOG.info('We do not support applying orthorectification to PRISMA L1 data yet.')
+
+
 
     def denoise(self):
         """Denoise random noise"""
@@ -176,9 +191,14 @@ class L2B():
         # drop not loaded vnames
         vnames = [vname for vname in vnames if vname in loaded_names]
 
+        # assign filename to global attrs
+        header_attrs['filename'] = self.hyp.scene[vnames[0]].attrs['filename']
+
         # remove the bands dim for ch4
         for vname in vnames:
             self.hyp.scene[vname] = self.hyp.scene[vname].squeeze()
+            # remove the useless filename attrs which has already been saved as global attrs
+            del self.hyp.scene[vname].attrs['filename']
 
         # export to NetCDF file
         self.hyp.scene.save_datasets(datasets=vnames, filename=self.savename,

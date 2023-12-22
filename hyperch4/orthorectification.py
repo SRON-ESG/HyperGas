@@ -175,7 +175,11 @@ class Ortho():
         """Apply orthorectification."""
         if self.ortho_source == 'rpc':
             LOG.debug('Orthorectify data using rpc')
-            ortho_arr, dst_transform = warp.reproject(self.scene[self.varname].data,
+            tmp_da = self.scene[self.varname]
+            if len(tmp_da.dims) == 2:
+                # expand to 3d array with "band" dim for rioxarray
+                tmp_da = tmp_da.expand_dims(dim={'band': 1})
+            ortho_arr, dst_transform = warp.reproject(tmp_da.data,
                                                       rpcs=self.rpcs,
                                                       src_crs='EPSG:4326',
                                                       dst_crs=f'EPSG:{self.utm_epsg}',
@@ -187,8 +191,6 @@ class Ortho():
                                                       RPC_DEM=self.file_dem,
                                                       )
 
-            # create the DataArray by replacing values
-            da_ortho = xr.DataArray(ortho_arr, dims=['bands', 'y', 'x'])
 
         elif self.ortho_source == 'glt':
             LOG.debug('Orthorectify data using glt')
@@ -199,7 +201,11 @@ class Ortho():
             self.scene['glt_x'].load()
 
             # select value and set fill_value to nan
-            da_ortho = self.scene[self.varname][:, self.scene['glt_y']-1, self.scene['glt_x']-1].where(glt_valid_mask)
+            data = self.scene[self.varname]
+            if len(data.dims) == 2:
+                # expand to 3d array with "band" dim for rioxarray
+                data = data.expand_dims(dim={'band': 1})
+            da_ortho = data[:, self.scene['glt_y']-1, self.scene['glt_x']-1].where(glt_valid_mask)
 
             # create temporary array because we perfer using AreaDefinition later
             tmp_da = da_ortho.copy()
@@ -212,13 +218,18 @@ class Ortho():
 
             # reproject to UTM
             tmp_da = tmp_da.rio.reproject(self.utm_epsg, nodata=np.nan, resolution=self.ortho_res)
+            ortho_arr = tmp_da.data
             dst_transform = tmp_da.rio.transform()
-
-            # create new DataArray
-            da_ortho = xr.DataArray(tmp_da.data, dims=['bands', 'y', 'x'])
 
         else:
             raise ValueError('Please load `rpc` or `glt` variables for ortho.')
+
+        # create the DataArray by replacing values
+        da_ortho = xr.DataArray(ortho_arr, dims=tmp_da.dims)
+
+        # assign source coords for wind data if exists
+        if 'source' in tmp_da.dims:
+            da_ortho.coords['source'] = tmp_da.coords['source'].values
 
         # copy attrs
         da_ortho = da_ortho.rename(self.scene[self.varname].name)
