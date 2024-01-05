@@ -260,6 +260,14 @@ with col3:
                                                                                   niter, size_median, sigma_guass, quantile,
                                                                                   only_plume)
 
+                        # mask data
+                        ch4_mask = ds['ch4'].where(mask)
+
+                        # calculate mean wind and surface pressure in the plume
+                        u10 = ds['u10'].where(mask).mean(dims=['y', 'x'])
+                        v10 = ds['v10'].where(mask).mean(dims=['y', 'x'])
+                        sp = ds['sp'].where(mask).mean(dims=['y', 'x'])
+
                     # export masked data (plume)
                     if 'plume' in os.path.basename(filename):
                         if pick_plume_name == 'plume0':
@@ -269,8 +277,8 @@ with col3:
                             plume_nc_filename = filename.replace('plume0', pick_plume_name).replace('.html', '.nc')
                     else:
                         plume_nc_filename = filename.replace('.html', f'_{pick_plume_name}.nc').replace('L2', 'L3')
-                    ch4_mask = ds['ch4'].where(mask)
-                    xr.merge([ch4_mask, ds['u10'], ds['v10'], ds['sp']]).to_netcdf(plume_nc_filename)
+
+                    xr.merge([ch4_mask, u10, v10, sp]).to_netcdf(plume_nc_filename)
 
                 # save mask setting
                 mask_setting = {'wind_source': wind_source,
