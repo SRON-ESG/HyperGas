@@ -369,7 +369,7 @@ def calc_emiss(f_ch4_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.6
     l_eff = np.sqrt(plume_pixel_num * area).item()
 
     # calculate IME
-    sp = ds['sp'].mean(dim='source').item()  # use the mean surface pressure (Pa)
+    sp = ds['sp'].mean().item()  # use the mean surface pressure (Pa)
     delta_omega = ch4_mask * 1.0e-9 * (mass / mass_dry_air) * sp / grav
     IME = np.nansum(delta_omega * area)
 
