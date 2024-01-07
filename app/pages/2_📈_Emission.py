@@ -264,9 +264,9 @@ with col3:
                         ch4_mask = ds['ch4'].where(mask)
 
                         # calculate mean wind and surface pressure in the plume
-                        u10 = ds['u10'].where(mask).mean(dims=['y', 'x'])
-                        v10 = ds['v10'].where(mask).mean(dims=['y', 'x'])
-                        sp = ds['sp'].where(mask).mean(dims=['y', 'x'])
+                        u10 = ds['u10'].where(mask).mean(dim=['y', 'x'])
+                        v10 = ds['v10'].where(mask).mean(dim=['y', 'x'])
+                        sp = ds['sp'].where(mask).mean(dim=['y', 'x'])
 
                     # export masked data (plume)
                     if 'plume' in os.path.basename(filename):

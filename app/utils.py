@@ -146,10 +146,22 @@ def plume_mask(ds, lon_sample, lat_sample, plume_varname='ch4_comb_denoise',
 
     ch4 = getattr(ds, plume_varname, ds['ch4'])
 
+    # define the areas for data and source point
+    area_source = SwathDefinition(lons=ds['longitude'], lats=ds['latitude'])
+    area_target = SwathDefinition(lons=np.array([lon_sample]), lats=np.array([lat_sample]))
+
+    # Determine nearest (w.r.t. great circle distance) neighbour in the grid.
+    _, _, index_array, distance_array = pyresample.kd_tree.get_neighbour_info(
+        source_geo_def=area_source, target_geo_def=area_target, radius_of_influence=50,
+        neighbours=1)
+
+    # get_neighbour_info() returns indices in the flattened lat/lon grid. Compute the 2D grid indices:
+    y_sample, x_sample = np.unravel_index(index_array, area_source.shape)
+
     if wind_weights:
         # calculate wind angle
-        angle_wind_rad, angle_wind = get_wind_azimuth(ds['u10'].sel(source=wind_source).item(),
-                                                      ds['v10'].sel(source=wind_source).item())
+        angle_wind_rad, angle_wind = get_wind_azimuth(ds['u10'].sel(source=wind_source).isel(y=y_sample, x=x_sample).item(),
+                                                      ds['v10'].sel(source=wind_source).isel(y=y_sample, x=x_sample).item())
         weights = conish_2d(lon, lat, lon_sample, lat_sample, np.pi/2. - angle_wind_rad)
         ch4_weights = ch4 * weights
     else:
@@ -181,18 +193,6 @@ def plume_mask(ds, lon_sample, lat_sample, plume_varname='ch4_comb_denoise',
 
     # assign labels by 3x3
     labeled_mask, nfeatures = ndimage.label(mask, structure=np.ones((3, 3)))
-
-    # define the areas for data and source point
-    area_source = SwathDefinition(lons=ds['longitude'], lats=ds['latitude'])
-    area_target = SwathDefinition(lons=np.array([lon_sample]), lats=np.array([lat_sample]))
-
-    # Determine nearest (w.r.t. great circle distance) neighbour in the grid.
-    _, _, index_array, distance_array = pyresample.kd_tree.get_neighbour_info(
-        source_geo_def=area_source, target_geo_def=area_target, radius_of_influence=50,
-        neighbours=1)
-
-    # get_neighbour_info() returns indices in the flattened lat/lon grid. Compute the 2D grid indices:
-    y_sample, x_sample = np.unravel_index(index_array, area_source.shape)
 
     # get the labeled mask where the sample is inside
     feature_label = labeled_mask[y_sample, x_sample]
