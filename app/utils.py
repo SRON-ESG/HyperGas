@@ -171,8 +171,8 @@ def plume_mask(ds, lon_sample, lat_sample, plume_varname='ch4_comb_denoise',
     if land_only:
         from roaring_landmask import RoaringLandmask
         roaring = RoaringLandmask.new()
-        landmask = roaring.contains_many(lon.stack(z=['y', 'x']).values,
-                                         lat.stack(z=['y', 'x']).values).reshape(lon.shape)
+        landmask = roaring.contains_many(lon.stack(z=['y', 'x']).astype('float64').values,
+                                         lat.stack(z=['y', 'x']).astype('float64').values).reshape(lon.shape)
         # save to DataArray
         segmentation = xr.DataArray(landmask, dims=['y', 'x'])
         ch4_weights = ch4_weights.where(segmentation)
