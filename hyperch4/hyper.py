@@ -80,7 +80,10 @@ class Hyper():
         elif self.reader == 'hyc_l1':
             swir_rad_id = DataQuery(name='swir', calibration='radiance')
             vnir_rad_id = DataQuery(name='vnir', calibration='radiance')
-            dataset_names = [swir_rad_id, vnir_rad_id, 'cw_vnir', 'cw_swir']
+            dataset_names = [swir_rad_id, vnir_rad_id]
+            # uncomment the line if you wanna use 2D CW
+            #   note that 2D CW sometimes lead to wrong retrieval and you need to correct the smile effect
+            # dataset_names = [swir_rad_id, vnir_rad_id, 'cw_vnir', 'cw_swir']
         else:
             raise ValueError(f"'reader' must be a list of available readers: {AVAILABLE_READERS}")
 
