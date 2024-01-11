@@ -391,8 +391,8 @@ def calc_emiss(f_ch4_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.6
     if land_only:
         from roaring_landmask import RoaringLandmask
         roaring = RoaringLandmask.new()
-        landmask = roaring.contains_many(ds['longitude'].stack(z=['y', 'x']).values,
-                                         ds['latitude'].stack(z=['y', 'x']).values).reshape(ds['longitude'].shape)
+        landmask = roaring.contains_many(ds['longitude'].stack(z=['y', 'x']).astype('float64').values,
+                                         ds['latitude'].stack(z=['y', 'x']).astype('float64').values).reshape(ds['longitude'].shape)
         # save to DataArray
         segmentation = xr.DataArray(landmask, dims=['y', 'x'])
         ds_original['ch4'] = ds_original['ch4'].where(segmentation)
