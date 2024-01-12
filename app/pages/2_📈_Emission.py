@@ -31,6 +31,11 @@ st.set_page_config(
 
 col1, col2 = st.columns([6, 3])
 
+# set global attrs for exported NetCDF file
+AUTHOR = 'Xin Zhang'
+EMAIL = 'xin.zhang@sron.nl; xinzhang1215@gmail.com'
+INSTITUTION = 'SRON Netherlands Institute for Space Research'
+
 with col2:
     # --- Load data and plot it over background map --- #
     st.info('Load data and check the quickview of map and CH$_4$', icon="1️⃣")
@@ -252,7 +257,7 @@ with col3:
                     else:
                         ds_name = filename.replace('.html', '.nc')
 
-                    with xr.open_dataset(ds_name) as ds:
+                    with xr.open_dataset(ds_name, decode_coords='all') as ds:
                         # create mask and plume html file
                         mask, lon_mask, lat_mask, plume_html_filename = mask_data(filename, ds, longitude, latitude,
                                                                                   pick_plume_name, plume_varname,
@@ -278,7 +283,23 @@ with col3:
                     else:
                         plume_nc_filename = filename.replace('.html', f'_{pick_plume_name}.nc').replace('L2', 'L3')
 
-                    xr.merge([ch4_mask, u10, v10, sp]).to_netcdf(plume_nc_filename)
+                    # merge data
+                    ds_merge = xr.merge([ch4_mask, u10, v10, sp])
+
+                    # add crs info
+                    ds_merge.rio.write_crs(ds.rio.crs, inplace=True)
+
+                    # clear attrs
+                    ds_merge.attrs = ''
+                    # set global attributes
+                    header_attrs = {'author': AUTHOR,
+                                    'email': EMAIL,
+                                    'institution': INSTITUTION,
+                                    'filename': ds.attrs['filename'],
+                                    }
+                    ds_merge.attrs = header_attrs
+
+                    ds_merge.to_netcdf(plume_nc_filename)
 
                 # save mask setting
                 mask_setting = {'wind_source': wind_source,
