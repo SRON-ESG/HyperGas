@@ -9,12 +9,17 @@
 
 import logging
 import os
+import re
+import sys
 from glob import glob
 from itertools import chain
 
 import numpy as np
 import pandas as pd
 import xarray as xr
+
+sys.path.append('../app')
+from utils import mask_data
 
 # calculate IME (kg m-2)
 mass = 16.04e-3  # molar mass CH4 [kg/mol]
@@ -26,6 +31,11 @@ logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s: %(message)s',
                     datefmt='%Y/%m/%d %H:%M:%S')
 LOG = logging.getLogger(__name__)
+
+# set global attrs for exported NetCDF file
+AUTHOR = 'Xin Zhang'
+EMAIL = 'xin.zhang@sron.nl; xinzhang1215@gmail.com'
+INSTITUTION = 'SRON Netherlands Institute for Space Research'
 
 # set filename pattern to load data automatically
 PATTERNS = ['ENMAP01-____L3B*.csv', 'EMIT_L3B*.csv', 'PRS_L3_*.csv']
@@ -115,7 +125,7 @@ def calc_emiss(df, ds, ds_l2b, land_only=True):
     l_eff = np.sqrt(plume_pixel_num * area).item()
 
     # calculate IME
-    sp = ds['sp'].mean(dim='source').item()  # use the mean surface pressure (Pa)
+    sp = ds['sp'].mean().item()  # use the mean surface pressure (Pa)
     delta_omega = ch4_mask * 1.0e-9 * (mass / mass_dry_air) * sp / grav
     IME = np.nansum(delta_omega * area)
 
@@ -158,18 +168,79 @@ def calc_emiss(df, ds, ds_l2b, land_only=True):
         err_random*3600, err_wind*3600, err_shape*3600  # kg/h
 
 
-def reprocess_data(filename):
-    df = pd.read_csv(filename)
+def reprocess_data(filename, reprocess_nc):
+    df = pd.read_csv(filename, dtype={'wind_weights': bool})
     plume_filename = filename.replace('.csv', '.nc')
     l2b_filename = ('_'.join(plume_filename.split('_')[:-1])+'.nc').replace('L3', 'L2')
     ds_plume = xr.open_dataset(plume_filename)
-    ds_l2b = xr.open_dataset(l2b_filename)
+    ds_l2b = xr.open_dataset(l2b_filename, decode_coords='all')
 
-    wspd, wdir, l_eff, u_eff, IME, Q, Q_err, \
-        err_random, err_wind, err_shape = calc_emiss(df, ds_plume, ds_l2b)
+
+
+    if reprocess_nc:
+        ds_plume.close()
+        # read plume source location
+        longitude = df['plume_longitude'].item()
+        latitude = df['plume_latitude'].item()
+
+        # read plume mask settings
+        plume_varname = 'ch4_comb_denoise'
+        land_only = True
+        only_plume = True
+        plume_num = re.search('plume(.*).nc', os.path.basename(plume_filename)).group(1)
+        pick_plume_name = 'plume' + plume_num
+        html_filename = os.path.join(os.path.dirname(plume_filename),
+                                     os.path.basename(plume_filename).replace(f'_{pick_plume_name}.nc', '.html')
+                                     )
+        wind_source = df['wind_source'].item()
+        wind_weights = df['wind_weights'].item()
+        niter = df['niter'].item()
+        size_median = df['size_median'].item()
+        sigma_guass = df['sigma_guass'].item()
+        quantile = df['quantile'].item()
+
+        # create new mask
+        mask, lon_mask, lat_mask, plume_html_filename = mask_data(html_filename, ds_l2b, longitude, latitude,
+                                                                  pick_plume_name, plume_varname,
+                                                                  wind_source, wind_weights, land_only,
+                                                                  niter, size_median, sigma_guass, quantile,
+                                                                  only_plume)
+
+        # mask data
+        ch4_mask = ds_l2b['ch4'].where(mask)
+
+        # calculate mean wind and surface pressure in the plume
+        u10 = ds_l2b['u10'].where(mask).mean(dim=['y', 'x'])
+        v10 = ds_l2b['v10'].where(mask).mean(dim=['y', 'x'])
+        sp = ds_l2b['sp'].where(mask).mean(dim=['y', 'x'])
+
+        # merge data
+        ds_merge = xr.merge([ch4_mask, u10, v10, sp])
+
+        # add crs info
+        ds_merge.rio.write_crs(ds_l2b.rio.crs, inplace=True)
+
+        # clear attrs
+        ds_merge.attrs = ''
+        # set global attributes
+        header_attrs = {'author': AUTHOR,
+                        'email': EMAIL,
+                        'institution': INSTITUTION,
+                        'filename': ds_l2b.attrs['filename'],
+                        }
+        ds_merge.attrs = header_attrs
+
+        LOG.info(f'Updating {plume_filename} ...')
+        ds_merge.to_netcdf(plume_filename)
+
+        wspd, wdir, l_eff, u_eff, IME, Q, Q_err, \
+            err_random, err_wind, err_shape = calc_emiss(df, ds_merge, ds_l2b)
+    else:
+        wspd, wdir, l_eff, u_eff, IME, Q, Q_err, \
+            err_random, err_wind, err_shape = calc_emiss(df, ds_plume, ds_l2b)
 
     # update emission data
-    LOG.info('Updating data ...')
+    LOG.info(f'Updating {filename} ...')
     df['wind_speed'] = wspd
     df['wind_direction'] = wdir
     df['leff_ime'] = l_eff
@@ -185,6 +256,9 @@ def reprocess_data(filename):
 
 
 def main():
+    # whether regenerate the L3 plume NetCDF file based on csv settings
+    reprocess_nc = False
+
     # get the filname list
     filelist = list(chain(*[glob(os.path.join(data_dir, pattern), recursive=True) for pattern in PATTERNS]))
     filelist = list(sorted(filelist))
@@ -194,7 +268,7 @@ def main():
 
     for filename in filelist:
         LOG.info(f'Reprocessing {filename} ...')
-        reprocess_data(filename)
+        reprocess_data(filename, reprocess_nc)
 
 
 if __name__ == '__main__':
