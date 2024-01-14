@@ -27,7 +27,7 @@ class MatchedFilter():
     """The MatchedFilter Class."""
 
     def __init__(self, scn, wvl_intervals, species='ch4',
-                 fit_unit='lognormal', mode='column', land_mask=True):
+                 fit_unit='poly', mode='column', land_mask=True):
         """Initialize MatchedFilter.
 
         To apply matched filter, `radiance` must be specified::
@@ -49,9 +49,9 @@ class MatchedFilter():
                 'ch4' or 'co2'
                 Default: 'ch4'
             fit_unit (str): The fitting method ('lognormal', 'poly', or 'linear') to calculate the unit CH4 spectrum
-                            Default: 'lognormal'
+                            Default: 'poly'
             mode (str): the mode ("column" or "scene") to apply matched filter.
-                        Default: 'column'.
+                        Default: 'column'. Be careful of noise if you apply the matched filter for the whole scene.
         """
         # set the wavelength range for matched filter
         self.wvl_min = wvl_intervals[0]
@@ -132,22 +132,31 @@ class MatchedFilter():
 
                 # calculate the background stats if there're many valid values
                 if mask.sum() > 1:
-                    background = algo.calc_stats(radiance, mask=mask, index=None, allow_nan=True)
+                    if self.fit_unit == 'lognormal':
+                        # calculate lognormal rads
+                        lograds = np.log(radiance, out=np.zeros_like(radiance), where=radiance > 0)
+                        background = algo.calc_stats(lograds, mask=mask, index=None, allow_nan=True)
 
-                    # get mean value
-                    mu = background.mean
+                        # apply the matched filter
+                        a = matched_filter(lograds, K, background)
+                    else:
+                        background = algo.calc_stats(radiance, mask=mask, index=None, allow_nan=True)
 
-                    # calculate the target spectrum
-                    target = K * mu
+                        # get mean value
+                        mu = background.mean
 
-                    # apply the matched filter
-                    a = matched_filter(radiance, target, background)
+                        # calculate the target spectrum
+                        target = K * mu
+
+                        # apply the matched filter
+                        a = matched_filter(radiance, target, background)
 
                     # concat data
                     alpha[:, 0][mask] = a[:, 0][mask]
 
         elif self.mode == 'scene':
             background = self.background
+
             # get mean value
             mu = background.mean
 
