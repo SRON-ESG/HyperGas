@@ -269,7 +269,7 @@ class Hyper():
         self._rgb_composite()
 
     def retrieve(self, wvl_intervals=None, species='ch4',
-                 algo='smf', fit_unit='lognormal',
+                 algo='smf', fit_unit='poly',
                  mode='column', land_mask=True):
         """Retrieve methane enhancements
 
@@ -284,7 +284,7 @@ class Hyper():
                         This algorithm clusters similar pixels to improve the mean and cov calculation.
                 Default: 'smf'
             fit_unit (str): The fitting method ('lognormal', 'poly', or 'linear') to calculate the unit CH4 spectrum
-                            Default: 'lognormal'
+                            Default: 'poly'
             mode (str): the mode ("column" or "scene") to apply matched filter.
                         Default: 'column'.
         """
