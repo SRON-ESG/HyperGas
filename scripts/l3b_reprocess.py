@@ -218,7 +218,8 @@ def reprocess_data(filename, reprocess_nc):
         ds_merge = xr.merge([ch4_mask, u10, v10, sp])
 
         # add crs info
-        ds_merge.rio.write_crs(ds_l2b.rio.crs, inplace=True)
+        if ds_l2b.rio.crs:
+            ds_merge.rio.write_crs(ds_l2b.rio.crs, inplace=True)
 
         # clear attrs
         ds_merge.attrs = ''
