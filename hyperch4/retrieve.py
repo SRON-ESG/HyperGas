@@ -20,7 +20,7 @@ from .unit_spectrum import Unit_spec
 
 # the scaling factor for alpha
 #   this should be set as same as that in `unit_spectrum.py`
-SCALING = 1e5
+SCALING = 100.
 
 
 class MatchedFilter():

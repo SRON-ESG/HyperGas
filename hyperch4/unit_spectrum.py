@@ -71,9 +71,9 @@ class Unit_spec():
         #   you can modify it, but please keep the first one as zero
         self.species = species.upper()
         if self.species == 'CH4':
-            self.conc = np.array([0, 100, 200, 400, 800, 1600, 3200, 6400])  # ppb
+            self.conc = np.array([0, 0.1, 0.2, 0.4, 0.8, 1.6, 3.2, 6.4])  # ppm
         elif self.species == 'CO2':
-            self.conc = np.array([0, 2500, 5000, 10000, 20000, 40000, 80000, 160000])  # ppb
+            self.conc = np.array([0, 2.5, 5.0, 10.0, 20.0, 40.0, 80.0, 160.0])  # ppm
         else:
             raise ValueError(f"Please input a correct species name (ch4 or co2). {species} is not supported.")
 
@@ -296,7 +296,7 @@ class Unit_spec():
         # set the enhancement of multiple gases
         #   xch4 is converted from ppb to mol/m2 by divideing by 2900
         delta_omega = {'H2O': 0, 'CO2': 0, 'N2O': 0, 'CO': 0, 'CH4': 0}
-        delta_omega.update({self.species: self.conc/2900})
+        delta_omega.update({self.species: self.conc*1000/2900})
 
         # calculate the transmission or sensor-reaching radiance with these gases
         # reference
@@ -369,11 +369,11 @@ class Unit_spec():
         delta_mr = self.conc
 
         for i in range(rads.shape[1]):
-            # Function that relates L1/L0 and Delta_XCH4: Second order Polynomial
+            # Function that relates L1/L0 and Delta_XCH4 (ppm): Second order Polynomial
             jac_gas[:, i] = np.polyfit(delta_mr, delta_rad[:, i], n_pol_jac)
 
         # get the derivate with 1 ppm for the unit spectrum
-        unit_conc = 1000  # ppb
+        unit_conc = 1 # ppm
         K = 2 * jac_gas[0, :] * unit_conc + jac_gas[1, :]  # Derivative of the Second order Poynomial
 
         return K
@@ -402,11 +402,11 @@ class Unit_spec():
                 raise ValueError(f'Polyfit only supports 2D rads (conc, bands). Your input is {rads.shape}')
 
         elif self.fit_unit == 'linear':
-            unit_conc = 1000  # ppb
+            unit_conc = 1  # ppm
             # first-order Taylor expansion: xm = xr(1-kΔc)
             K = (self.rad_unit-rads[0, :]) / unit_conc / (rads[0, :] + 1e-12)
 
         # ensuring numerical stability
-        SCALING = 1e5
+        SCALING = 100.
 
         return K * SCALING
