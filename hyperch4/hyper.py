@@ -291,12 +291,12 @@ class Hyper():
         # set default wvl_interval and units
         if species == 'ch4':
             units = 'ppb'
-            unit_scale = 1
+            unit_scale = 1000 # output unit is ppm, scale it to ppb
             if wvl_intervals is None:
                 wvl_intervals = [2110, 2450]
         elif species == 'co2':
             units = 'ppm'
-            unit_scale = 1e-3  # output unit is ppb, scale it to ppm
+            unit_scale = 1
             if wvl_intervals is None:
                 wvl_intervals = [1930, 2200]
         else:
