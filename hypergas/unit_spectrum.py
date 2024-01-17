@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Copyright (c) 2023 HyperCH4 developers
+# Copyright (c) 2023-2024 HyperGas developers
 #
-# This file is part of hyperch4.
+# This file is part of hypergas.
 #
-# hyperch4 is a library to retrieve methane from hyperspectral satellite data
+# hypergas is a library to retrieve trace gases from hyperspectral satellite data
 """Calculate unit spectrum for matched filter."""
 
 import logging
@@ -26,7 +26,7 @@ class Unit_spec():
     """Calculate the unit spectrum."""
 
     def __init__(self, radiance, wvl_sensor, wvl_min, wvl_max,
-                 species='ch4', fit_unit='lognormal'):
+                 species='ch4', fit_unit='poly'):
         """Initialize unit_spec class.
 
         Args:
@@ -40,8 +40,8 @@ class Unit_spec():
             species (str): The species to be retrieved
                 'ch4' or 'co2'
                 Default: 'ch4'
-            fit_unit (str): the method ('lognormal', 'poly', or 'linear') of fitting the relationship between rads and conc
-                Default: 'lognormal'
+            fit_unit (str): the method ('poly', 'lognormal', or 'linear') of fitting the relationship between rads and conc
+                Default: 'poly'
         """
         # load settings
         _dirname = os.path.dirname(__file__)
@@ -51,7 +51,7 @@ class Unit_spec():
         self.absorption_dir = os.path.join(_dirname, settings['absorption_dir'])
         self.irradiance_dir = os.path.join(_dirname, settings['irradiance_dir'])
 
-        # load variables from "radiance" DataArray
+        # load variables from the "radiance" DataArray
         self.radiance = radiance
         self.wvl_sensor = wvl_sensor
         self.fwhm_sensor = radiance['fwhm']
@@ -79,12 +79,13 @@ class Unit_spec():
 
     def _model(self):
         """ Determine atmospheric model
-        0 - Tropical
-        1 - Mid-Latitude Summer
-        2 - Mid-Latitude Winter
-        3 - Sub-Arctic Summer
-        4 - Sub-Arctic Winter
-        5 - US Standard Atmosphere
+
+            0 - Tropical
+            1 - Mid-Latitude Summer
+            2 - Mid-Latitude Winter
+            3 - Sub-Arctic Summer
+            4 - Sub-Arctic Winter
+            5 - US Standard Atmosphere
         """
         # Determine season
         if self.doy < 121 or self.doy > 274:
@@ -97,6 +98,7 @@ class Unit_spec():
                 summer = False
             else:
                 summer = True
+
         # Determine model
         if abs(self.lat) <= 15:
             model = 0
@@ -117,6 +119,7 @@ class Unit_spec():
         '''Read the absorption file'''
         abs_filename = f'absorption_cs_{species}_ALL_{MODE[self.model]}.csv'
         LOG.debug(f'Reading the absorption file: {abs_filename}')
+
         return np.genfromtxt(os.path.join(self.absorption_dir,
                                           abs_filename),
                              delimiter=',')
@@ -155,11 +158,11 @@ class Unit_spec():
 
     def _radianceCalc(self, del_omega, albedo=0.15, return_type='transmission'):
         """Function to calculate spectral radiance over selected band range
-        based on methane del_omega (mol/m2) added to the first layer of atmosphere
+        based on trace gas del_omega (mol/m2) added to the first layer of atmosphere
 
         Args:
             del_omega (float):
-                Methane column enhancement [mol/m2]
+                Trace gas column enhancement [mol/m2]
             albedo (float):
                 albedo. This is cancelled out in the matched filter.
             return_type (str):
@@ -373,13 +376,17 @@ class Unit_spec():
             jac_gas[:, i] = np.polyfit(delta_mr, delta_rad[:, i], n_pol_jac)
 
         # get the derivate with 1 ppm for the unit spectrum
-        unit_conc = 1 # ppm
+        unit_conc = 1  # ppm
         K = 2 * jac_gas[0, :] * unit_conc + jac_gas[1, :]  # Derivative of the Second order Poynomial
 
         return K
 
-    def fit_slope(self):
-        """Fit the slope for conc and rads"""
+    def fit_slope(self, scaling=100.):
+        """Fit the slope for conc and rads
+
+        Args:
+            scaling: the scaling factor to ensure numerical stability
+        """
         # calculate rads based on conc
         LOG.info('Convolving rads ...')
         rads = self.convolve_rads()
@@ -406,7 +413,4 @@ class Unit_spec():
             # first-order Taylor expansion: xm = xr(1-kΔc)
             K = (self.rad_unit-rads[0, :]) / unit_conc / (rads[0, :] + 1e-12)
 
-        # ensuring numerical stability
-        SCALING = 100.
-
-        return K * SCALING
+        return K * scaling

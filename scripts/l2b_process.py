@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Copyright (c) 2023 HyperCH4 developers
+# Copyright (c) 2023-2024 HyperGas developers
 #
-# This file is part of hyperch4.
+# This file is part of hypergas.
 #
-# hyperch4 is a library to retrieve methane from hyperspectral satellite data
+# hypergas is a library to retrieve trace gases from hyperspectral satellite data
 """Process L1 data into orthorectified CH4 L2B NetCDF file."""
 
 import logging
@@ -13,8 +13,7 @@ import warnings
 from glob import glob
 from itertools import chain
 from pathlib import Path
-
-from hyperch4 import Hyper
+from hypergas import Hyper
 
 warnings.filterwarnings("ignore")
 

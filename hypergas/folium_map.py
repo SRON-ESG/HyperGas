@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Copyright (c) 2023 HyperCH4 developers
+# Copyright (c) 2023-2024 HyperGas developers
 #
-# This file is part of hyperch4.
+# This file is part of hypergas.
 #
-# hyperch4 is a library to retrieve methane from hyperspectral satellite data
+# hypergas is a library to retrieve trace gases from hyperspectral satellite data
 """Plot orthorectified data and overlay images on folium maps"""
 
 import base64
@@ -198,14 +198,22 @@ class Map():
         """Plot data, export to png files, plot folium map, and export to html files
 
         Args:
-            out_epsg (int): EPSG code of the output projection (3857 is the proj of folium Map)
-            vmax (float): the cmap vmax for plotting species (ppb)
-            show_layers (boolean list): Whether the layers will be shown on opening (the length should be as same as varnames)
-            opacities (float list): the opacities of layer (the length should be as same as varnames)
-            marker (list): the coords ([lat, lon], deg) for a yellow circle marker
-            df_marker (DataFrame): the DataFrame (columns: latitude, longitude) for adding blue circle markers
-            export_dir (str): the directory to save plotted images (Default: the same path as filename attrs)
-            draw_polygon (boolean): whether plot the scene boundary polygon (Default: True)
+            out_epsg (int):
+                EPSG code of the output projection (3857 is the proj of folium Map)
+            vmax (float):
+                The cmap vmax for plotting species (ppb)
+            show_layers (boolean list):
+                Whether the layers will be shown on opening (the length should be as same as varnames)
+            opacities (float list):
+                The opacities of layer (the length should be as same as varnames)
+            marker (list):
+                The coords ([lat, lon], deg) for a yellow circle marker
+            df_marker (DataFrame):
+                The DataFrame (columns: latitude, longitude) for adding blue circle markers
+            export_dir (str):
+                The directory to save plotted images (Default: the same path as filename attrs)
+            draw_polygon (boolean):
+                Whether plot the scene boundary polygon (Default: True)
         """
         # check the length of self.
         if show_layers is None:

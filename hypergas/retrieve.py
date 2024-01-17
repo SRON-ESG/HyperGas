@@ -1,16 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Copyright (c) 2023 HyperCH4 developers
+# Copyright (c) 2023-2024 HyperGas developers
 #
-# This file is part of hyperch4.
+# This file is part of hypergas.
 #
-# hyperch4 is a library to retrieve methane from hyperspectral satellite data
-"""Retrieve methane enhancements using hyperspectral satellite data."""
-
-import sys
+# hypergas is a library to retrieve trace gases from hyperspectral satellite data
+"""Retrieve trace gas enhancements using hyperspectral satellite data."""
 
 import numpy as np
-import pandas as pd
 import spectral.algorithms as algo
 import xarray as xr
 from roaring_landmask import RoaringLandmask
@@ -18,21 +15,14 @@ from spectral.algorithms.detectors import matched_filter
 
 from .unit_spectrum import Unit_spec
 
-# the scaling factor for alpha
-#   this should be set as same as that in `unit_spectrum.py`
-SCALING = 100.
-
 
 class MatchedFilter():
     """The MatchedFilter Class."""
 
     def __init__(self, scn, wvl_intervals, species='ch4',
-                 fit_unit='poly', mode='column', land_mask=True):
+                 fit_unit='poly', mode='column', land_mask=True,
+                 scaling=100.):
         """Initialize MatchedFilter.
-
-        To apply matched filter, `radiance` must be specified::
-
-            alpha = MatchedFilter(radiance=<DataArray>)
 
         Args:
             scn (Satpy Scene):
@@ -44,14 +34,16 @@ class MatchedFilter():
                         coordinates: at least 1) "wavelength" (nm) and 2) "fwhm" (nm).
             wvl_intervals (list): The wavelength range [nm] used in matched filter. It can be one list or nested list.
                 e.g. [2110, 2450] or [[1600, 1750], [2110, 2450]]
-                Deafult: [2110, 2450].
             species (str): The species to be retrieved
                 'ch4' or 'co2'
                 Default: 'ch4'
             fit_unit (str): The fitting method ('lognormal', 'poly', or 'linear') to calculate the unit CH4 spectrum
-                            Default: 'poly'
+                Default: 'poly'
             mode (str): the mode ("column" or "scene") to apply matched filter.
-                        Default: 'column'. Be careful of noise if you apply the matched filter for the whole scene.
+                Default: 'column'. Be careful of noise if you apply the matched filter for the whole scene.
+            land_mask (boolean): Whether apply the matched filter to continental and oceanic pixels seperately.
+                Default: True
+            scaling (float): The scaling factor for alpha to ensure numerical stability.
         """
         # set the wavelength range for matched filter
         self.wvl_min = wvl_intervals[0]
@@ -62,25 +54,26 @@ class MatchedFilter():
         wvl_mask = (radiance['bands'] >= self.wvl_min) & (radiance['bands'] <= self.wvl_max)
         radiance = radiance.where(wvl_mask, drop=True)
 
+        # add to the class
         self.radiance = radiance
         self.mode = mode
-
-        # calculate unit spectrum
         self.species = species
         self.fit_unit = fit_unit
+        self.scaling = scaling
 
+        # calculate unit spectrum
         loaded_names = [x['name'] for x in scn.keys()]
         if 'central_wavelengths' in loaded_names:
             # calculate K by column because we have central wavelength per column
             central_wavelengths = scn['central_wavelengths'].where(wvl_mask, drop=True)
             K = Unit_spec(self.radiance, central_wavelengths,
-                          self.wvl_min, self.wvl_max, self.species, self.fit_unit).fit_slope()
+                          self.wvl_min, self.wvl_max, self.species, self.fit_unit).fit_slope(scaling=scaling)
             self.K = xr.DataArray(K, dims=['bands', 'x'],
                                   coords={'bands': self.radiance.coords['bands']})
         else:
             # calculate K using the default dim named 'bands'
             K = Unit_spec(self.radiance, self.radiance.coords['bands'],
-                          self.wvl_min, self.wvl_max, self.species, self.fit_unit).fit_slope()
+                          self.wvl_min, self.wvl_max, self.species, self.fit_unit).fit_slope(scaling=scaling)
             self.K = xr.DataArray(K, dims='bands', coords={'bands': self.radiance.coords['bands']})
 
         # calculate the land/ocean segmentation
@@ -94,17 +87,18 @@ class MatchedFilter():
                                                       self.radiance.sizes['x'])),
                                              dims=['y', 'x'])
 
-    def _printt(self, outm):
-        """Refreshing print."""
-        sys.stdout.write("\r" + outm)
-        sys.stdout.flush()
-
     def land_segmentation(self):
         """Create the segmentation for land and ocean types"""
         # 0: ocean, 1: land
         roaring = RoaringLandmask.new()
+
+        # get lon and lat from area attrs
         lons, lats = self.radiance.attrs['area'].get_lonlats()
-        landmask = roaring.contains_many(lons.ravel().astype('float64'), lats.ravel().astype('float64')).reshape(lons.shape)
+
+        # create the mask
+        landmask = roaring.contains_many(lons.ravel().astype(
+            'float64'), lats.ravel().astype('float64')).reshape(lons.shape)
+
         # save to DataArray
         self.segmentation = xr.DataArray(landmask, dims=['y', 'x'])
 
@@ -115,7 +109,6 @@ class MatchedFilter():
     #         scaler = MinMaxScaler()
     #         scaler.fit(self.radiance)
     #     return scaler.transform(data)
-
 
     def col_matched_filter(self, radiance, segmentation, K):
         """Calculate stats of data."""
@@ -177,7 +170,7 @@ class MatchedFilter():
             Compute mean and covariance of set of each column and then run standard matched filter
 
         Returns:
-            Methane enhancements (ppb)
+            Trace gas enhancements (ppb)
         """
         if self.mode == 'scene':
             # calculate the background of whole scene
@@ -213,7 +206,7 @@ class MatchedFilter():
         #   if data is not available for the whole row, then the row values should still be nan.
         alpha = alpha.interpolate_na(dim='y', method='linear')
 
-        return alpha*SCALING
+        return alpha*self.scaling
 
     # def ctmf(self, segmentation=None):
     #     """Cluster-tuned matched filter
@@ -226,6 +219,4 @@ class MatchedFilter():
     #         bkg_extent (str): The extent for calculating background.
     #                           Note this only works with the `CTMF` method.
     #                           Default: 'column'
-    #         A (float): Albedo (optional) which will be cancelled out.
-    #                    Default: 1
     #     """

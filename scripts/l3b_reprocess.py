@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Copyright (c) 2023 HyperCH4 developers
+# Copyright (c) 2023-2024 HyperGas developers
 #
-# This file is part of hyperch4.
+# This file is part of hypergas.
 #
-# hyperch4 is a library to retrieve methane from hyperspectral satellite data
-"""Recalculate emission rates using CH4 L3B NetCDF files."""
+# hypergas is a library to retrieve trace gases from hyperspectral satellite data
+"""Recalculate emission rates using L3B NetCDF files."""
 
 import logging
 import os

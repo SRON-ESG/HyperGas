@@ -1,22 +1,22 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Copyright (c) 2023 HyperCH4 developers
+# Copyright (c) 2023-2024 HyperGas developers
 #
-# This file is part of hyperch4.
+# This file is part of hypergas.
 #
-# hyperch4 is a library to retrieve methane from hyperspectral satellite data
+# hypergas is a library to retrieve trace gases from hyperspectral satellite data
 """Calculate u10 and v10 for the scene."""
 
+import logging
 import os
 
-import numpy as np
-import xarray as xr
 import pandas as pd
-from xarray import DataArray
+import xarray as xr
 import yaml
-import logging
+from xarray import DataArray
 
 LOG = logging.getLogger(__name__)
+
 
 class Wind():
     """Calculate u10 and v10 from reanalysis wind data."""
@@ -44,7 +44,6 @@ class Wind():
         # calculate the wind
         self.load_data()
 
-
     def load_data(self):
         """Load wind data."""
         # get the wind data
@@ -59,7 +58,7 @@ class Wind():
 
         # copy shared attrs
         all_attrs = self.scene['radiance'].attrs
-        attrs_share = {key:all_attrs[key] for key in ['area', 'sensor', 'geotransform', 'spatial_ref', 'filename']
+        attrs_share = {key: all_attrs[key] for key in ['area', 'sensor', 'geotransform', 'spatial_ref', 'filename']
                        if key in all_attrs}
         u10.attrs = attrs_share
         v10.attrs = attrs_share

@@ -21,7 +21,7 @@ import pandas as pd
 import xarray as xr
 import yaml
 
-from hyperch4.folium_map import Map
+from hypergas.folium_map import Map
 
 warnings.filterwarnings('ignore')
 
@@ -64,7 +64,10 @@ class L2B_plot():
         LOG.debug('Plot the data on map')
         # the length of `show_layers` and `opacities` should be as same as VARNAMES
         self.m.plot(show_layers=[False]*(len(VARNAMES)-1)+[True],
-                    opacities=[0.9]+[0.7]*(len(VARNAMES)-1), df_marker=self.df_marker)
+                    opacities=[0.9]+[0.7]*(len(VARNAMES)-1),
+                    df_marker=self.df_marker,
+                    vmax=300
+                    )
 
 
 def read_markers():
@@ -207,7 +210,7 @@ if __name__ == '__main__':
 
     # the chunk of files for each html file
     #   don't set it too high if you meet RAM error
-    chunk = 5
+    chunk = 4
 
     for data_dir in lowest_dirs:
         LOG.info(f'Plotting data under {data_dir}')

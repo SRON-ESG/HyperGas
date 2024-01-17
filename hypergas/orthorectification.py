@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Copyright (c) 2023 HyperCH4 developers
+# Copyright (c) 2023-2024 HyperGas developers
 #
-# This file is part of hyperch4.
+# This file is part of hypergas.
 #
-# hyperch4 is a library to retrieve methane from hyperspectral satellite data
+# hypergas is a library to retrieve trace gases from hyperspectral satellite data
 """Apply orthorectification to data."""
 
 import logging
@@ -36,7 +36,7 @@ class Ortho():
         """Initialize ortho class.
 
         Args:
-            scene (object): the scene defined by hyperch4
+            scene (object): the scene defined by hypergas
             varname (str): the loaded var to be orthorectified
         """
         self.scene = scene
@@ -60,7 +60,7 @@ class Ortho():
             self._download_dem()
 
     def _check_vars(self):
-        """Check necessary for ortho."""
+        """Check necessary variables for ortho."""
         # hardcode the ortho res
         #   it is better to set it as same as the input data
         reader = list(self.scene._readers.keys())[0]
@@ -138,7 +138,7 @@ class Ortho():
         """Calculate and assign the UTM coords
 
         Args:
-            data (DataArray): it should has been written the transform.
+            data (DataArray): it should has the transform info.
         """
         # assign coords from AreaDefinition
         data.coords['y'] = data.attrs['area'].projection_y_coords
@@ -153,7 +153,7 @@ class Ortho():
         data.coords['x'].attrs['long_name'] = 'x coordinate of projection'
 
     def _assign_area(self, da_ortho, dst_transform):
-        """Assign the Area attrs
+        """Assign the area attrs
 
         Args:
             da_ortho (DataArray): the orthorectified data
@@ -190,7 +190,6 @@ class Ortho():
                                                       resampling=Resampling.nearest,
                                                       RPC_DEM=self.file_dem,
                                                       )
-
 
         elif self.ortho_source == 'glt':
             LOG.debug('Orthorectify data using glt')

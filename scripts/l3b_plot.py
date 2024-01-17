@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Copyright (c) 2023 HyperCH4 developers
+# Copyright (c) 2023-2024 HyperGas developers
 #
-# This file is part of hyperch4.
+# This file is part of hypergas.
 #
-# hyperch4 is a library to retrieve methane from hyperspectral satellite data
+# hypergas is a library to retrieve trace gases from hyperspectral satellite data
 """Plot CH4 L3B plume NetCDF products and save them as png files."""
 
 from matplotlib import rcParams
@@ -155,6 +155,7 @@ def plot_data(filename, savename):
             + str(round(df['emission'].item()/1e3, 2)) + ' t/h $\pm$ ' \
             + str(round(df['emission_uncertainty']/df['emission']*100, 2).item()) + '%'
 
+    ax.set_title('')
     plt.suptitle(title)
 
     LOG.info(f'Exported to {savename}')

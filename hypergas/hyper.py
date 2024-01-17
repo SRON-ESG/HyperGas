@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Copyright (c) 2023 HyperCH4 developers
+# Copyright (c) 2023-2024 HyperGas developers
 #
-# This file is part of hyperch4.
+# This file is part of hypergas.
 #
-# hyperch4 is a library to retrieve methane from hyperspectral satellite data
+# hypergas is a library to retrieve trace gases from hyperspectral satellite data
 """Hyper object to hold hyperspectral satellite data."""
 import logging
 from datetime import timedelta
@@ -14,8 +14,8 @@ import xarray as xr
 from pyorbital import orbital
 from satpy import DataQuery, Scene
 
-from .hsi2rgb import Hsi2rgb
 from .denoise import Denoise
+from .hsi2rgb import Hsi2rgb
 from .orthorectification import Ortho
 from .retrieve import MatchedFilter
 from .tle import TLE
@@ -29,7 +29,7 @@ LOG = logging.getLogger(__name__)
 class Hyper():
     """The Hyper Class.
     Example usage::
-        from hyperch4 import Hyper
+        from hypergas import Hyper
 
         # create Hyper and open files
         hyp = Hyper(filenames='/path/to/file/*')
@@ -38,7 +38,7 @@ class Hyper():
         hyp.load()
 
         # retrieve ch4
-        hyp.retrieve(self, wvl_intervals=[2110, 2450])
+        hyp.retrieve(self, wvl_intervals=[2110, 2450], species='ch4')
 
         # orthorectification (EnMAP and EMIT)
         hyp.terrain_corr(varname='rgb')
@@ -47,7 +47,7 @@ class Hyper():
         hyp.scene.save_datasets(datasets=['u10', 'v10', 'rgb', 'ch4'], filename='output.nc', writer='cf')
     """
 
-    def __init__(self, filename=None, reader=None, reader_kwargs=None,
+    def __init__(self, filename=None, reader=None,
                  destrip=True):
         """Initialize Hyper.
 
@@ -58,7 +58,6 @@ class Hyper():
         Args:
             filename (list): The files to be loaded.
             reader (str): The name of the reader to use for loading the data.
-            reader_kwargs (dict): Keyword arguments to pass to specific reader instances.
         """
         self.filename = filename
         self.reader = reader
@@ -94,9 +93,11 @@ class Hyper():
         try:
             # --- HSI2RGB method ---
             LOG.debug('Use HSI2RGB method for RGB image')
+
             # slice data to VIS range
             da_vis = self.scene['radiance'].sel(bands=slice(380, 750))
             data = da_vis.stack(z=['y', 'x']).transpose(..., 'bands')
+
             # generate RGB img
             rgb = Hsi2rgb(data.coords['bands'], data.data,
                           da_vis.sizes['y'], da_vis.sizes['x'],
@@ -117,6 +118,7 @@ class Hyper():
         except:
             # --- nearest method ---
             LOG.debug('Use Nearest method for RGB image')
+
             def gamma_norm(band):
                 """Apply gamma_norm to create RGB composite"""
                 gamma = 50
@@ -135,7 +137,8 @@ class Hyper():
                                  exclude_dims=set(('y', 'x')),
                                  input_core_dims=[['y', 'x']],
                                  output_core_dims=[['y', 'x']],
-                                 vectorize=True)
+                                 vectorize=True,
+                                 )
 
             # copy attrs
             rgb.attrs = self.scene['radiance'].attrs
@@ -151,10 +154,10 @@ class Hyper():
 
     def _calc_sensor_angle(self):
         """Calculate the VAA and VZA from TLE file"""
-        delta_day = timedelta(days=1)
-
         # get the TLE info
+        delta_day = timedelta(days=1)
         tles = TLE(self.platform_name).get_tle(self.start_time-delta_day, self.start_time+delta_day)
+
         while len(tles) == 0:
             # in case tle file is not available for three days
             delta_day += timedelta(days=1)
@@ -185,6 +188,7 @@ class Hyper():
         Args:
             drop_waterbands (boolean): whether to drop bands affected by water. Default: True.
         """
+        # load available datasets
         scn = Scene(self.filename, reader=self.reader)
         scn.load(self.available_dataset_names)
 
@@ -204,7 +208,7 @@ class Hyper():
         if all(x in self.available_dataset_names for x in ['cw_vnir', 'cw_swir']):
             scn['central_wavelengths'] = xr.concat([scn['cw_vnir'].rename({'bands_vnir': 'bands', 'fwhm_vnir': 'fwhm'}),
                                                     scn['cw_swir'].rename({'bands_swir': 'bands', 'fwhm_swir': 'fwhm'})
-                                                   ],
+                                                    ],
                                                    'bands')
             scn['central_wavelengths'] = scn['central_wavelengths'].drop_duplicates(dim='bands')
             # sort bands and remove zero values
@@ -242,7 +246,7 @@ class Hyper():
             if 'central_wavelengths' in loaded_names:
                 scn['central_wavelengths'] = scn['central_wavelengths'].where(~water_mask, drop=True)
 
-        # load wind data
+        # load wind data and set flag for determining whether it is loaded successfully
         try:
             wind = Wind(scn)
             scn['u10'] = wind.u10
@@ -254,8 +258,9 @@ class Hyper():
             LOG.warning("It seems we can't find any wind data for the date. Please check.")
             self.wind = False
 
-        # get the radiance at 2100 nm
-        scn['radiance_2100'] = scn['radiance'].sel(bands=2100, method='nearest').rename('radiance_2100').expand_dims('bands')
+        # get the radiance at 2100 nm which is useful to check albedo effects
+        scn['radiance_2100'] = scn['radiance'].sel(
+            bands=2100, method='nearest').rename('radiance_2100').expand_dims('bands')
         scn['radiance_2100'].attrs['long_name'] = 'TOA radiance at 2100 nm'
         scn['radiance_2100'].attrs['description'] = 'TOA radiance at 2100 nm'
 
@@ -271,27 +276,31 @@ class Hyper():
     def retrieve(self, wvl_intervals=None, species='ch4',
                  algo='smf', fit_unit='poly',
                  mode='column', land_mask=True):
-        """Retrieve methane enhancements
+        """Retrieve trace gas enhancements
 
         Args:
             wvl_intervals (list): The wavelength range [nm] used in matched filter. It can be one list or nested list.
                 e.g. [2110, 2450] or [[1600, 1750], [2110, 2450]]
-                Deafult: [2110, 2450].
+                Deafult: [2110, 2450] for ch4 and [1930, 2200] for co2.
+            species (str): The species ('ch4', 'co2') to be retrieved.
+                Default: 'ch4'
             algo (str): The matched filter algorithm, currently supporting these algorithms below:
                 1. smf: simple matched filter
                         This is the original matched filter algorithm.
-                2. ctmf: cluster-tuned matched filter
+                2. ctmf: cluster-tuned matched filter (not added yet)
                         This algorithm clusters similar pixels to improve the mean and cov calculation.
                 Default: 'smf'
             fit_unit (str): The fitting method ('lognormal', 'poly', or 'linear') to calculate the unit CH4 spectrum
-                            Default: 'poly'
-            mode (str): the mode ("column" or "scene") to apply matched filter.
-                        Default: 'column'.
+                Default: 'poly'
+            mode (str): The mode ("column" or "scene") to apply matched filter.
+                Default: 'column'. Be careful of noise if you apply the matched filter for the whole scene.
+            land_mask (boolean): Whether apply the matched filter to continental and oceanic pixels seperately.
+                Default: True
         """
-        # set default wvl_interval and units
+        # set default wvl_interval and convert units (ppm) to a suitable one
         if species == 'ch4':
             units = 'ppb'
-            unit_scale = 1000 # output unit is ppm, scale it to ppb
+            unit_scale = 1000  # output unit is ppm, scale it to ppb
             if wvl_intervals is None:
                 wvl_intervals = [2110, 2450]
         elif species == 'co2':
@@ -302,10 +311,12 @@ class Hyper():
         else:
             raise ValueError(f"Please input a correct species name (ch4 or co2). {species} is not supported.")
 
+        # run the retrieval
         enhancement = getattr(MatchedFilter(self.scene,
                               wvl_intervals, species, fit_unit, mode, land_mask), algo)()
+
+        # load the retrieval results
         if enhancement.chunks is not None:
-            # load the data
             enhancement.load()
 
         # copy attrs and add units
@@ -329,8 +340,8 @@ class Hyper():
         """Apply orthorectification
 
         Args:
-            varname (str): the variable to be orthorectified
-            rpcs: the Ground Control Points (gcps) or Rational Polynomial Coefficients (rpcs)
+            varname (str): The variable to be orthorectified
+            rpcs: The Ground Control Points (gcps) or Rational Polynomial Coefficients (rpcs)
                 If `rpcs` is None, we look for glt_x/glt_y data automatically.
         """
 
@@ -339,7 +350,15 @@ class Hyper():
         return da_ortho
 
     def denoise(self, varname='ch4', method='tv_filter', weight=50):
-        """Denoise the random noise"""
+        """Denoise the random noise
+
+        Args:
+            varname (str): The variable to be denoised
+            method (str): The filter to denoise data
+                Default: 'tv_filter'
+            weight (int): The denoising weights for filter
+                Default: 50
+        """
         da_denoise = Denoise(self.scene, varname, method=method, weight=weight).smooth()
 
         return da_denoise

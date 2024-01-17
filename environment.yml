@@ -1,10 +1,9 @@
-name: hyperch4
+name: hypergas
 channels:
   - conda-forge
 dependencies:
   - python>=3.10
   - matplotlib>=3.8.0
-  # - proplot, # pip install git+https://github.com/cvanelteren/proplot.git@mpl3.8 --user
   - numpy
   - pandas
   - scikit-learn

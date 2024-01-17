@@ -7,11 +7,11 @@ rgb_dir:
   resources/rgb
 era5_dir:
   # data structure should be: yyyy/sl*grib
-  # if you leave this empty, the package will try to load cloud data
+  # if you leave this empty, the package will try to load cloud data (not supported yet)
   resources/ERA5
 geosfp_dir:
   # data structure should be: yyyy/mm/dd/GEOS.fp.asm.tavg1_2d_slv_Nx.*.V01.nc4
-  # if you leave this empty, the package will try to load cloud data
+  # if you leave this empty, the package will try to load cloud data (not supported yet)
   resources/GEOS-FP
 markers_filename:
   # the csv file which saves pre-defined markers
