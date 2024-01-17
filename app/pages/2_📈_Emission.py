@@ -273,6 +273,11 @@ with col3:
                         v10 = ds['v10'].where(mask).mean(dim=['y', 'x'])
                         sp = ds['sp'].where(mask).mean(dim=['y', 'x'])
 
+                        # keep attrs
+                        u10.attrs = ds['u10'].attrs
+                        v10.attrs = ds['v10'].attrs
+                        sp.attrs = ds['sp'].attrs
+
                     # export masked data (plume)
                     if 'plume' in os.path.basename(filename):
                         if pick_plume_name == 'plume0':
