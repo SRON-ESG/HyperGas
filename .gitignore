@@ -1,0 +1,11 @@
+# Packages
+*.egg
+*.egg-info
+doc/build
+eggs
+*.eggs
+
+# Sphinx
+doc/source/_build/*
+
+
