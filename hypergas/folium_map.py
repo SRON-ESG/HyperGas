@@ -154,8 +154,12 @@ class Map():
                 cmap = 'viridis'
                 vmin = da_ortho.quantile(0.05)
                 cmap_vmax = da_ortho.quantile(0.95)
+            elif 'denoise' in varname:
+                cmap = 'plasma'
+                vmin = 0
+                cmap_vmax = da_ortho.max()
             else:
-                # it should be ch4 (ppb)
+                # it should be enhancement
                 cmap = 'plasma'
                 vmin = 0
                 cmap_vmax = vmax
