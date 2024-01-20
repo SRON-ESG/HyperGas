@@ -155,11 +155,22 @@ class Map():
                 vmin = da_ortho.quantile(0.05)
                 cmap_vmax = da_ortho.quantile(0.95)
             elif 'denoise' in varname:
+                # because denoised data is usually smaller than original values
+                #   we set the maximum value as vmax for checking plumes
                 cmap = 'plasma'
                 vmin = 0
-                cmap_vmax = da_ortho.max()
+                if 'segmentation' in self.ds.keys():
+                    # if the data is masked, we choose the data with label >=1
+                    #   which means "land" type or "not background" classification
+                    cmap_vmax = da_ortho.where(self.ds['segmentation']>=1).max()
+                else:
+                    cmap_vmax = da_ortho.max()
+                if vmax <= cmap_vmax:
+                    # set vmax as user defined value, if cmap_vmax is larger.
+                    cmap_vmax = vmax
             else:
-                # it should be enhancement
+                # set the vmax according to user's input
+                #   the variable should be trace gas enhancement
                 cmap = 'plasma'
                 vmin = 0
                 cmap_vmax = vmax
