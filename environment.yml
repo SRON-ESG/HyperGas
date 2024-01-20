@@ -21,5 +21,4 @@ dependencies:
   - algotom
   - dem_stitcher
   - aiohttp
-  - roaring-landmask
   # - spacetrack  # pip install spacetrack

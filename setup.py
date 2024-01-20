@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 requires = ['matplotlib >=3.8.0', 'numpy', 'pandas', 'scikit-learn', 'scikit-image', 'scipy',
             'xarray', 'cfgrib', 'h5netcdf', 'rioxarray', 'pyresample', 'folium', 'contextily',
-            'enpt', 'satpy', 'algotom', 'dem_stitcher', 'aiohttp', 'spacetrack', 'roaring-landmask'
+            'enpt', 'satpy', 'algotom', 'dem_stitcher', 'aiohttp', 'spacetrack',
             ]
 extras_require = {
     'doc': ['sphinx', 'sphinx_rtd_theme'],
