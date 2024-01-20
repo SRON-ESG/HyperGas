@@ -15,7 +15,8 @@ import numpy as np
 import pyresample
 import xarray as xr
 from branca.element import MacroElement
-from hyperch4.folium_map import Map
+from hypergas.folium_map import Map
+from hypergas.landmask import Land_mask
 from jinja2 import Template
 from pyresample.geometry import SwathDefinition
 from scipy import ndimage
@@ -140,7 +141,7 @@ def plume_mask(ds, lon_sample, lat_sample, plume_varname='ch4_comb_denoise',
         size_median (int): size for median filter
         sigma_guass (int): sigma for guassian filter
     """
-    # get the lon and lat
+    # get lon and lat
     lon = ds['longitude']
     lat = ds['latitude']
 
@@ -169,12 +170,7 @@ def plume_mask(ds, lon_sample, lat_sample, plume_varname='ch4_comb_denoise',
 
     # set oceanic pixel values to nan
     if land_only:
-        from roaring_landmask import RoaringLandmask
-        roaring = RoaringLandmask.new()
-        landmask = roaring.contains_many(lon.stack(z=['y', 'x']).astype('float64').values,
-                                         lat.stack(z=['y', 'x']).astype('float64').values).reshape(lon.shape)
-        # save to DataArray
-        segmentation = xr.DataArray(landmask, dims=['y', 'x'])
+        segmentation = Land_mask(lon.data, lat.data)
         ch4_weights = ch4_weights.where(segmentation)
 
     # set init mask by the quantile value
@@ -389,12 +385,10 @@ def calc_emiss(f_ch4_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.6
     # ---- uncertainty ----
     # 1. random
     if land_only:
-        from roaring_landmask import RoaringLandmask
-        roaring = RoaringLandmask.new()
-        landmask = roaring.contains_many(ds['longitude'].stack(z=['y', 'x']).astype('float64').values,
-                                         ds['latitude'].stack(z=['y', 'x']).astype('float64').values).reshape(ds['longitude'].shape)
-        # save to DataArray
-        segmentation = xr.DataArray(landmask, dims=['y', 'x'])
+        # get lon and lat
+        lon = ds_original['longitude']
+        lat = ds_original['latitude']
+        segmentation = Land_mask(lon.data, lat.data)
         ds_original['ch4'] = ds_original['ch4'].where(segmentation)
         ds['ch4'] = ds['ch4'].where(segmentation)
 

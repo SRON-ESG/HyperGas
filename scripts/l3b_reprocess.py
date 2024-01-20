@@ -18,6 +18,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+from hypergas.landmask import Land_mask
+
 sys.path.append('../app')
 from utils import mask_data
 
@@ -144,12 +146,7 @@ def calc_emiss(df, ds, ds_l2b, land_only=True):
     # ---- uncertainty ----
     # 1. random
     if land_only:
-        from roaring_landmask import RoaringLandmask
-        roaring = RoaringLandmask.new()
-        landmask = roaring.contains_many(ds['longitude'].stack(z=['y', 'x']).astype('float64').values,
-                                         ds['latitude'].stack(z=['y', 'x']).astype('float64').values).reshape(ds['longitude'].shape)
-        # save to DataArray
-        segmentation = xr.DataArray(landmask, dims=['y', 'x'])
+        segmentation = Land_mask(ds['longitude'].data, ds['latitude'].data)
         ds_l2b['ch4'] = ds_l2b['ch4'].where(segmentation)
         ds['ch4'] = ds['ch4'].where(segmentation)
 

@@ -10,9 +10,9 @@
 import numpy as np
 import spectral.algorithms as algo
 import xarray as xr
-from roaring_landmask import RoaringLandmask
 from spectral.algorithms.detectors import matched_filter
 
+from .landmask import Land_mask
 from .unit_spectrum import Unit_spec
 
 
@@ -80,27 +80,18 @@ class MatchedFilter():
         self.land_mask = land_mask
 
         if land_mask:
-            self.land_segmentation()
+            # get lon and lat from area attrs
+            lons, lats = self.radiance.attrs['area'].get_lonlats()
+            # create land mask from 10-m Natural Earth data
+            segmentation = Land_mask(lons, lats)
         else:
             # set all pixels as the same type
-            self.segmentation = xr.DataArray(np.zeros((self.radiance.sizes['y'],
-                                                      self.radiance.sizes['x'])),
-                                             dims=['y', 'x'])
+            segmentation = xr.DataArray(np.ones((self.radiance.sizes['y'],
+                                                 self.radiance.sizes['x'])),
+                                        dims=['y', 'x'])
 
-    def land_segmentation(self):
-        """Create the segmentation for land and ocean types"""
-        # 0: ocean, 1: land
-        roaring = RoaringLandmask.new()
-
-        # get lon and lat from area attrs
-        lons, lats = self.radiance.attrs['area'].get_lonlats()
-
-        # create the mask
-        landmask = roaring.contains_many(lons.ravel().astype(
-            'float64'), lats.ravel().astype('float64')).reshape(lons.shape)
-
-        # save to DataArray
-        self.segmentation = xr.DataArray(landmask, dims=['y', 'x'])
+        # save to class
+        self.segmentation = segmentation
 
     # def _norm(self):
     #         from sklearn.preprocessing import MinMaxScaler
@@ -146,6 +137,10 @@ class MatchedFilter():
 
                     # concat data
                     alpha[:, 0][mask] = a[:, 0][mask]
+                else:
+                    # assign 0 value if only one pixel is available
+                    #   because denoising data with one nan pixel will cause a large nan area
+                    alpha[:, 0][mask] = 0
 
         elif self.mode == 'scene':
             background = self.background

@@ -13,6 +13,7 @@ import warnings
 from glob import glob
 from itertools import chain
 from pathlib import Path
+
 from hypergas import Hyper
 
 warnings.filterwarnings("ignore")
@@ -97,6 +98,7 @@ class L2B():
     def _update_scene(self):
         # update Scene values
         self.hyp.scene['rgb'] = self.rgb_corr
+        self.hyp.scene['segmentation'] = self.segmentation_corr
         self.hyp.scene['radiance_2100'] = self.radiance_2100_corr
         self.hyp.scene['ch4'] = self.ch4_corr
         self.hyp.scene['ch4_comb'] = self.ch4_comb_corr
@@ -111,6 +113,8 @@ class L2B():
     def _ortho_enmap(self):
         self.rgb_corr = self.hyp.terrain_corr(varname='rgb', rpcs=self.hyp.scene['rpc_coef_vnir'].sel(
             bands_vnir=650, method='nearest').item())
+        self.segmentation_corr = self.hyp.terrain_corr(varname='segmentation', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
+            bands_swir=2300, method='nearest').item())
         self.radiance_2100_corr = self.hyp.terrain_corr(varname='radiance_2100', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
             bands_swir=2300, method='nearest').item())
         self.ch4_corr = self.hyp.terrain_corr(varname='ch4', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
@@ -138,6 +142,7 @@ class L2B():
     def _ortho_emit(self):
         # orthorectification
         self.rgb_corr = self.hyp.terrain_corr(varname='rgb')
+        self.segmentation_corr = self.hyp.terrain_corr(varname='segmentation')
 
         if self.hyp.wind:
             self.u10_corr = self.hyp.terrain_corr(varname='u10')
@@ -152,7 +157,6 @@ class L2B():
 
         self._update_scene()
 
-
     def ortho(self):
         """Apply orthorectification."""
         LOG.info('Applying orthorectification')
@@ -162,8 +166,6 @@ class L2B():
             self._ortho_emit()
         elif self.reader == 'hyc_l1':
             LOG.info('We do not support applying orthorectification to PRISMA L1 data yet.')
-
-
 
     def denoise(self):
         """Denoise random noise"""
@@ -190,7 +192,10 @@ class L2B():
                         }
 
         # set saved variables
-        vnames = ['u10', 'v10', 'sp', 'rgb', 'radiance_2100', 'ch4', 'ch4_comb', 'ch4_denoise', 'ch4_comb_denoise']
+        vnames = ['u10', 'v10', 'sp', 'rgb', 'segmentation',
+                  'radiance_2100',
+                  'ch4', 'ch4_comb', 'ch4_denoise', 'ch4_comb_denoise'
+                  ]
         loaded_names = [x['name'] for x in self.hyp.scene.keys()]
         # drop not loaded vnames
         vnames = [vname for vname in vnames if vname in loaded_names]

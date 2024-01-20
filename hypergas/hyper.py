@@ -182,6 +182,24 @@ class Hyper():
 
         return vaa, vza
 
+    def _copy_attrs(self, new_data, new_attrs_dict):
+        """Copy the radiance attrs to new DataArray
+
+        Args:
+            new_data (DataArray)
+            new_attrs_dict (dict): dict of new attributes
+                the dict should include these keys: 'long_name', 'description', 'units'
+        """
+        # copy attrs and add units
+        new_data.attrs = self.scene['radiance'].attrs
+        new_data = new_data.assign_attrs(new_attrs_dict)
+
+        # remove useless attrs
+        if 'calibration' in new_data.attrs:
+            del new_data.attrs['calibration']
+
+        return new_data
+
     def load(self, drop_waterbands=True):
         """Load data into xarray Dataset using satpy
 
@@ -312,28 +330,37 @@ class Hyper():
             raise ValueError(f"Please input a correct species name (ch4 or co2). {species} is not supported.")
 
         # run the retrieval
-        enhancement = getattr(MatchedFilter(self.scene,
-                              wvl_intervals, species, fit_unit, mode, land_mask), algo)()
+        mf = MatchedFilter(self.scene, wvl_intervals, species, fit_unit, mode, land_mask)
+        segmentation = mf.segmentation
+        enhancement = getattr(mf, algo)()
+        #enhancement = getattr(MatchedFilter(self.scene,
+        #                      wvl_intervals, species, fit_unit, mode, land_mask), algo)()
 
         # load the retrieval results
         if enhancement.chunks is not None:
             enhancement.load()
 
-        # copy attrs and add units
-        enhancement.attrs = self.scene['radiance'].attrs
-        enhancement.attrs['standard_name'] = f'{SPECIES_NAME[species]}_enhancement'
-        enhancement.attrs['long_name'] = f'{SPECIES_NAME[species]}_enhancement'
-        enhancement.attrs[
-            'description'] = f'{SPECIES_NAME[species]} enhancement derived by the {wvl_intervals[0]}~{wvl_intervals[1]} nm window'
-
         # set units
         enhancement *= unit_scale
-        enhancement.attrs['units'] = units
 
-        # remove useless attrs
-        if 'calibration' in enhancement.attrs:
-            del enhancement.attrs['calibration']
+        # copy attrs
+        segmentation_attrs = {'standard_name': 'segmentation',
+                              'long_name': 'pixel segmentation',
+                              'units': 1,
+                              'description': 'Natural Earth land mask (0: ocean/lake, 1: land). If 1+ values are available, this is pixel classifications',
+                              }
 
+        enhancement_attrs = {'standard_name': f'{SPECIES_NAME[species]}_enhancement',
+                             'long_name': f'{SPECIES_NAME[species]}_enhancement',
+                             'units': units,
+                             'description': f'{SPECIES_NAME[species]} enhancement derived by the {wvl_intervals[0]}~{wvl_intervals[1]} nm window',
+                             }
+
+        enhancement = self._copy_attrs(enhancement, enhancement_attrs)
+        segmentation = self._copy_attrs(segmentation, segmentation_attrs)
+
+        # copy to scene
+        self.scene['segmentation'] = segmentation.rename('segmentation')
         self.scene[species] = enhancement.rename(species)
 
     def terrain_corr(self, varname='rgb', rpcs=None):
