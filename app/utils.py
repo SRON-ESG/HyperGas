@@ -130,6 +130,16 @@ def plume_mask(ds, lon_sample, lat_sample, plume_varname='ch4_comb_denoise',
                niter=1, quantile_value=0.98, size_median=3, sigma_guass=2):
     """Get the plume mask based on matched filter results
 
+    Steps:
+        - apply wind weights (optional)
+        - apply land mask
+        - set 1 to pixel values larger than quantile_value
+        - apply median_filter, gaussian_filter, and dilation to get a smoothed mask
+        - assign labels and get labelled region where the source point is inside
+        - pick mask pixels where enhancement values are positive
+        - erosion the mask and propagate again
+        - fill holes of mask
+
     Args:
         lon_sample (float): source longitude for picking plume dilation mask
         lat_sample (float): source latitude for picking plume dilation mask
