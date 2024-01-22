@@ -292,7 +292,8 @@ with col3:
                     ds_merge = xr.merge([ch4_mask, u10, v10, sp])
 
                     # add crs info
-                    ds_merge.rio.write_crs(ds.rio.crs, inplace=True)
+                    if ds.rio.crs:
+                        ds_merge.rio.write_crs(ds.rio.crs, inplace=True)
 
                     # clear attrs
                     ds_merge.attrs = ''
