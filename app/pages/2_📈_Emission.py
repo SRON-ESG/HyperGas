@@ -322,8 +322,14 @@ with col3:
                     if key in mask_setting.keys():
                         params.update({key: mask_setting[key]})
 
-                # convert to DataFrame and export data as csv file
+                # convert to DataFrame
                 df = pd.DataFrame(data=params, index=[0])
+
+                # add source loc
+                df['plume_latitude'] = latitude
+                df['plume_longitude'] = longitude
+
+                # export data as csv file
                 mask_filename = plume_nc_filename.replace('.nc', '.csv')
                 df.to_csv(mask_filename, index=False)
                 st.success(f'HTML file is exported to: \n \n {plume_html_filename} \
