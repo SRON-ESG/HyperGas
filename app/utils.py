@@ -294,10 +294,17 @@ def mask_data(filename, ds, lon_sample, lat_sample, pick_plume_name, plume_varna
 
 def calc_wind_error(wspd, IME, l_eff,
                     alpha1, alpha2, alpha3,
-                    uncertainty=0.5):
+                    ):
     """Calculate wind error with random distribution"""
-    # Generate U10 distribution with 50% uncertainty
-    wspd_distribution = np.random.normal(wspd, wspd * uncertainty, size=1000)
+    # Generate U10 distribution
+    #   uncertainty = 50%, if wspd <= 2 m/s
+    #   uncertainty = 1.5 m/s, if wspd > 2 m/s
+    if wspd <= 2:
+        sigma = wspd * 0.5
+    else:
+        sigma = 1.5
+
+    wspd_distribution = np.random.normal(wspd, sigma, size=1000)
 
     # Calculate Ueff distribution
     u_eff_distribution = alpha1 * np.log(wspd) + alpha2 + alpha3 * wspd_distribution
