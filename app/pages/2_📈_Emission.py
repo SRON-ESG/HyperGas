@@ -18,7 +18,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 import xarray as xr
 from geopy.geocoders import Nominatim
-from utils import calc_emiss, mask_data
+from utils import calc_emiss, calc_emiss_fetch, mask_data
 
 sys.path.append('..')
 
@@ -108,7 +108,7 @@ col3, col4 = st.columns([6, 3])
 
 # set default params which can be modified from the form
 params = {'niter': 1, 'size_median': 3, 'sigma_guass': 2, 'quantile': 0.98,
-        'wind_source': None, 'wind_weights': True, 'land_only': True, 'wind_speed': None,
+          'wind_source': None, 'wind_weights': True, 'land_only': True, 'wind_speed': None,
           'alpha1': 0.0, 'alpha2': 0.66, 'alpha3': 0.34,
           'name': '', 'ipcc_sector': 'Solid Waste (6A)',
           'platform': None, 'source_tropomi': True, 'source_trace': False
@@ -206,9 +206,9 @@ with col3:
                                                )
 
                 plume_varname = st.selectbox("Pick varname for creating plume mask:",
-                                            ('ch4_comb_denoise', 'ch4_denoise', 'ch4'),
-                                            index=0,
-                                           )
+                                             ('ch4_comb_denoise', 'ch4_denoise', 'ch4'),
+                                             index=0,
+                                             )
 
                 wind_weights = st.checkbox('Whether apply the wind weights',
                                            value=params['wind_weights'],
@@ -219,8 +219,8 @@ with col3:
                                          )
 
                 land_only = st.checkbox('Whether only considering land pixels',
-                                           value=params['land_only'],
-                                           )
+                                        value=params['land_only'],
+                                        )
 
             submitted = st.form_submit_button("Submit")
 
@@ -398,8 +398,8 @@ with col3:
 
         # whether only move mask around land pixels
         land_only = st.checkbox('Whether only considering land pixels',
-                                   value=params['land_only'],
-                                   )
+                                value=params['land_only'],
+                                )
 
         # manual wind speed
         wind_speed = st.number_input(
@@ -413,7 +413,7 @@ with col3:
                 plume_nc_filename = filename.replace('.html', '.nc')
                 pick_plume_name = filename[-11: -5]
 
-                # calculate emissions
+                # calculate emissions using the IME method with Ueff
                 wind_speed, wdir, l_eff, u_eff, IME, Q, Q_err, \
                     err_random, err_wind, err_shape = calc_emiss(plume_nc_filename, pick_plume_name,
                                                                  pixel_res=pixel_res,
@@ -425,8 +425,17 @@ with col3:
                                                                  land_only=land_only
                                                                  )
 
+                # calculate emissions using the IME-fetch method with U10
+                Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch \
+                    = calc_emiss_fetch(plume_nc_filename,
+                                       pixel_res=pixel_res,
+                                       wind_source=wind_source,
+                                       wspd=wind_speed
+                                       )
+
                 # print the emission data
-                st.warning(f'''The CH$_4$ emission rate is {Q:.2f} kg/h $\pm$ {Q_err/Q*100:.2f}% ({Q_err:.2f} kg/h).
+                st.warning(f'''**IME (Ueff):**
+                               The CH$_4$ emission rate is {Q:.2f} kg/h $\pm$ {Q_err/Q*100:.2f}% ({Q_err:.2f} kg/h).
                                [
                                U$_{{eff}}$: {u_eff:.2f} m/s,
                                L$_{{eff}}$: {l_eff:.2f} m,
@@ -434,6 +443,13 @@ with col3:
                                err_random: {err_random:.2f} kg/h,
                                err_wind: {err_wind:.2f} kg/h,
                                err_shape: {err_shape:.2f} kg/h,
+                               ]
+                           ''', icon="🔥")
+                st.warning(f'''**IME-fetch (U10):**
+                               The CH$_4$ emission rate is {Q_fetch:.2f} kg/h $\pm$ {Q_fetch_err/Q_fetch*100:.2f}% ({Q_fetch_err:.2f} kg/h).
+                               [
+                               err_wind: {err_wind_fetch:.2f} kg/h,
+                               err_ime: {err_ime_fetch:.2f} kg/h,
                                ]
                            ''', icon="🔥")
 
@@ -474,6 +490,10 @@ with col3:
                                'emission_uncertainty_random': err_random,
                                'emission_uncertainty_wind': err_wind,
                                'emission_uncertainty_shape': err_shape,
+                               'emission_fetch': Q_fetch,
+                               'emission_fetch_uncertainty': Q_fetch_err,
+                               'emission_fetch_uncertainty_ime': err_ime_fetch,
+                               'emission_fetch_uncertainty_wind': err_wind_fetch,
                                'wind_speed': wind_speed,  # u10
                                'wind_direction': wdir,
                                'wind_source': wind_source,

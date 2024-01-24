@@ -12,6 +12,7 @@ import os
 import warnings
 
 import numpy as np
+import pandas as pd
 import pyresample
 import xarray as xr
 from branca.element import MacroElement
@@ -125,7 +126,23 @@ def conish_2d(x, y, xc, yc, r):
     return out
 
 
-def plume_mask(ds, lon_sample, lat_sample, plume_varname='ch4_comb_denoise',
+def get_index_nearest(lons, lats, lon_target, lat_target):
+    # define the areas for data and source point
+    area_source = SwathDefinition(lons=lons, lats=lats)
+    area_target = SwathDefinition(lons=np.array([lon_target]), lats=np.array([lat_target]))
+
+    # Determine nearest (w.r.t. great circle distance) neighbour in the grid.
+    _, _, index_array, distance_array = pyresample.kd_tree.get_neighbour_info(
+        source_geo_def=area_source, target_geo_def=area_target, radius_of_influence=50,
+        neighbours=1)
+
+    # get_neighbour_info() returns indices in the flattened lat/lon grid. Compute the 2D grid indices:
+    y_target, x_target = np.unravel_index(index_array, area_source.shape)
+
+    return y_target, x_target
+
+
+def plume_mask(ds, lon_target, lat_target, plume_varname='ch4_comb_denoise',
                wind_source='ERA5', wind_weights=True, land_only=False,
                niter=1, quantile_value=0.98, size_median=3, sigma_guass=2):
     """Get the plume mask based on matched filter results
@@ -141,8 +158,8 @@ def plume_mask(ds, lon_sample, lat_sample, plume_varname='ch4_comb_denoise',
         - fill holes of mask
 
     Args:
-        lon_sample (float): source longitude for picking plume dilation mask
-        lat_sample (float): source latitude for picking plume dilation mask
+        lon_target (float): source longitude for picking plume dilation mask
+        lat_target (float): source latitude for picking plume dilation mask
         plume_varname (str): the variable used to create plume mask (Default:ch4_comb_denoise)
         wind_source (str): 'ERA5' or 'GEOS-FP'
         wind_weights (boolean): whether apply the wind weights to ch4 fields
@@ -157,23 +174,14 @@ def plume_mask(ds, lon_sample, lat_sample, plume_varname='ch4_comb_denoise',
 
     ch4 = getattr(ds, plume_varname, ds['ch4'])
 
-    # define the areas for data and source point
-    area_source = SwathDefinition(lons=ds['longitude'], lats=ds['latitude'])
-    area_target = SwathDefinition(lons=np.array([lon_sample]), lats=np.array([lat_sample]))
-
-    # Determine nearest (w.r.t. great circle distance) neighbour in the grid.
-    _, _, index_array, distance_array = pyresample.kd_tree.get_neighbour_info(
-        source_geo_def=area_source, target_geo_def=area_target, radius_of_influence=50,
-        neighbours=1)
-
     # get_neighbour_info() returns indices in the flattened lat/lon grid. Compute the 2D grid indices:
-    y_sample, x_sample = np.unravel_index(index_array, area_source.shape)
+    y_target, x_target = get_index_nearest(ds['longitude'], ds['latitude'], lon_target, lat_target)
 
     if wind_weights:
         # calculate wind angle
-        angle_wind_rad, angle_wind = get_wind_azimuth(ds['u10'].sel(source=wind_source).isel(y=y_sample, x=x_sample).item(),
-                                                      ds['v10'].sel(source=wind_source).isel(y=y_sample, x=x_sample).item())
-        weights = conish_2d(lon, lat, lon_sample, lat_sample, np.pi/2. - angle_wind_rad)
+        angle_wind_rad, angle_wind = get_wind_azimuth(ds['u10'].sel(source=wind_source).isel(y=y_target, x=x_target).item(),
+                                                      ds['v10'].sel(source=wind_source).isel(y=y_target, x=x_target).item())
+        weights = conish_2d(lon, lat, lon_target, lat_target, np.pi/2. - angle_wind_rad)
         ch4_weights = ch4 * weights
     else:
         ch4_weights = ch4
@@ -200,8 +208,8 @@ def plume_mask(ds, lon_sample, lat_sample, plume_varname='ch4_comb_denoise',
     # assign labels by 3x3
     labeled_mask, nfeatures = ndimage.label(mask, structure=np.ones((3, 3)))
 
-    # get the labeled mask where the sample is inside
-    feature_label = labeled_mask[y_sample, x_sample]
+    # get the labeled mask where the target is inside
+    feature_label = labeled_mask[y_target, x_target]
     mask = labeled_mask == feature_label
 
     # create the positive mask
@@ -219,7 +227,7 @@ def plume_mask(ds, lon_sample, lat_sample, plume_varname='ch4_comb_denoise',
     return ds['ch4'], mask, lon_mask, lat_mask
 
 
-def plot_mask(filename, ds, ch4, mask, lon_sample, lat_sample, pick_plume_name, only_plume=True):
+def plot_mask(filename, ds, ch4, mask, lon_target, lat_target, pick_plume_name, only_plume=True):
     """Plot masked data"""
     # get masked plume data
     ch4_mask = ch4.where(xr.DataArray(mask, dims=list(ch4.dims)))
@@ -227,17 +235,17 @@ def plot_mask(filename, ds, ch4, mask, lon_sample, lat_sample, pick_plume_name, 
 
     if only_plume:
         # only plot plume for quick check
-        m = Map(ds, varnames=['plume'], center_map=[lat_sample, lon_sample])
+        m = Map(ds, varnames=['plume'], center_map=[lat_target, lon_target])
         m.initialize()
         m.plot(show_layers=[True], opacities=[0.9], vmax=300,
-               marker=[lat_sample, lon_sample], export_dir=os.path.dirname(filename), draw_polygon=False)
+               marker=[lat_target, lon_target], export_dir=os.path.dirname(filename), draw_polygon=False)
     else:
         # plot all important data
         m = Map(ds, varnames=['rgb', 'ch4', 'ch4_comb', 'ch4_comb_denoise',
-                'plume'], center_map=[lat_sample, lon_sample])
+                'plume'], center_map=[lat_target, lon_target])
         m.initialize()
         m.plot(show_layers=[False, False, False, False, True], opacities=[0.9, 0.8, 0.8, 0.8, 0.8],  vmax=300,
-               marker=[lat_sample, lon_sample], export_dir=os.path.dirname(filename), draw_polygon=False)
+               marker=[lat_target, lon_target], export_dir=os.path.dirname(filename), draw_polygon=False)
 
     # export to html file
     if 'plume' in os.path.basename(filename):
@@ -254,7 +262,7 @@ def plot_mask(filename, ds, ch4, mask, lon_sample, lat_sample, pick_plume_name, 
     return plume_html_filename
 
 
-def mask_data(filename, ds, lon_sample, lat_sample, pick_plume_name, plume_varname,
+def mask_data(filename, ds, lon_target, lat_target, pick_plume_name, plume_varname,
               wind_source, wind_weights, land_only,
               niter, size_median, sigma_guass, quantile_value, only_plume):
     '''Generate and plot masked plume data
@@ -262,8 +270,8 @@ def mask_data(filename, ds, lon_sample, lat_sample, pick_plume_name, plume_varna
     Args:
         filename (str): input filename
         ds (Dataset): L2 data
-        lon_sample (float): The longitude of plume source
-        lat_sample (float): The latitude of plume source
+        lon_target (float): The longitude of plume source
+        lat_target (float): The latitude of plume source
         pick_plume_name (str): the plume name (plume0, plume1, ....)
         plume_varname (str): the variable used to create plume mask (Default:ch4_comb_denoise)
         wind_source (str): 'ERA5' or 'GEOS-FP'
@@ -280,16 +288,40 @@ def mask_data(filename, ds, lon_sample, lat_sample, pick_plume_name, plume_varna
         plume_html_filename (str): exported plume html filename
         '''
     # create the plume mask
-    ch4, mask, lon_mask, lat_mask = plume_mask(ds, lon_sample, lat_sample, plume_varname=plume_varname,
+    ch4, mask, lon_mask, lat_mask = plume_mask(ds, lon_target, lat_target, plume_varname=plume_varname,
                                                wind_source=wind_source, wind_weights=wind_weights, land_only=land_only,
                                                niter=niter, size_median=size_median, sigma_guass=sigma_guass,
                                                quantile_value=quantile_value)
 
     # plot the mask (png and html)
-    plume_html_filename = plot_mask(filename, ds, ch4, mask, lon_sample, lat_sample,
+    plume_html_filename = plot_mask(filename, ds, ch4, mask, lon_target, lat_target,
                                     pick_plume_name, only_plume=only_plume)
 
     return mask, lon_mask, lat_mask, plume_html_filename
+
+
+def create_circular_mask(h, w, center=None, radius=None):
+    if center is None:
+        # use the middle of the image
+        center = (int(w/2), int(h/2))
+    if radius is None:
+        # use the smallest distance between the center and image walls
+        radius = min(center[0], center[1], w-center[0], h-center[1])
+
+    Y, X = np.ogrid[:h, :w]
+    dist_from_center = np.sqrt((X - center[0])**2 + (Y-center[1])**2)
+
+    mask = dist_from_center <= radius
+
+    return mask
+
+
+def ime_radius(ch4, mask, sp, area):
+    ch4_mask = ch4.where(mask)
+    delta_omega = ch4_mask * 1.0e-9 * (mass / mass_dry_air) * sp / grav
+    IME = np.nansum(delta_omega * area)
+
+    return IME
 
 
 def calc_wind_error(wspd, IME, l_eff,
@@ -311,6 +343,27 @@ def calc_wind_error(wspd, IME, l_eff,
 
     # Calculate Q distribution
     Q_distribution = u_eff_distribution * IME / l_eff
+
+    # Calculate standard deviation of Q distribution
+    wind_error = np.std(Q_distribution)
+
+    return wind_error
+
+
+def calc_wind_error_fetch(wspd, ime_l_mean):
+    """Calculate wind error with random distribution for IME-fetch"""
+    # Generate U10 distribution
+    #   uncertainty = 50%, if wspd <= 2 m/s
+    #   uncertainty = 1.5 m/s, if wspd > 2 m/s
+    if wspd <= 2:
+        sigma = wspd * 0.5
+    else:
+        sigma = 1.5
+
+    wspd_distribution = np.random.normal(wspd, sigma, size=1000)
+
+    # Calculate Q distribution
+    Q_distribution = ime_l_mean * wspd_distribution
 
     # Calculate standard deviation of Q distribution
     wind_error = np.std(Q_distribution)
@@ -354,6 +407,8 @@ def calc_emiss(f_ch4_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.6
         pick_plume_name (str): the plume name (plume0, plume1, ....)
         pixel_res (float): pixel resolution (meter)
         alpha1--3 (float): The coefficients for effective wind (U_eff)
+        wspd (float): overwritten wind speed
+        land_only (boolean): whether calculate random error only over land
 
     Return:
         wspd: Mean wind speed (m/s)
@@ -422,3 +477,81 @@ def calc_emiss(f_ch4_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.6
 
     return wspd, wdir, l_eff, u_eff, IME, Q*3600, Q_err*3600, \
         err_random*3600, err_wind*3600, err_shape*3600  # kg/h
+
+
+def calc_emiss_fetch(f_ch4_mask, pixel_res=30, wind_source='ERA5', wspd=None):
+    """Calculate the emission rate (kg/h) using IME-fetch method
+
+    Args:
+        f_ch4_mask: The NetCDF file of mask created by `mask_data` function
+        pixel_res (float): pixel resolution (meter)
+
+    Return:
+        Q: Emission rate (kg/h)
+        Q_err: STD of Q  (kg/h)
+        err_ime: ime/r error (kg/h)
+        err_wind: wind error (kg/h)
+    """
+    # read file and pick valid data
+    ds = xr.open_dataset(f_ch4_mask)
+    sp = ds['sp'].mean().item()  # use the mean surface pressure (Pa)
+
+    df = pd.read_csv(f_ch4_mask.replace('.nc', '.csv'))
+    lon_target = df['plume_longitude']
+    lat_target = df['plume_latitude']
+
+    # get the masked plume data
+    ch4_mask = ds.dropna(dim='y', how='all').dropna(dim='x', how='all')['ch4']
+
+    # get wind info
+    u10 = ds['u10'].sel(source=wind_source).item()
+    v10 = ds['v10'].sel(source=wind_source).item()
+    if wspd is None:
+        wspd = np.sqrt(u10**2 + v10**2)
+
+    # area of pixel in m2
+    area = pixel_res*pixel_res
+
+    # create mask centered on source point
+    mask = np.zeros(ch4_mask.shape)
+    y_target, x_target = get_index_nearest(ch4_mask['longitude'], ch4_mask['latitude'], lon_target, lat_target)
+    mask[x_target, y_target] = 1
+
+    # calculate plume height, width, and diagonal
+    h = mask.shape[0]
+    w = mask.shape[1]
+    r_max = np.sqrt(h**2+w**2)
+
+    # calculate IME by increasing mask radius
+    ime = []
+    for r in np.arange(r_max):
+        r += 1
+        mask = create_circular_mask(h, w,
+                                    center=(x_target, y_target),
+                                    radius=r)
+
+        IME = ime_radius(ch4_mask, mask, sp, area)
+        ime.append(IME)
+
+        # no new plume pixels anymore
+        if mask.all():
+            print(f'Masking iteration stops at r = {r}')
+            break
+
+    # calculate emission rate
+    L = (np.arange(len(ime))+1) * pixel_res
+    ime_l_mean = np.mean(ime/L)
+    ime_l_std = np.std(ime/L)
+    Q = (ime_l_mean * wspd).item()
+
+    # ---- uncertainty ----
+    # 1. ime
+    err_ime = Q * ime_l_std / ime_l_mean
+
+    # 2. wind error
+    err_wind = calc_wind_error_fetch(wspd, ime_l_mean)
+
+    # sum error
+    Q_err = np.sqrt(err_ime**2 + err_wind**2)
+
+    return Q*3600, Q_err*3600, err_ime*3600, err_wind*3600  # kg/h
