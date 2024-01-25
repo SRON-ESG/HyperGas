@@ -14,7 +14,10 @@ from math import cos, pi, radians
 
 import numpy as np
 import xarray as xr
+import h5py
 import yaml
+
+from .lut_interp import spline_5deg_lookup
 
 LOG = logging.getLogger(__name__)
 
@@ -26,7 +29,7 @@ class Unit_spec():
     """Calculate the unit spectrum."""
 
     def __init__(self, radiance, wvl_sensor, wvl_min, wvl_max,
-                 species='ch4', fit_unit='poly'):
+                 species='ch4', fit_unit='poly', rad_source='model'):
         """Initialize unit_spec class.
 
         Args:
@@ -42,6 +45,12 @@ class Unit_spec():
                 Default: 'ch4'
             fit_unit (str): the method ('poly', 'lognormal', or 'linear') of fitting the relationship between rads and conc
                 Default: 'poly'
+            rad_source (str):
+                The data ('model' or 'lut') used for calculating rads or transmissions
+                Default: 'model'
+                Refs:
+                    model: Gloudemans et al. (2008)
+                    lut: Foote et al. (2021) https://hive.utah.edu/concern/datasets/9w0323039
         """
         # load settings
         _dirname = os.path.dirname(__file__)
@@ -50,6 +59,8 @@ class Unit_spec():
 
         self.absorption_dir = os.path.join(_dirname, settings['absorption_dir'])
         self.irradiance_dir = os.path.join(_dirname, settings['irradiance_dir'])
+        self.modtran_dir = os.path.join(_dirname, settings['modtran_dir'])
+        self.rad_source = rad_source
 
         # load variables from the "radiance" DataArray
         self.radiance = radiance
@@ -71,9 +82,15 @@ class Unit_spec():
         #   you can modify it, but please keep the first one as zero
         self.species = species.upper()
         if self.species == 'CH4':
-            self.conc = np.array([0, 0.1, 0.2, 0.4, 0.8, 1.6, 3.2, 6.4])  # ppm
+            if self.rad_source == 'model':
+                self.conc = np.array([0, 0.1, 0.2, 0.4, 0.8, 1.6, 3.2, 6.4])  # ppm
+            elif self.rad_source == 'lut':
+                self.conc = np.array([0, 1e3, 2e3, 4e3, 8e3, 1.6e4, 3.2e4, 6.4e4])  # ppm m
         elif self.species == 'CO2':
-            self.conc = np.array([0, 2.5, 5.0, 10.0, 20.0, 40.0, 80.0, 160.0])  # ppm
+            if self.rad_source == 'model':
+                self.conc = np.array([0, 2.5, 5.0, 10.0, 20.0, 40.0, 80.0, 160.0])  # ppm
+            elif self.rad_source == 'lut':
+                self.conc = np.array([0, 2e4, 4e4, 8e4, 1.6e5, 3.2e5, 6.4e5, 1.28e6])  # ppm m
         else:
             raise ValueError(f"Please input a correct species name (ch4 or co2). {species} is not supported.")
 
@@ -351,6 +368,55 @@ class Unit_spec():
 
         return resampled
 
+
+    def convolve_rads_lut(self):
+        """Calculate the convolved sensor-reaching rads.
+
+        Return
+            conc (1d array): the manually set concentrations
+            rads (2d array, [conc*wvl]): radiances or transmissions for `conc`
+        """
+        # set params for LUT
+        sensor_altitude = 100
+        ground_elevation = 0
+        order = 1 # Spline interpolation degree
+        water_vapor = 1.3
+
+        param = {'zenith': self.sza,
+                 # Model uses sensor height above ground
+                 'sensor': sensor_altitude - ground_elevation,
+                 'ground': ground_elevation,
+                 'water': water_vapor,
+                 'gas': self.species.lower(),
+                 'order': order
+                 }
+
+        # read LUT
+        lut_file = os.path.join(self.modtran_dir, 'dataset_ch4_full.hdf5')
+        lut = h5py.File(lut_file, 'r', rdcc_nbytes=4194304)
+        self.wvl_lut = lut['wave'][:]
+        grid_data = lut['modtran_data']
+
+        # calculate the rads with 1 ppm m CH4 for `unit_spec`
+        rad_unit = spline_5deg_lookup(grid_data, conc=1, **param)
+        if self.fit_unit == 'linear':
+            self.rad_unit = self._convolve(self.wvl_sensor, self.fwhm_sensor, self.wvl_lut, rad_unit)
+
+        # array for saving rads
+        rads_omega = np.empty((len(self.conc), grid_data.shape[-1]))
+
+        # iterate each conc and calculate the rads
+        for i, ppmm in enumerate(self.conc):
+            rads_omega[i, :] = spline_5deg_lookup(grid_data, conc=ppmm, **param)
+
+        if len(self.wvl_sensor.dims) == 1:
+            resampled = self._convolve(self.wvl_sensor, self.fwhm_sensor, self.wvl_lut, rads_omega)
+        else:
+            raise ValueError(f'self.wvl_sensor should be 1D for LUT. Your input is {self.wvl_sensor.sizes}')
+
+        return resampled
+
+
     def _lognormal_fit(self, rads):
         lograd = np.log(rads, out=np.zeros_like(rads), where=rads > 0)
 
@@ -389,7 +455,13 @@ class Unit_spec():
         """
         # calculate rads based on conc
         LOG.info('Convolving rads ...')
-        rads = self.convolve_rads()
+        if self.rad_source == 'model':
+            rads = self.convolve_rads()
+        elif self.rad_source == 'lut':
+            rads = self.convolve_rads_lut()
+        else:
+            raise ValueError(f"rad_source only supports 'model' or 'lut'). {self.rad_source} is not supported.")
+
         LOG.info('Convolving rads (Done)')
 
         if self.fit_unit == 'lognormal':

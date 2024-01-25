@@ -318,7 +318,10 @@ def create_circular_mask(h, w, center=None, radius=None):
 
 def ime_radius(ch4, mask, sp, area):
     ch4_mask = ch4.where(mask)
-    delta_omega = ch4_mask * 1.0e-9 * (mass / mass_dry_air) * sp / grav
+    if ch4_mask.attrs['units'] == 'ppb':
+        delta_omega = ch4_mask * 1.0e-9 * (mass / mass_dry_air) * sp / grav
+    elif ch4_mask.attrs['units'] == 'ppm m':
+        delta_omega = ch4_mask * 7.16e-7
     IME = np.nansum(delta_omega * area)
 
     return IME
@@ -392,8 +395,11 @@ def calc_random_err(ch4, ch4_mask, area, sp):
             ch4_bkgd_mask = xr.zeros_like(ch4)
             ch4_bkgd_mask[row_idx:row_idx+mask_rows, col_idx:col_idx+mask_cols] = ch4_mask_crop.values
             ch4_bkgd_mask = ch4_bkgd_mask.fillna(0)
-            IME_noplume.append(ch4.where(ch4_bkgd_mask, drop=True).sum().values *
-                               1.0e-9 * (mass / mass_dry_air) * sp / grav * area)
+            if ch4.attrs['units'] == 'ppb':
+                IME_noplume.append(ch4.where(ch4_bkgd_mask, drop=True).sum().values *
+                                   1.0e-9 * (mass / mass_dry_air) * sp / grav * area)
+            elif ch4.attrs['units'] == 'ppm m':
+                IME_noplume.append(ch4.where(ch4_bkgd_mask, drop=True).sum().values * 7.16e-7)
 
     return np.array(IME_noplume).std()
 
@@ -438,7 +444,10 @@ def calc_emiss(f_ch4_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.6
 
     # calculate IME
     sp = ds['sp'].mean().item()  # use the mean surface pressure (Pa)
-    delta_omega = ch4_mask * 1.0e-9 * (mass / mass_dry_air) * sp / grav
+    if ch4_mask.attrs['units'] == 'ppb':
+        delta_omega = ch4_mask * 1.0e-9 * (mass / mass_dry_air) * sp / grav
+    elif ch4_mask.attrs['units'] == 'ppm m':
+        delta_omega = ch4_mask * 7.16e-7
     IME = np.nansum(delta_omega * area)
 
     # get wind info
@@ -515,7 +524,7 @@ def calc_emiss_fetch(f_ch4_mask, pixel_res=30, wind_source='ERA5', wspd=None):
     # create mask centered on source point
     mask = np.zeros(ch4_mask.shape)
     y_target, x_target = get_index_nearest(ch4_mask['longitude'], ch4_mask['latitude'], lon_target, lat_target)
-    mask[x_target, y_target] = 1
+    mask[y_target, x_target] = 1
 
     # calculate plume height, width, and diagonal
     h = mask.shape[0]

@@ -293,7 +293,7 @@ class Hyper():
 
     def retrieve(self, wvl_intervals=None, species='ch4',
                  algo='smf', fit_unit='poly',
-                 mode='column', land_mask=True):
+                 mode='column', rad_source='model', land_mask=True):
         """Retrieve trace gas enhancements
 
         Args:
@@ -312,25 +312,41 @@ class Hyper():
                 Default: 'poly'
             mode (str): The mode ("column" or "scene") to apply matched filter.
                 Default: 'column'. Be careful of noise if you apply the matched filter for the whole scene.
+            rad_source (str):
+                The data ('model' or 'lut') used for calculating rads or transmissions
+                Default: 'model'
             land_mask (boolean): Whether apply the matched filter to continental and oceanic pixels seperately.
                 Default: True
         """
         # set default wvl_interval and convert units (ppm) to a suitable one
-        if species == 'ch4':
-            units = 'ppb'
-            unit_scale = 1000  # output unit is ppm, scale it to ppb
-            if wvl_intervals is None:
-                wvl_intervals = [2110, 2450]
-        elif species == 'co2':
-            units = 'ppm'
+        if rad_source == 'lut':
+            units = 'ppm m'
             unit_scale = 1
             if wvl_intervals is None:
-                wvl_intervals = [1930, 2200]
+                if species == 'ch4':
+                    wvl_intervals = [2110, 2450]
+                elif species == 'co2':
+                    wvl_intervals = [1930, 2200]
+                else:
+                    raise ValueError(f"Please input a correct species name (ch4 or co2). {species} is not supported.")
+        elif rad_source == 'model':
+            if species == 'ch4':
+                    units = 'ppb'
+                    unit_scale = 1000  # output unit is ppm, scale it to ppb
+                    if wvl_intervals is None:
+                        wvl_intervals = [2110, 2450]
+            elif species == 'co2':
+                units = 'ppm'
+                unit_scale = 1
+                if wvl_intervals is None:
+                    wvl_intervals = [1930, 2200]
+            else:
+                raise ValueError(f"Please input a correct species name (ch4 or co2). {species} is not supported.")
         else:
-            raise ValueError(f"Please input a correct species name (ch4 or co2). {species} is not supported.")
+            raise ValueError(f"Please input a correct rad_source name (model or lut). {rad_source} is not supported.")
 
         # run the retrieval
-        mf = MatchedFilter(self.scene, wvl_intervals, species, fit_unit, mode, land_mask)
+        mf = MatchedFilter(self.scene, wvl_intervals, species, fit_unit, mode, rad_source, land_mask)
         segmentation = mf.segmentation
         enhancement = getattr(mf, algo)()
         #enhancement = getattr(MatchedFilter(self.scene,

@@ -20,8 +20,9 @@ class MatchedFilter():
     """The MatchedFilter Class."""
 
     def __init__(self, scn, wvl_intervals, species='ch4',
-                 fit_unit='poly', mode='column', land_mask=True,
-                 scaling=100.):
+                 fit_unit='poly', mode='column', rad_source='model',
+                 land_mask=True, scaling=1e5,
+                 ):
         """Initialize MatchedFilter.
 
         Args:
@@ -41,6 +42,9 @@ class MatchedFilter():
                 Default: 'poly'
             mode (str): the mode ("column" or "scene") to apply matched filter.
                 Default: 'column'. Be careful of noise if you apply the matched filter for the whole scene.
+            rad_source (str):
+                The data ('model' or 'lut') used for calculating rads or transmissions
+                Default: 'model'
             land_mask (boolean): Whether apply the matched filter to continental and oceanic pixels seperately.
                 Default: True
             scaling (float): The scaling factor for alpha to ensure numerical stability.
@@ -57,6 +61,7 @@ class MatchedFilter():
         # add to the class
         self.radiance = radiance
         self.mode = mode
+        self.rad_source = rad_source
         self.species = species
         self.fit_unit = fit_unit
         self.scaling = scaling
@@ -67,13 +72,13 @@ class MatchedFilter():
             # calculate K by column because we have central wavelength per column
             central_wavelengths = scn['central_wavelengths'].where(wvl_mask, drop=True)
             K = Unit_spec(self.radiance, central_wavelengths,
-                          self.wvl_min, self.wvl_max, self.species, self.fit_unit).fit_slope(scaling=scaling)
+                          self.wvl_min, self.wvl_max, self.species, self.fit_unit, self.rad_source).fit_slope(scaling=scaling)
             self.K = xr.DataArray(K, dims=['bands', 'x'],
                                   coords={'bands': self.radiance.coords['bands']})
         else:
             # calculate K using the default dim named 'bands'
             K = Unit_spec(self.radiance, self.radiance.coords['bands'],
-                          self.wvl_min, self.wvl_max, self.species, self.fit_unit).fit_slope(scaling=scaling)
+                          self.wvl_min, self.wvl_max, self.species, self.fit_unit, self.rad_source).fit_slope(scaling=scaling)
             self.K = xr.DataArray(K, dims='bands', coords={'bands': self.radiance.coords['bands']})
 
         # calculate the land/ocean segmentation

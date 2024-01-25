@@ -3,6 +3,8 @@ absorption_dir:
   resources/absorption
 irradiance_dir:
   resources/solar_irradiance
+modtran_dir:
+  resources/modtran_full
 rgb_dir:
   resources/rgb
 era5_dir:
