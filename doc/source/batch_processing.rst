@@ -35,8 +35,11 @@ You can find them in the ``<HyperGas_dir>/scripts/`` directory.
      - | NetCDF,
        | CSV
 
-Users usually run them in this order:
-l2b_process.py --> l2b_plot.py --> streamlit app --> l3_reprocess.py (optional) --> l3_plot.py
+.. note::
+
+  The complete flow of generating plume data is:
+
+    l2_process.py --> l2b_plot.py --> plume app --> l2_reprocess.py (optional) --> l3_reprocess.py (optional) --> l3_plot.py
 
 Here are the key parameters in each script:
 
@@ -64,3 +67,24 @@ Users can check multiple variables on different days by clicking layers in the H
 
 L2 --> L3
 =========
+
+The streamlit app has been designed to interactively generate L3 products: plume masks and emission rates.
+For details, please check :doc:`plume_app`.
+
+Reprocessing
+============
+
+HyperGas supports reprocessing L2 and L3 data.
+
+Reprocessing L2 data
+--------------------
+
+Users can run ``l2_process.py`` to rerun the retrieval and choose whether to overwrite the NetCDF files.
+Note that including plumes in the matched filter statistics breaks the sparsity assumption
+and leads to lower enhancements, especially for large plumes.
+So, it is necessary to run ``l2_reprocess.py`` to reprocess L2 data with L3 plume masks.
+
+Reprocessing L3 data
+--------------------
+
+The ``l3_reprocess.py`` script reads L2 data and L3 nc/csv files together to generate the new L3 product.
