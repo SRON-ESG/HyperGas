@@ -35,7 +35,6 @@ LOG = logging.getLogger(__name__)
 
 # set filename pattern to load data automatically
 PATTERNS = ['ENMAP01-____L3B*.nc', 'EMIT_L3B*.nc', 'PRS_L3_*.nc']
-PATTERNS = ['EMIT_L3B*20230814T*.nc']
 
 # set basic matplotlib settings
 rcParams['font.family'] = 'sans-serif'
@@ -176,11 +175,11 @@ def main(skip_exist=True):
 
 if __name__ == '__main__':
     # root dir of hyper data
-    root_dir = '/data/xinz/EMIT/Kazakhstan/'
+    root_dir = '/data/xinz/EMIT/Hyper_TROPOMI_plume/'
     lowest_dirs = get_dirs(root_dir)
 
     # whether skip dir which contains exported html
-    skip_exist = False
+    skip_exist = True
 
     for data_dir in lowest_dirs:
         LOG.info(f'Plotting data under {data_dir}')

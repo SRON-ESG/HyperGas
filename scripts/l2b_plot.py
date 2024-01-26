@@ -188,11 +188,11 @@ def main(chunk=8, skip_exist=True, plot_markers=False):
 
 if __name__ == '__main__':
     # root dir of hyper data
-    root_dir = '/data/xinz/Hyper_IMEO/Kazakhstan/EnMAP/lognormal/'#/data/xinz/EnMAP_request/'#/data/xinz/Hyper_TROPOMI/'
+    root_dir = '/data/xinz/Hyper_TROPOMI/'
     lowest_dirs = get_dirs(root_dir)
 
     # whether skip dir which contains exported html
-    skip_exist = False#True
+    skip_exist = True
 
     # whether plot pre-saved markers on map
     plot_markers = False
