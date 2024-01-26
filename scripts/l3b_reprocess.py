@@ -10,7 +10,6 @@
 import logging
 import os
 import re
-import sys
 from glob import glob
 from itertools import chain
 
@@ -18,8 +17,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from hypergas.plume_utils import calc_emiss, calc_emiss_fetch, mask_data
-
-sys.path.append('../app')
+from .utils import get_dirs
 
 # calculate IME (kg m-2)
 mass = 16.04e-3  # molar mass CH4 [kg/mol]
@@ -39,18 +37,6 @@ INSTITUTION = 'SRON Netherlands Institute for Space Research'
 
 # set filename pattern to load data automatically
 PATTERNS = ['ENMAP01-____L3B*.csv', 'EMIT_L3B*.csv', 'PRS_L3_*.csv']
-
-
-def get_dirs(root_dir):
-    """Get all lowest directories"""
-    lowest_dirs = list()
-
-    for root, dirs, files in os.walk(root_dir):
-        dirs[:] = [d for d in dirs if not d[0] == '.']
-        if files and not dirs:
-            lowest_dirs.append(root)
-
-    return list(sorted(lowest_dirs))
 
 
 def calc_wind_error(wspd, IME, l_eff,

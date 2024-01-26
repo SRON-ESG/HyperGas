@@ -22,6 +22,7 @@ import xarray as xr
 import yaml
 
 from hypergas.folium_map import Map
+from .utils import get_dirs
 
 warnings.filterwarnings('ignore')
 
@@ -83,18 +84,6 @@ def read_markers():
         df_marker = None
 
     return df_marker
-
-
-def get_dirs(root_dir):
-    """Get all lowest directories"""
-    lowest_dirs = list()
-
-    for root, dirs, files in os.walk(root_dir):
-        dirs[:] = [d for d in dirs if not d[0] == '.']
-        if files and not dirs:
-            lowest_dirs.append(root)
-
-    return list(sorted(lowest_dirs))
 
 
 def plot_data(filelist, df_marker, len_chunklist, index):
@@ -199,11 +188,11 @@ def main(chunk=8, skip_exist=True, plot_markers=False):
 
 if __name__ == '__main__':
     # root dir of hyper data
-    root_dir = '/data/xinz/Hyper_TROPOMI/'
+    root_dir = '/data/xinz/Hyper_IMEO/Kazakhstan/EnMAP/lognormal/'#/data/xinz/EnMAP_request/'#/data/xinz/Hyper_TROPOMI/'
     lowest_dirs = get_dirs(root_dir)
 
     # whether skip dir which contains exported html
-    skip_exist = True
+    skip_exist = False#True
 
     # whether plot pre-saved markers on map
     plot_markers = False

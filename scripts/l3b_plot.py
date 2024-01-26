@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import xarray as xr
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from .utils import get_dirs
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -34,7 +35,7 @@ LOG = logging.getLogger(__name__)
 
 # set filename pattern to load data automatically
 PATTERNS = ['ENMAP01-____L3B*.nc', 'EMIT_L3B*.nc', 'PRS_L3_*.nc']
-
+PATTERNS = ['EMIT_L3B*20230814T*.nc']
 
 # set basic matplotlib settings
 rcParams['font.family'] = 'sans-serif'
@@ -48,18 +49,6 @@ rcParams['ytick.labelsize'] = font_size - 2
 rcParams['legend.fontsize'] = font_size
 rcParams['figure.titlesize'] = font_size
 rcParams['figure.titleweight'] = 'bold'
-
-
-def get_dirs(root_dir):
-    """Get all lowest directories"""
-    lowest_dirs = list()
-
-    for root, dirs, files in os.walk(root_dir):
-        dirs[:] = [d for d in dirs if not d[0] == '.']
-        if files and not dirs:
-            lowest_dirs.append(root)
-
-    return list(sorted(lowest_dirs))
 
 
 def plot_data(filename, savename):
@@ -100,7 +89,7 @@ def plot_data(filename, savename):
     ax.texts[0].remove()
 
     # plot rgb and ch4 data
-    m = ds['ch4'].plot(x='longitude', y='latitude', vmin=0, vmax=300, cmap='plasma', add_colorbar=False,
+    m = ds['ch4'].plot(x='longitude', y='latitude', vmin=0, vmax=2000, cmap='plasma', add_colorbar=False,
                        # cbar_kwargs={'label': 'CH$_4$ Enhancement (ppb)', 'orientation': 'horizontal', 'shrink': 0.7}
                        )
 
@@ -187,11 +176,11 @@ def main(skip_exist=True):
 
 if __name__ == '__main__':
     # root dir of hyper data
-    root_dir = '/data/xinz/Hyper_TROPOMI_plume/'
+    root_dir = '/data/xinz/EMIT/Kazakhstan/'
     lowest_dirs = get_dirs(root_dir)
 
     # whether skip dir which contains exported html
-    skip_exist = True
+    skip_exist = False
 
     for data_dir in lowest_dirs:
         LOG.info(f'Plotting data under {data_dir}')
