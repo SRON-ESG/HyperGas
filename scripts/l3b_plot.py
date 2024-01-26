@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import xarray as xr
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from .utils import get_dirs
+from utils import get_dirs
 
 import warnings
 warnings.filterwarnings("ignore")

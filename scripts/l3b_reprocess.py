@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from hypergas.plume_utils import calc_emiss, calc_emiss_fetch, mask_data
-from .utils import get_dirs
+from utils import get_dirs
 
 # calculate IME (kg m-2)
 mass = 16.04e-3  # molar mass CH4 [kg/mol]

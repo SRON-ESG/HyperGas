@@ -22,7 +22,7 @@ import xarray as xr
 import yaml
 
 from hypergas.folium_map import Map
-from .utils import get_dirs
+from utils import get_dirs
 
 warnings.filterwarnings('ignore')
 
