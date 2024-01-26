@@ -18,7 +18,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 import xarray as xr
 from geopy.geocoders import Nominatim
-from utils import calc_emiss, calc_emiss_fetch, mask_data
+from hypergas.plume_utils import calc_emiss, calc_emiss_fetch, mask_data
 
 sys.path.append('..')
 

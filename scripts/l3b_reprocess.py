@@ -17,11 +17,9 @@ from itertools import chain
 import numpy as np
 import pandas as pd
 import xarray as xr
-
-from hypergas.landmask import Land_mask
+from hypergas.plume_utils import calc_emiss, calc_emiss_fetch, mask_data
 
 sys.path.append('../app')
-from utils import mask_data
 
 # calculate IME (kg m-2)
 mass = 16.04e-3  # molar mass CH4 [kg/mol]
@@ -101,81 +99,23 @@ def calc_random_err(ch4, ch4_mask, area, sp):
     return np.array(IME_noplume).std()
 
 
-def calc_emiss(df, ds, ds_l2b, land_only=True):
-    """Calculate emission (modified from app)"""
-    # read csv info
-    platform = df['platform'].item()
-    wind_source = df['wind_source'].item()
-    alpha1 = df['alpha1'].item()
-    alpha2 = df['alpha2'].item()
-    alpha3 = df['alpha3'].item()
-
-    # get the masked plume data
-    ch4_mask = ds.dropna(dim='y', how='all').dropna(dim='x', how='all')['ch4']
-
-    # area of pixel in m2
-    if platform == 'EMIT':
-        pixel_res = 60
-    elif platform in ['EnMAP', 'PRISMA']:
-        pixel_res = 30
-    else:
-        raise ValueError("{platform} is not supprted yet.")
-    area = pixel_res*pixel_res
-
-    # calculate Leff using the root method in meter
-    plume_pixel_num = (~ch4_mask.isnull()).sum()
-    l_eff = np.sqrt(plume_pixel_num * area).item()
-
-    # calculate IME
-    sp = ds['sp'].mean().item()  # use the mean surface pressure (Pa)
-    delta_omega = ch4_mask * 1.0e-9 * (mass / mass_dry_air) * sp / grav
-    IME = np.nansum(delta_omega * area)
-
-    # get wind info
-    u10 = ds['u10'].sel(source=wind_source).mean().item()
-    v10 = ds['v10'].sel(source=wind_source).mean().item()
-    wspd = np.sqrt(u10**2 + v10**2)
-    wdir = (270-np.rad2deg(np.arctan2(v10, u10))) % 360
-
-    # effective wind speed
-    u_eff = alpha1 * np.log(wspd) + alpha2 + alpha3 * wspd
-
-    # calculate the emission rate (kg/s)
-    Q = (u_eff / l_eff * IME)
-
-    # ---- uncertainty ----
-    # 1. random
-    if land_only:
-        segmentation = Land_mask(ds['longitude'].data, ds['latitude'].data)
-        ds_l2b['ch4'] = ds_l2b['ch4'].where(segmentation)
-        ds['ch4'] = ds['ch4'].where(segmentation)
-
-    IME_std = calc_random_err(ds_l2b['ch4'], ds['ch4'], area, sp)
-    err_random = u_eff / l_eff * IME_std
-
-    # 2. wind error
-    err_wind = calc_wind_error(wspd, IME, l_eff, alpha1, alpha2, alpha3)
-
-    # 3. alpha2 (shape)
-    err_shape = (IME / l_eff) * (alpha2 * (0.66-0.42)/0.42)
-
-    Q_err = np.sqrt(err_random**2 + err_wind**2 + err_shape**2)
-
-    return wspd, wdir, l_eff, u_eff, IME, Q*3600, Q_err*3600, \
-        err_random*3600, err_wind*3600, err_shape*3600  # kg/h
-
-
 def reprocess_data(filename, reprocess_nc):
+    LOG.info('Reading csv and nc files ...')
     df = pd.read_csv(filename, dtype={'wind_weights': bool})
     plume_filename = filename.replace('.csv', '.nc')
-    l2b_filename = ('_'.join(plume_filename.split('_')[:-1])+'.nc').replace('L3', 'L2')
-    ds_plume = xr.open_dataset(plume_filename)
-    ds_l2b = xr.open_dataset(l2b_filename, decode_coords='all')
+    platform = df['platform'].item()
 
-
+    # set pixel resolution
+    if platform == 'EMIT':
+        pixel_res = 60  # meter
+    elif platform in ['EnMAP', 'PRISMA']:
+        pixel_res = 30  # meter
 
     if reprocess_nc:
-        ds_plume.close()
+        # read L2B data
+        l2b_filename = ('_'.join(plume_filename.split('_')[:-1])+'.nc').replace('L3', 'L2')
+        ds_l2b = xr.open_dataset(l2b_filename, decode_coords='all')
+
         # read plume source location
         longitude = df['plume_longitude'].item()
         latitude = df['plume_latitude'].item()
@@ -231,11 +171,25 @@ def reprocess_data(filename, reprocess_nc):
         LOG.info(f'Updating {plume_filename} ...')
         ds_merge.to_netcdf(plume_filename)
 
-        wspd, wdir, l_eff, u_eff, IME, Q, Q_err, \
-            err_random, err_wind, err_shape = calc_emiss(df, ds_merge, ds_l2b)
-    else:
-        wspd, wdir, l_eff, u_eff, IME, Q, Q_err, \
-            err_random, err_wind, err_shape = calc_emiss(df, ds_plume, ds_l2b)
+        # close file
+        ds_l2b.close()
+
+    LOG.info('Recalculating emission rates ...')
+    wspd, wdir, l_eff, u_eff, IME, Q, Q_err, \
+        err_random, err_wind, err_shape = calc_emiss(f_ch4_mask=plume_filename,
+                                                     pick_plume_name=df['plume_id'].item().split('-')[-1],
+                                                     pixel_res=pixel_res,
+                                                     alpha1=df['alpha1'].item(), alpha2=df['alpha2'].item(), alpha3=df['alpha3'].item(),
+                                                     wind_source=df['wind_source'].item(), wspd=df['wind_speed'].item(),
+                                                     land_only=True)
+
+    LOG.info('Recalculating emission rates (fetch) ...')
+    Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch \
+        = calc_emiss_fetch(f_ch4_mask=plume_filename,
+                           pixel_res=pixel_res,
+                           wind_source=df['wind_source'].item(),
+                           wspd=df['wind_speed'].item()
+                           )
 
     # update emission data
     LOG.info(f'Updating {filename} ...')
@@ -249,6 +203,10 @@ def reprocess_data(filename, reprocess_nc):
     df['emission_uncertainty_random'] = err_random
     df['emission_uncertainty_wind'] = err_wind
     df['emission_uncertainty_shape'] = err_shape
+    df['emission_fetch'] = Q_fetch
+    df['emission_fetch_uncertainty'] = Q_fetch_err
+    df['emission_fetch_uncertainty_ime'] = err_ime_fetch
+    df['emission_fetch_uncertainty_wind'] = err_wind_fetch
 
     df.to_csv(filename, index=False)
 

@@ -9,6 +9,7 @@
 
 import base64
 import os
+import logging
 import warnings
 
 import numpy as np
@@ -21,6 +22,8 @@ from hypergas.landmask import Land_mask
 from jinja2 import Template
 from pyresample.geometry import SwathDefinition
 from scipy import ndimage
+
+LOG = logging.getLogger(__name__)
 
 warnings.filterwarnings('ignore')
 
@@ -399,13 +402,13 @@ def calc_random_err(ch4, ch4_mask, area, sp):
                 IME_noplume.append(ch4.where(ch4_bkgd_mask, drop=True).sum().values *
                                    1.0e-9 * (mass / mass_dry_air) * sp / grav * area)
             elif ch4.attrs['units'] == 'ppm m':
-                IME_noplume.append(ch4.where(ch4_bkgd_mask, drop=True).sum().values * 7.16e-7)
+                IME_noplume.append(ch4.where(ch4_bkgd_mask, drop=True).sum().values * 7.16e-7 * area)
 
     return np.array(IME_noplume).std()
 
 
 def calc_emiss(f_ch4_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.66, alpha3=0.34,
-               wind_source='ERA5', wspd=None, land_only=False):
+               wind_source='ERA5', wspd=None, land_only=True):
     '''Calculate the emission rate (kg/h) using IME method
 
     Args:
@@ -429,7 +432,8 @@ def calc_emiss(f_ch4_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.6
 
     '''
     # read file and pick valid data
-    ds_original = xr.open_dataset(f_ch4_mask.replace('L3', 'L2').replace(f'_{pick_plume_name}.nc', '.nc'))
+    file_original = f_ch4_mask.replace('L3', 'L2').replace(f'_{pick_plume_name}.nc', '.nc')
+    ds_original = xr.open_dataset(file_original)
     ds = xr.open_dataset(f_ch4_mask)
 
     # get the masked plume data
@@ -443,6 +447,7 @@ def calc_emiss(f_ch4_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.6
     l_eff = np.sqrt(plume_pixel_num * area).item()
 
     # calculate IME
+    LOG.info('Calculating IME')
     sp = ds['sp'].mean().item()  # use the mean surface pressure (Pa)
     if ch4_mask.attrs['units'] == 'ppb':
         delta_omega = ch4_mask * 1.0e-9 * (mass / mass_dry_air) * sp / grav
@@ -451,6 +456,7 @@ def calc_emiss(f_ch4_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.6
     IME = np.nansum(delta_omega * area)
 
     # get wind info
+    LOG.info('Calculating wind info')
     u10 = ds['u10'].sel(source=wind_source).item()
     v10 = ds['v10'].sel(source=wind_source).item()
     if wspd is None:
@@ -465,6 +471,7 @@ def calc_emiss(f_ch4_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.6
 
     # ---- uncertainty ----
     # 1. random
+    LOG.info('Calculating random error')
     if land_only:
         # get lon and lat
         lon = ds_original['longitude']
@@ -477,12 +484,17 @@ def calc_emiss(f_ch4_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.6
     err_random = u_eff / l_eff * IME_std
 
     # 2. wind error
+    LOG.info('Calculating wind error')
     err_wind = calc_wind_error(wspd, IME, l_eff, alpha1, alpha2, alpha3)
 
     # 3. alpha2 (shape)
+    LOG.info('Calculating shape error')
     err_shape = (IME / l_eff) * (alpha2 * (0.66-0.42)/0.42)
 
     Q_err = np.sqrt(err_random**2 + err_wind**2 + err_shape**2)
+
+    ds.close()
+    ds_original.close()
 
     return wspd, wdir, l_eff, u_eff, IME, Q*3600, Q_err*3600, \
         err_random*3600, err_wind*3600, err_shape*3600  # kg/h
@@ -502,6 +514,7 @@ def calc_emiss_fetch(f_ch4_mask, pixel_res=30, wind_source='ERA5', wspd=None):
         err_wind: wind error (kg/h)
     """
     # read file and pick valid data
+    LOG.info('Reading data')
     ds = xr.open_dataset(f_ch4_mask)
     sp = ds['sp'].mean().item()  # use the mean surface pressure (Pa)
 
@@ -513,6 +526,7 @@ def calc_emiss_fetch(f_ch4_mask, pixel_res=30, wind_source='ERA5', wspd=None):
     ch4_mask = ds.dropna(dim='y', how='all').dropna(dim='x', how='all')['ch4']
 
     # get wind info
+    LOG.info('Calculating wind info')
     u10 = ds['u10'].sel(source=wind_source).item()
     v10 = ds['v10'].sel(source=wind_source).item()
     if wspd is None:
@@ -522,6 +536,7 @@ def calc_emiss_fetch(f_ch4_mask, pixel_res=30, wind_source='ERA5', wspd=None):
     area = pixel_res*pixel_res
 
     # create mask centered on source point
+    LOG.info('Calculating the index of source loc')
     mask = np.zeros(ch4_mask.shape)
     y_target, x_target = get_index_nearest(ch4_mask['longitude'], ch4_mask['latitude'], lon_target, lat_target)
     mask[y_target, x_target] = 1
@@ -532,9 +547,11 @@ def calc_emiss_fetch(f_ch4_mask, pixel_res=30, wind_source='ERA5', wspd=None):
     r_max = np.sqrt(h**2+w**2)
 
     # calculate IME by increasing mask radius
+    LOG.info('Calculating IME')
     ime = []
     for r in np.arange(r_max):
         r += 1
+        LOG.debug(f'IME {r} loop')
         mask = create_circular_mask(h, w,
                                     center=(x_target, y_target),
                                     radius=r)
@@ -544,7 +561,7 @@ def calc_emiss_fetch(f_ch4_mask, pixel_res=30, wind_source='ERA5', wspd=None):
 
         # no new plume pixels anymore
         if mask.all():
-            print(f'Masking iteration stops at r = {r}')
+            LOG.info(f'Masking iteration stops at r = {r}')
             break
 
     # calculate emission rate
@@ -555,12 +572,16 @@ def calc_emiss_fetch(f_ch4_mask, pixel_res=30, wind_source='ERA5', wspd=None):
 
     # ---- uncertainty ----
     # 1. ime
+    LOG.info(f'Calculating IME error')
     err_ime = Q * ime_l_std / ime_l_mean
 
     # 2. wind error
+    LOG.info(f'Calculating wind error')
     err_wind = calc_wind_error_fetch(wspd, ime_l_mean)
 
     # sum error
     Q_err = np.sqrt(err_ime**2 + err_wind**2)
+
+    ds.close()
 
     return Q*3600, Q_err*3600, err_ime*3600, err_wind*3600  # kg/h
