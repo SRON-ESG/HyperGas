@@ -10,6 +10,7 @@
 import logging
 import os
 import re
+import gc
 from glob import glob
 from itertools import chain
 
@@ -37,52 +38,6 @@ INSTITUTION = 'SRON Netherlands Institute for Space Research'
 
 # set filename pattern to load data automatically
 PATTERNS = ['ENMAP01-____L3B*.csv', 'EMIT_L3B*.csv', 'PRS_L3_*.csv']
-
-
-def calc_wind_error(wspd, IME, l_eff,
-                    alpha1, alpha2, alpha3,
-                    uncertainty=0.5):
-    """Calculate wind error with random distribution"""
-    # Generate U10 distribution with 50% uncertainty
-    wspd_distribution = np.random.normal(wspd, wspd * uncertainty, size=1000)
-
-    # Calculate Ueff distribution
-    u_eff_distribution = alpha1 * np.log(wspd) + alpha2 + alpha3 * wspd_distribution
-
-    # Calculate Q distribution
-    Q_distribution = u_eff_distribution * IME / l_eff
-
-    # Calculate standard deviation of Q distribution
-    wind_error = np.std(Q_distribution)
-
-    return wind_error
-
-
-def calc_random_err(ch4, ch4_mask, area, sp):
-    """Calculate random error by moving plume around the whole scene"""
-    # crop ch4 to valid region
-    ch4_mask_crop = ch4_mask.where(~ch4_mask.isnull()).dropna(dim='y', how='all').dropna(dim='x', how='all')
-
-    # get the shape of input data and mask
-    bkgd_rows, bkgd_cols = ch4_mask.shape
-    mask_rows, mask_cols = ch4_mask_crop.shape
-
-    # Insert plume mask data at a random position
-    IME_noplume = []
-
-    while len(IME_noplume) <= 500:
-        # Generate random row and column index to place b inside a
-        row_idx = np.random.randint(0, bkgd_rows - mask_rows)
-        col_idx = np.random.randint(0, bkgd_cols - mask_cols)
-
-        if not np.any(ch4[row_idx:row_idx+mask_rows, col_idx:col_idx+mask_cols].isnull()):
-            ch4_bkgd_mask = xr.zeros_like(ch4)
-            ch4_bkgd_mask[row_idx:row_idx+mask_rows, col_idx:col_idx+mask_cols] = ch4_mask_crop.values
-            ch4_bkgd_mask = ch4_bkgd_mask.fillna(0)
-            IME_noplume.append(ch4.where(ch4_bkgd_mask, drop=True).sum().values *
-                               1.0e-9 * (mass / mass_dry_air) * sp / grav * area)
-
-    return np.array(IME_noplume).std()
 
 
 def reprocess_data(filename, reprocess_nc):
@@ -160,6 +115,10 @@ def reprocess_data(filename, reprocess_nc):
         # close file
         ds_l2b.close()
 
+        # clean
+        del ds_l2b, ds_merge
+        gc.collect()
+
     LOG.info('Recalculating emission rates ...')
     wspd, wdir, l_eff, u_eff, IME, Q, Q_err, \
         err_random, err_wind, err_shape = calc_emiss(f_ch4_mask=plume_filename,
@@ -199,7 +158,7 @@ def reprocess_data(filename, reprocess_nc):
 
 def main():
     # whether regenerate the L3 plume NetCDF file based on csv settings
-    reprocess_nc = False
+    reprocess_nc = True
 
     # get the filname list
     filelist = list(chain(*[glob(os.path.join(data_dir, pattern), recursive=True) for pattern in PATTERNS]))

@@ -7,6 +7,7 @@
 # hypergas is a library to retrieve trace gases from hyperspectral satellite data
 """Retrieve trace gas enhancements using hyperspectral satellite data."""
 
+import logging
 import numpy as np
 import spectral.algorithms as algo
 import xarray as xr
@@ -15,13 +16,16 @@ from spectral.algorithms.detectors import matched_filter
 from .landmask import Land_mask
 from .unit_spectrum import Unit_spec
 
+LOG = logging.getLogger(__name__)
+
 
 class MatchedFilter():
     """The MatchedFilter Class."""
 
     def __init__(self, scn, wvl_intervals, species='ch4',
                  fit_unit='poly', mode='column', rad_source='model',
-                 land_mask=True, scaling=1e5,
+                 land_mask=True, land_mask_source='GSHHS', plume_mask=None,
+                 scaling=1e5,
                  ):
         """Initialize MatchedFilter.
 
@@ -47,6 +51,10 @@ class MatchedFilter():
                 Default: 'model'
             land_mask (boolean): Whether apply the matched filter to continental and oceanic pixels seperately.
                 Default: True
+            land_mask_source (str): the data source of land mask ('GSHHS' or 'Natural Earth')
+                Default: GSHHS
+            plume_mask (2d array): 0: neglected pixels, 1: plume pixels.
+                Default: None
             scaling (float): The scaling factor for alpha to ensure numerical stability.
         """
         # set the wavelength range for matched filter
@@ -88,15 +96,26 @@ class MatchedFilter():
             # get lon and lat from area attrs
             lons, lats = self.radiance.attrs['area'].get_lonlats()
             # create land mask from 10-m Natural Earth data
-            segmentation = Land_mask(lons, lats)
+            segmentation = Land_mask(lons, lats, land_mask_source)
         else:
             # set all pixels as the same type
             segmentation = xr.DataArray(np.ones((self.radiance.sizes['y'],
                                                  self.radiance.sizes['x'])),
-                                        dims=['y', 'x'])
+                                        dims=['y', 'x'],
+                                        )
 
         # save to class
         self.segmentation = segmentation
+
+        # save plume mask
+        if plume_mask is None:
+            # set all pixels as non-plume
+            self.plume_mask = xr.DataArray(np.ones((self.radiance.sizes['y'],
+                                                    self.radiance.sizes['x'])),
+                                           dims=['y', 'x'],
+                                           )
+        else:
+            self.plume_mask = plume_mask
 
     # def _norm(self):
     #         from sklearn.preprocessing import MinMaxScaler
@@ -106,7 +125,7 @@ class MatchedFilter():
     #         scaler.fit(self.radiance)
     #     return scaler.transform(data)
 
-    def col_matched_filter(self, radiance, segmentation, K):
+    def col_matched_filter(self, radiance, segmentation, plume_mask, K):
         """Calculate stats of data."""
         if self.mode == 'column':
             # create empty alpha with shape: [nrows('y'), 1]
@@ -117,19 +136,22 @@ class MatchedFilter():
                 # create nan*label mask
                 segmentation_mask = segmentation == label
                 mask = ~np.isnan(radiance).any(axis=-1)
-                mask = mask*segmentation_mask
+                mask = mask * segmentation_mask
+                # we need to create new mask with plume instead of overwrite
+                #   because we want to keep retrieval results over plume pixels
+                mask_exclude_plume = mask * plume_mask.astype(bool)
 
                 # calculate the background stats if there're many valid values
                 if mask.sum() > 1:
                     if self.fit_unit == 'lognormal':
                         # calculate lognormal rads
                         lograds = np.log(radiance, out=np.zeros_like(radiance), where=radiance > 0)
-                        background = algo.calc_stats(lograds, mask=mask, index=None, allow_nan=True)
+                        background = algo.calc_stats(lograds, mask=mask_exclude_plume, index=None, allow_nan=True)
 
                         # apply the matched filter
                         a = matched_filter(lograds, K, background)
                     else:
-                        background = algo.calc_stats(radiance, mask=mask, index=None, allow_nan=True)
+                        background = algo.calc_stats(radiance, mask=mask_exclude_plume, index=None, allow_nan=True)
 
                         # get mean value
                         mu = background.mean
@@ -183,12 +205,14 @@ class MatchedFilter():
                 mask = mask_scene
             self.background = algo.calc_stats(radiance_scene, mask=mask, index=None)
 
+        LOG.info('Applying matched filter ...')
         alpha = xr.apply_ufunc(self.col_matched_filter,
                                self.radiance.transpose(..., 'bands'),
                                self.segmentation,
+                               self.plume_mask,
                                self.K,
                                exclude_dims=set(('y', 'bands')),
-                               input_core_dims=[['y', 'bands'], ['y'], ['bands']],
+                               input_core_dims=[['y', 'bands'], ['y'], ['y'], ['bands']],
                                output_core_dims=[['y', 'bands']],
                                vectorize=True,
                                dask='parallelized',

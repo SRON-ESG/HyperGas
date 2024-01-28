@@ -37,7 +37,7 @@ INSTITUTION = 'SRON Netherlands Institute for Space Research'
 class L2B():
     """The L2B Class."""
 
-    def __init__(self, filename, skip_exist=True):
+    def __init__(self, filename, skip_exist=True, plume_mask=None):
         """Init class."""
         if 'ENMAP' in filename:
             reader = 'hsi_l1b'
@@ -60,15 +60,12 @@ class L2B():
             self.skip = False
 
         if not self.skip:
-            self.hyp = self.load()
-            self.denoise()
-            self.ortho()
-            self.to_netcdf()
+            self.load()
         else:
             LOG.info(f'Skipped processing {self.filename}, because L2 data is already existed.')
 
     def load(self):
-        """Load data and run retrieval."""
+        """Load L1 data."""
         if self.reader == 'emit_l1b':
             # read both RAD and OBS data
             filename = [self.filename, self.filename.replace('RAD', 'OBS')]
@@ -80,20 +77,32 @@ class L2B():
         LOG.info('Loading L1 data')
         hyp.load()
 
+        self.hyp = hyp
+
+
+    def retrieve(self, land_mask=True, plume_mask=None, fit_unit='poly'):
+        """run retrieval"""
         # retrieve ch4
         LOG.info('Retrieving ch4')
-        hyp.retrieve(wvl_intervals=[1300, 2500], land_mask=True)
-        ch4_swir = hyp.scene['ch4']
-        hyp.retrieve(wvl_intervals=[2100, 2450], land_mask=True)
-        ch4 = hyp.scene['ch4']
+        self.hyp.retrieve(wvl_intervals=[1300, 2500],
+                          land_mask=land_mask,
+                          plume_mask=plume_mask,
+                          fit_unit=fit_unit,
+                          )
+        ch4_swir = self.hyp.scene['ch4']
+        self.hyp.retrieve(wvl_intervals=[2100, 2450],
+                          land_mask=land_mask,
+                          plume_mask=plume_mask,
+                          fit_unit=fit_unit
+                          )
+        ch4 = self.hyp.scene['ch4']
 
         # calculate ch4_comb
         diff = ch4_swir - ch4
         scale = ch4.std()/ch4_swir.std()
         # scale if ch4_swir < ch4
-        hyp.scene['ch4_comb'] = ch4.where(diff > 0, ch4_swir*scale).rename('ch4_comb')
+        self.hyp.scene['ch4_comb'] = ch4.where(diff > 0, ch4_swir*scale).rename('ch4_comb')
 
-        return hyp
 
     def _update_scene(self):
         # update Scene values
@@ -245,6 +254,12 @@ def main():
     for filename in filelist:
         LOG.info(f'Processing {filename}')
         l2b_scene = L2B(filename, skip_exist)
+
+        if not l2b_scene.skip:
+            l2b_scene.retrieve(fit_unit='poly')
+            l2b_scene.denoise()
+            l2b_scene.ortho()
+            l2b_scene.to_netcdf()
 
         del l2b_scene
 
