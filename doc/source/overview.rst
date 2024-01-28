@@ -8,7 +8,7 @@ This means that users do not need to concern themselves with the specific implem
 but rather focus on their desired outcome.
 Most of the features offered by HyperGas can be customized using keyword arguments.
 The following sections describe the various components and concepts of HyperGas.
-Additionally, the :doc:quickstart guide presents straightforward example of HyperGas.
+Additionally, the :doc:`quickstart` guide presents straightforward example of HyperGas.
 
 Reading
 =======
@@ -62,7 +62,7 @@ Writing
 =======
 
 HyperGas enables users to save data in various formats, including PNG, HTML, and data file formats such as NetCDF.
-Please refer to the documentation on writing (see :doc:writing) for detailed information.
+Please refer to the documentation on writing (see :doc:`writing`) for detailed information.
 
 Emission Rates
 ==============
