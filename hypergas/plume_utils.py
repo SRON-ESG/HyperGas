@@ -192,7 +192,10 @@ def plume_mask(ds, lon_target, lat_target, plume_varname='ch4_comb_denoise',
     # set oceanic pixel values to nan
     if land_only:
         segmentation = Land_mask(lon.data, lat.data)
-        ch4_weights = ch4_weights.where(segmentation)
+        if segmentation.isel(y=y_target, x=x_target).values != 0 :
+            # because sometimes cartopy land mask is not accurate
+            #  we need to make sure the source point is not on the ocean
+            ch4_weights = ch4_weights.where(segmentation)
 
     # set init mask by the quantile value
     mask_buf = np.zeros(np.shape(ch4))
@@ -335,9 +338,9 @@ def calc_wind_error(wspd, IME, l_eff,
                     ):
     """Calculate wind error with random distribution"""
     # Generate U10 distribution
-    #   uncertainty = 50%, if wspd <= 2 m/s
+    #   uncertainty = 50%, if wspd <= 3 m/s
     #   uncertainty = 1.5 m/s, if wspd > 2 m/s
-    if wspd <= 2:
+    if wspd <= 3:
         sigma = wspd * 0.5
     else:
         sigma = 1.5
@@ -404,7 +407,9 @@ def calc_random_err(ch4, ch4_mask, area, sp):
             elif ch4.attrs['units'] == 'ppm m':
                 IME_noplume.append(ch4.where(ch4_bkgd_mask, drop=True).sum().values * 7.16e-7 * area)
 
-    return np.array(IME_noplume).std()
+    std_value = np.array(IME_noplume).std()
+
+    return std_value
 
 
 def calc_emiss(f_ch4_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.66, alpha3=0.34,
