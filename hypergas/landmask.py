@@ -12,7 +12,7 @@ import geopandas as gpd
 import cartopy.feature as cfeature
 
 
-def Land_mask(lon, lat):
+def Land_mask(lon, lat, source='GSHHS'):
     """Create the segmentation for land and ocean/lake types
 
         Args:
@@ -21,9 +21,16 @@ def Land_mask(lon, lat):
         Return:
             Land_mask (2D DataArray): 0: ocean/lake, 1: land
     """
-    # load NaturalEarth high resolution data into GeoDataFrame
-    land_10m = cfeature.NaturalEarthFeature('physical','land','10m')
-    land_polygons = list(land_10m.geometries())
+    # load land data
+    if source == 'Natural Earth':
+        land_data = cfeature.NaturalEarthFeature('physical', 'land', '10m')
+    elif source == 'GSHHS':
+        land_data = cfeature.GSHHSFeature(scale='full')
+    else:
+        raise ValueError("Please input the correct land data source ('GSHHS' or 'Natural Earth'). {land_data} is not supported")
+
+    # load data into GeoDataFrame
+    land_polygons = list(land_data.geometries())
     land_gdf = gpd.GeoDataFrame(crs='epsg:4326', geometry=land_polygons)
     
     # create Point GeoDataFrame

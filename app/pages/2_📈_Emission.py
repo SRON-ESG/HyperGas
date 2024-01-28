@@ -222,6 +222,11 @@ with col3:
                                         value=params['land_only'],
                                         )
 
+                land_mask_source = st.selectbox("Pick data source for creating land mask:",
+                                             ('GSHHS', 'Natural Earth'),
+                                             index=0,
+                                             )
+
             submitted = st.form_submit_button("Submit")
 
             # button for removing plume files
@@ -261,7 +266,7 @@ with col3:
                         # create mask and plume html file
                         mask, lon_mask, lat_mask, plume_html_filename = mask_data(filename, ds, longitude, latitude,
                                                                                   pick_plume_name, plume_varname,
-                                                                                  wind_source, wind_weights, land_only,
+                                                                                  wind_source, wind_weights, land_only, land_mask_source,
                                                                                   niter, size_median, sigma_guass, quantile,
                                                                                   only_plume)
 

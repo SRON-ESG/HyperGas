@@ -289,11 +289,13 @@ class Hyper():
 
         # save into scene and generate RGB composite
         self.scene = scn
+        LOG.info('Generating RGB')
         self._rgb_composite()
 
     def retrieve(self, wvl_intervals=None, species='ch4',
                  algo='smf', fit_unit='poly',
-                 mode='column', rad_source='model', land_mask=True):
+                 mode='column', rad_source='model',
+                 land_mask=True, land_mask_source='GSHHS', plume_mask=None):
         """Retrieve trace gas enhancements
 
         Args:
@@ -317,6 +319,10 @@ class Hyper():
                 Default: 'model'
             land_mask (boolean): Whether apply the matched filter to continental and oceanic pixels seperately.
                 Default: True
+            land_mask_source (str): the data source of land mask ('GSHHS' or 'Natural Earth')
+                Default: GSHHS
+            plume_mask (2d array): Manual mask. 0: neglected pixels, 1: valid pixels.
+                Default: None
         """
         # set default wvl_interval and convert units (ppm) to a suitable one
         if rad_source == 'lut':
@@ -346,11 +352,9 @@ class Hyper():
             raise ValueError(f"Please input a correct rad_source name (model or lut). {rad_source} is not supported.")
 
         # run the retrieval
-        mf = MatchedFilter(self.scene, wvl_intervals, species, fit_unit, mode, rad_source, land_mask)
+        mf = MatchedFilter(self.scene, wvl_intervals, species, fit_unit, mode, rad_source, land_mask, land_mask_source, plume_mask)
         segmentation = mf.segmentation
         enhancement = getattr(mf, algo)()
-        #enhancement = getattr(MatchedFilter(self.scene,
-        #                      wvl_intervals, species, fit_unit, mode, land_mask), algo)()
 
         # load the retrieval results
         if enhancement.chunks is not None:

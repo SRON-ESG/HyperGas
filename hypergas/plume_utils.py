@@ -146,7 +146,7 @@ def get_index_nearest(lons, lats, lon_target, lat_target):
 
 
 def plume_mask(ds, lon_target, lat_target, plume_varname='ch4_comb_denoise',
-               wind_source='ERA5', wind_weights=True, land_only=False,
+               wind_source='ERA5', wind_weights=True, land_only=False, land_mask_source='GSHHS',
                niter=1, quantile_value=0.98, size_median=3, sigma_guass=2):
     """Get the plume mask based on matched filter results
 
@@ -191,11 +191,13 @@ def plume_mask(ds, lon_target, lat_target, plume_varname='ch4_comb_denoise',
 
     # set oceanic pixel values to nan
     if land_only:
-        segmentation = Land_mask(lon.data, lat.data)
+        segmentation = Land_mask(lon.data, lat.data, land_mask_source)
         if segmentation.isel(y=y_target, x=x_target).values != 0 :
             # because sometimes cartopy land mask is not accurate
             #  we need to make sure the source point is not on the ocean
             ch4_weights = ch4_weights.where(segmentation)
+        else:
+            LOG.warning('The source point is over ocean! Please make sure you choose the suitable cfeature.')
 
     # set init mask by the quantile value
     mask_buf = np.zeros(np.shape(ch4))
@@ -269,7 +271,7 @@ def plot_mask(filename, ds, ch4, mask, lon_target, lat_target, pick_plume_name, 
 
 
 def mask_data(filename, ds, lon_target, lat_target, pick_plume_name, plume_varname,
-              wind_source, wind_weights, land_only,
+              wind_source, wind_weights, land_only, land_mask_source,
               niter, size_median, sigma_guass, quantile_value, only_plume):
     '''Generate and plot masked plume data
 
@@ -295,7 +297,8 @@ def mask_data(filename, ds, lon_target, lat_target, pick_plume_name, plume_varna
         '''
     # create the plume mask
     ch4, mask, lon_mask, lat_mask = plume_mask(ds, lon_target, lat_target, plume_varname=plume_varname,
-                                               wind_source=wind_source, wind_weights=wind_weights, land_only=land_only,
+                                               wind_source=wind_source, wind_weights=wind_weights,
+                                               land_only=land_only, land_mask_source=land_mask_source,
                                                niter=niter, size_median=size_median, sigma_guass=sigma_guass,
                                                quantile_value=quantile_value)
 
