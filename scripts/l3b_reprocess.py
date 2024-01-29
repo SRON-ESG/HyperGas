@@ -64,6 +64,7 @@ def reprocess_data(filename, reprocess_nc):
         # read plume mask settings
         plume_varname = 'ch4_comb_denoise'
         land_only = True
+        land_mask_source = 'GSHHS'
         only_plume = True
         plume_num = re.search('plume(.*).nc', os.path.basename(plume_filename)).group(1)
         pick_plume_name = 'plume' + plume_num
@@ -80,7 +81,7 @@ def reprocess_data(filename, reprocess_nc):
         # create new mask
         mask, lon_mask, lat_mask, plume_html_filename = mask_data(html_filename, ds_l2b, longitude, latitude,
                                                                   pick_plume_name, plume_varname,
-                                                                  wind_source, wind_weights, land_only,
+                                                                  wind_source, wind_weights, land_only, land_mask_source,
                                                                   niter, size_median, sigma_guass, quantile,
                                                                   only_plume)
 
@@ -91,6 +92,11 @@ def reprocess_data(filename, reprocess_nc):
         u10 = ds_l2b['u10'].where(mask).mean(dim=['y', 'x'])
         v10 = ds_l2b['v10'].where(mask).mean(dim=['y', 'x'])
         sp = ds_l2b['sp'].where(mask).mean(dim=['y', 'x'])
+
+        # save useful number for attrs
+        sza = ds_l2b['ch4'].attrs['sza']
+        vza = ds_l2b['ch4'].attrs['vza']
+        start_time = ds_l2b['ch4'].attrs['start_time']
 
         # merge data
         ds_merge = xr.merge([ch4_mask, u10, v10, sp])
@@ -106,7 +112,13 @@ def reprocess_data(filename, reprocess_nc):
                         'email': EMAIL,
                         'institution': INSTITUTION,
                         'filename': ds_l2b.attrs['filename'],
+                        'start_time': start_time,
+                        'sza': sza,
+                        'vza': vza,
+                        'plume_longitude': longitude,
+                        'plume_latitude': latitude,
                         }
+
         ds_merge.attrs = header_attrs
 
         LOG.info(f'Updating {plume_filename} ...')

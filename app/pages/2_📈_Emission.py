@@ -283,6 +283,11 @@ with col3:
                         v10.attrs = ds['v10'].attrs
                         sp.attrs = ds['sp'].attrs
 
+                        # save useful number for attrs
+                        sza = ds['ch4'].attrs['sza']
+                        vza = ds['ch4'].attrs['vza']
+                        start_time = ds['ch4'].attrs['start_time']
+
                     # export masked data (plume)
                     if 'plume' in os.path.basename(filename):
                         if pick_plume_name == 'plume0':
@@ -293,6 +298,7 @@ with col3:
                     else:
                         plume_nc_filename = filename.replace('.html', f'_{pick_plume_name}.nc').replace('L2', 'L3')
 
+
                     # merge data
                     ds_merge = xr.merge([ch4_mask, u10, v10, sp])
 
@@ -302,11 +308,17 @@ with col3:
 
                     # clear attrs
                     ds_merge.attrs = ''
+
                     # set global attributes
                     header_attrs = {'author': AUTHOR,
                                     'email': EMAIL,
                                     'institution': INSTITUTION,
                                     'filename': ds.attrs['filename'],
+                                    'start_time': start_time,
+                                    'sza': sza,
+                                    'vza': vza,
+                                    'plume_longitude': longitude,
+                                    'plume_latitude': latitude,
                                     }
                     ds_merge.attrs = header_attrs
 
