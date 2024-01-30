@@ -148,6 +148,15 @@ def reprocess_data(filename, reprocess_nc):
                            wspd=df['wind_speed'].item()
                            )
 
+    # calculate plume bounds
+    with xr.open_dataset(plume_filename) as ds:
+        plume_mask = ~ds['ch4'].isnull()
+        lon_mask = ds['longitude'].where(plume_mask, drop=True)
+        lat_mask = ds['latitude'].where(plume_mask, drop=True)
+
+    bounds = [lon_mask.min().item(), lat_mask.min().item(),
+              lon_mask.max().item(), lat_mask.max().item()]
+
     # update emission data
     LOG.info(f'Updating {filename} ...')
     df['wind_speed'] = wspd
@@ -155,6 +164,7 @@ def reprocess_data(filename, reprocess_nc):
     df['leff_ime'] = l_eff
     df['ueff_ime'] = u_eff
     df['ime'] = IME
+    df['plume_bounds'] = bounds
     df['emission'] = Q
     df['emission_uncertainty'] = Q_err
     df['emission_uncertainty_random'] = err_random
