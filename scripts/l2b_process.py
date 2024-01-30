@@ -235,7 +235,7 @@ class L2B():
 def main():
     # set params
     skip_exist = True
-    data_dir = '/data/xinz/Hyper_TROPOMI_plume/'
+    data_dir = '/data/xinz/Hyper_TROPOMI/'
 
     filelist = list(chain(*[glob(os.path.join(data_dir, '**', pattern), recursive=True) for pattern in PATTERNS]))
     filelist = list(sorted(filelist))
