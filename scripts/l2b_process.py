@@ -37,7 +37,7 @@ INSTITUTION = 'SRON Netherlands Institute for Space Research'
 class L2B():
     """The L2B Class."""
 
-    def __init__(self, filename, skip_exist=True, plume_mask=None):
+    def __init__(self, filename, species, skip_exist=True, plume_mask=None):
         """Init class."""
         if 'ENMAP' in filename:
             reader = 'hsi_l1b'
@@ -50,6 +50,7 @@ class L2B():
 
         self.reader = reader
         self.filename = filename
+        self.species = species
 
         # set output name
         self.savename = str(Path(self.filename.replace('L1', 'L2').replace('_RAD', '')).with_suffix('.nc'))
@@ -82,26 +83,27 @@ class L2B():
 
     def retrieve(self, land_mask=True, plume_mask=None, rad_dist='normal'):
         """run retrieval"""
-        # retrieve ch4
-        LOG.info('Retrieving ch4')
+        # retrieve trace gas
+        LOG.info(f'Retrieving {self.species}')
         self.hyp.retrieve(wvl_intervals=[1300, 2500],
                           land_mask=land_mask,
                           plume_mask=plume_mask,
                           rad_dist=rad_dist,
+                          species=self.species,
                           )
-        ch4_swir = self.hyp.scene['ch4']
-        self.hyp.retrieve(wvl_intervals=[2100, 2450],
-                          land_mask=land_mask,
+        gas_swir = self.hyp.scene[self.species]
+        self.hyp.retrieve(land_mask=land_mask,
                           plume_mask=plume_mask,
                           rad_dist=rad_dist,
+                          species=self.species,
                           )
-        ch4 = self.hyp.scene['ch4']
+        gas = self.hyp.scene[self.species]
 
-        # calculate ch4_comb
-        diff = ch4_swir - ch4
-        scale = ch4.std()/ch4_swir.std()
-        # scale if ch4_swir < ch4
-        self.hyp.scene['ch4_comb'] = ch4.where(diff > 0, ch4_swir*scale).rename('ch4_comb')
+        # calculate gas_comb
+        diff = gas_swir - gas
+        scale = gas.std()/gas_swir.std()
+        # scale if gas_swir < gas
+        self.hyp.scene[f'{self.species}_comb'] = gas.where(diff > 0, gas_swir*scale).rename(f'{self.species}_comb')
 
 
     def _update_scene(self):
@@ -109,10 +111,10 @@ class L2B():
         self.hyp.scene['rgb'] = self.rgb_corr
         self.hyp.scene['segmentation'] = self.segmentation_corr
         self.hyp.scene['radiance_2100'] = self.radiance_2100_corr
-        self.hyp.scene['ch4'] = self.ch4_corr
-        self.hyp.scene['ch4_comb'] = self.ch4_comb_corr
-        self.hyp.scene['ch4_denoise'] = self.ch4_denoise_corr
-        self.hyp.scene['ch4_comb_denoise'] = self.ch4_comb_denoise_corr
+        self.hyp.scene[f'{self.species}'] = self.gas_corr
+        self.hyp.scene[f'{self.species}_comb'] = self.gas_comb_corr
+        self.hyp.scene[f'{self.species}_denoise'] = self.gas_denoise_corr
+        self.hyp.scene[f'{self.species}_comb_denoise'] = self.gas_comb_denoise_corr
 
         if self.hyp.wind:
             self.hyp.scene['u10'] = self.u10_corr
@@ -126,14 +128,14 @@ class L2B():
             bands_swir=2300, method='nearest').item())
         self.radiance_2100_corr = self.hyp.terrain_corr(varname='radiance_2100', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
             bands_swir=2300, method='nearest').item())
-        self.ch4_corr = self.hyp.terrain_corr(varname='ch4', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
+        self.gas_corr = self.hyp.terrain_corr(varname=self.species, rpcs=self.hyp.scene['rpc_coef_swir'].sel(
             bands_swir=2300, method='nearest').item())
-        self.ch4_comb_corr = self.hyp.terrain_corr(
-            varname='ch4_comb', rpcs=self.hyp.scene['rpc_coef_swir'].sel(bands_swir=2300, method='nearest').item())
-        self.ch4_denoise_corr = self.hyp.terrain_corr(
-            varname='ch4_denoise', rpcs=self.hyp.scene['rpc_coef_swir'].sel(bands_swir=2300, method='nearest').item())
-        self.ch4_comb_denoise_corr = self.hyp.terrain_corr(
-            varname='ch4_comb_denoise', rpcs=self.hyp.scene['rpc_coef_swir'].sel(bands_swir=2300, method='nearest').item())
+        self.gas_comb_corr = self.hyp.terrain_corr(
+            varname=f'{self.species}_comb', rpcs=self.hyp.scene['rpc_coef_swir'].sel(bands_swir=2300, method='nearest').item())
+        self.gas_denoise_corr = self.hyp.terrain_corr(
+            varname=f'{self.species}_denoise', rpcs=self.hyp.scene['rpc_coef_swir'].sel(bands_swir=2300, method='nearest').item())
+        self.gas_comb_denoise_corr = self.hyp.terrain_corr(
+            varname=f'{self.species}_comb_denoise', rpcs=self.hyp.scene['rpc_coef_swir'].sel(bands_swir=2300, method='nearest').item())
 
         if self.hyp.wind:
             self.u10_corr = self.hyp.terrain_corr(varname='u10', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
@@ -143,8 +145,8 @@ class L2B():
             self.sp_corr = self.hyp.terrain_corr(varname='sp', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
                 bands_swir=2300, method='nearest').item())
 
-        self.rgb_corr = self.rgb_corr.interp_like(self.ch4_corr)
-        self.rgb_corr.attrs['area'] = self.ch4_corr.attrs['area']
+        self.rgb_corr = self.rgb_corr.interp_like(self.gas_corr)
+        self.rgb_corr.attrs['area'] = self.gas_corr.attrs['area']
 
         self._update_scene()
 
@@ -159,10 +161,10 @@ class L2B():
             self.sp_corr = self.hyp.terrain_corr(varname='sp')
 
         self.radiance_2100_corr = self.hyp.terrain_corr(varname='radiance_2100')
-        self.ch4_corr = self.hyp.terrain_corr(varname='ch4')
-        self.ch4_comb_corr = self.hyp.terrain_corr(varname='ch4_comb')
-        self.ch4_denoise_corr = self.hyp.terrain_corr(varname='ch4_denoise')
-        self.ch4_comb_denoise_corr = self.hyp.terrain_corr(varname='ch4_comb_denoise')
+        self.gas_corr = self.hyp.terrain_corr(varname=self.species)
+        self.gas_comb_corr = self.hyp.terrain_corr(varname=f'{self.species}_comb')
+        self.gas_denoise_corr = self.hyp.terrain_corr(varname=f'{self.species}_denoise')
+        self.gas_comb_denoise_corr = self.hyp.terrain_corr(varname=f'{self.species}_comb_denoise')
 
         self._update_scene()
 
@@ -178,7 +180,7 @@ class L2B():
 
     def denoise(self):
         """Denoise random noise"""
-        LOG.info('Denoising ch4 data')
+        LOG.info(f'Denoising {self.species} data')
 
         # we need a higher weight for denoising PRISMA data
         if self.reader == 'hyc_l1':
@@ -186,8 +188,8 @@ class L2B():
         else:
             weight = 50
 
-        self.hyp.scene['ch4_denoise'] = self.hyp.denoise(varname='ch4', weight=weight)
-        self.hyp.scene['ch4_comb_denoise'] = self.hyp.denoise(varname='ch4_comb', weight=weight)
+        self.hyp.scene[f'{self.species}_denoise'] = self.hyp.denoise(varname=self.species, weight=weight)
+        self.hyp.scene[f'{self.species}_comb_denoise'] = self.hyp.denoise(varname=f'{self.species}_comb', weight=weight)
 
     def to_netcdf(self):
         """Save scene to netcdf file."""
@@ -203,7 +205,8 @@ class L2B():
         # set saved variables
         vnames = ['u10', 'v10', 'sp', 'rgb', 'segmentation',
                   'radiance_2100',
-                  'ch4', 'ch4_comb', 'ch4_denoise', 'ch4_comb_denoise'
+                  self.species, f'{self.species}_comb',
+                  f'{self.species}_denoise', f'{self.species}_comb_denoise'
                   ]
         loaded_names = [x['name'] for x in self.hyp.scene.keys()]
         # drop not loaded vnames
@@ -212,7 +215,7 @@ class L2B():
         # assign filename to global attrs
         header_attrs['filename'] = self.hyp.scene[vnames[0]].attrs['filename']
 
-        # remove the bands dim for ch4
+        # remove the bands dim for gas
         for vname in vnames:
             self.hyp.scene[vname] = self.hyp.scene[vname].squeeze()
             # remove the useless filename attrs which has already been saved as global attrs
@@ -235,6 +238,7 @@ class L2B():
 def main():
     # set params
     skip_exist = True
+    species = 'ch4'  # 'ch4', 'co2'
     data_dir = '/data/xinz/Hyper_TROPOMI/'
 
     filelist = list(chain(*[glob(os.path.join(data_dir, '**', pattern), recursive=True) for pattern in PATTERNS]))
@@ -253,7 +257,7 @@ def main():
 
     for filename in filelist:
         LOG.info(f'Processing {filename}')
-        l2b_scene = L2B(filename, skip_exist)
+        l2b_scene = L2B(filename, species, skip_exist)
 
         if not l2b_scene.skip:
             l2b_scene.retrieve(rad_dist='normal')

@@ -35,8 +35,10 @@ LOG = logging.getLogger(__name__)
 # set filename pattern to load data automatically
 PATTERNS = ['ENMAP01-____L2B*.nc', 'EMIT_L2B*.nc', 'PRS_L2_*.nc']
 
-# the vriabels to be plotted
-VARNAMES = ['rgb', 'radiance_2100', 'ch4', 'ch4_comb', 'ch4_denoise', 'ch4_comb_denoise']
+# modify the settings
+SPECIES = 'ch4'  # 'ch4' or 'co2'
+VMAX = 300   # suggested setting: 300 for ch4 (ppb), 30 for co2 (ppm)
+VARNAMES = ['rgb', 'radiance_2100', SPECIES, f'{SPECIES}_comb', f'{SPECIES}_denoise', f'{SPECIES}_comb_denoise']
 
 
 class L2B_plot():
@@ -67,7 +69,7 @@ class L2B_plot():
         self.m.plot(show_layers=[False]*(len(VARNAMES)-1)+[True],
                     opacities=[0.9]+[0.7]*(len(VARNAMES)-1),
                     df_marker=self.df_marker,
-                    vmax=300
+                    vmax=VMAX
                     )
 
 
@@ -188,7 +190,7 @@ def main(chunk=8, skip_exist=True, plot_markers=False):
 
 if __name__ == '__main__':
     # root dir of hyper data
-    root_dir = '/data/xinz/Hyper_TROPOMI/'
+    root_dir = '/data/xinz/Hyper_TROPOMI_plume/'
     lowest_dirs = get_dirs(root_dir)
 
     # whether skip dir which contains exported html
