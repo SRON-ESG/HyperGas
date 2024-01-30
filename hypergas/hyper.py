@@ -293,8 +293,7 @@ class Hyper():
         self._rgb_composite()
 
     def retrieve(self, wvl_intervals=None, species='ch4',
-                 algo='smf', fit_unit='poly',
-                 mode='column', rad_source='model',
+                 algo='smf', mode='column', rad_dist='normal', rad_source='model',
                  land_mask=True, land_mask_source='GSHHS', plume_mask=None):
         """Retrieve trace gas enhancements
 
@@ -310,10 +309,10 @@ class Hyper():
                 2. ctmf: cluster-tuned matched filter (not added yet)
                         This algorithm clusters similar pixels to improve the mean and cov calculation.
                 Default: 'smf'
-            fit_unit (str): The fitting method ('lognormal', 'poly', or 'linear') to calculate the unit CH4 spectrum
-                Default: 'poly'
             mode (str): The mode ("column" or "scene") to apply matched filter.
                 Default: 'column'. Be careful of noise if you apply the matched filter for the whole scene.
+            rad_dist (str): The assumed rads distribution ('normal' or 'lognormal')
+                Default: 'normal'
             rad_source (str):
                 The data ('model' or 'lut') used for calculating rads or transmissions
                 Default: 'model'
@@ -351,8 +350,7 @@ class Hyper():
         else:
             raise ValueError(f"Please input a correct rad_source name (model or lut). {rad_source} is not supported.")
 
-        # run the retrieval
-        mf = MatchedFilter(self.scene, wvl_intervals, species, fit_unit, mode, rad_source, land_mask, land_mask_source, plume_mask)
+        mf = MatchedFilter(self.scene, wvl_intervals, species, mode, rad_dist, rad_source, land_mask, land_mask_source, plume_mask)
         segmentation = mf.segmentation
         enhancement = getattr(mf, algo)()
 

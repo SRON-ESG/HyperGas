@@ -80,20 +80,20 @@ class L2B():
         self.hyp = hyp
 
 
-    def retrieve(self, land_mask=True, plume_mask=None, fit_unit='poly'):
+    def retrieve(self, land_mask=True, plume_mask=None, rad_dist='normal'):
         """run retrieval"""
         # retrieve ch4
         LOG.info('Retrieving ch4')
         self.hyp.retrieve(wvl_intervals=[1300, 2500],
                           land_mask=land_mask,
                           plume_mask=plume_mask,
-                          fit_unit=fit_unit,
+                          rad_dist=rad_dist,
                           )
         ch4_swir = self.hyp.scene['ch4']
         self.hyp.retrieve(wvl_intervals=[2100, 2450],
                           land_mask=land_mask,
                           plume_mask=plume_mask,
-                          fit_unit=fit_unit
+                          rad_dist=rad_dist,
                           )
         ch4 = self.hyp.scene['ch4']
 
@@ -235,7 +235,7 @@ class L2B():
 def main():
     # set params
     skip_exist = True
-    data_dir = '/data/xinz/Hyper_TROPOMI/'
+    data_dir = '/data/xinz/Hyper_TROPOMI_plume/'
 
     filelist = list(chain(*[glob(os.path.join(data_dir, '**', pattern), recursive=True) for pattern in PATTERNS]))
     filelist = list(sorted(filelist))
@@ -256,7 +256,7 @@ def main():
         l2b_scene = L2B(filename, skip_exist)
 
         if not l2b_scene.skip:
-            l2b_scene.retrieve(fit_unit='poly')
+            l2b_scene.retrieve(rad_dist='normal')
             l2b_scene.denoise()
             l2b_scene.ortho()
             l2b_scene.to_netcdf()

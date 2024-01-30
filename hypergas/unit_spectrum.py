@@ -29,7 +29,7 @@ class Unit_spec():
     """Calculate the unit spectrum."""
 
     def __init__(self, radiance, wvl_sensor, wvl_min, wvl_max,
-                 species='ch4', fit_unit='poly', rad_source='model'):
+                 species='ch4', rad_source='model'):
         """Initialize unit_spec class.
 
         Args:
@@ -43,8 +43,6 @@ class Unit_spec():
             species (str): The species to be retrieved
                 'ch4' or 'co2'
                 Default: 'ch4'
-            fit_unit (str): the method ('poly', 'lognormal', or 'linear') of fitting the relationship between rads and conc
-                Default: 'poly'
             rad_source (str):
                 The data ('model' or 'lut') used for calculating rads or transmissions
                 Default: 'model'
@@ -70,7 +68,6 @@ class Unit_spec():
         self.vza = radiance.attrs['vza']
         self.wvl_min = wvl_min
         self.wvl_max = wvl_max
-        self.fit_unit = fit_unit
 
         # read ref data
         date_time = radiance.attrs['start_time']
@@ -322,15 +319,6 @@ class Unit_spec():
         # reference
         self.wvl_lut, self.rad_lut = self._radianceCalc({x: 0 for x in delta_omega}, return_type='radiance')
 
-        # calculate the rads with 1 ppm CH4 for `unit_spec`
-        tmp_omega = delta_omega.copy()
-        tmp_omega.update({self.species: 1000/2900})
-        _, rad_unit = self._radianceCalc(tmp_omega)
-        if self.fit_unit == 'linear':
-            # the rad_unit is only needed for linear fitting
-            # To fix for 2d central wavelength
-            self.rad_unit = self._convolve(self.wvl_sensor, self.fwhm_sensor, self.wvl_lut, rad_unit)
-
         # create array for saving radiance data
         rads_omega = np.zeros((len(self.conc), len(self.wvl_lut)))
 
@@ -399,8 +387,6 @@ class Unit_spec():
 
         # calculate the rads with 1 ppm m CH4 for `unit_spec`
         rad_unit = spline_5deg_lookup(grid_data, conc=1, **param)
-        if self.fit_unit == 'linear':
-            self.rad_unit = self._convolve(self.wvl_sensor, self.fwhm_sensor, self.wvl_lut, rad_unit)
 
         # array for saving rads
         rads_omega = np.empty((len(self.conc), grid_data.shape[-1]))
@@ -417,7 +403,8 @@ class Unit_spec():
         return resampled
 
 
-    def _lognormal_fit(self, rads):
+    def _unit_fit(self, rads):
+        # https://github.com/markusfoote/mag1c/blob/8b9ceae186f4e125bc9f628db82f41bce4c6011f/mag1c/mag1c.py#L241
         lograd = np.log(rads, out=np.zeros_like(rads), where=rads > 0)
 
         # calculate slope [ln(Δradiance)/ Δc]: ln(xm) = ln(xr) - kΔc
@@ -429,25 +416,7 @@ class Unit_spec():
 
         return K
 
-    def _poly_fit(self, rads):
-        # Degree of the polynomial: y = ax^2 + bx + c
-        n_pol_jac = 2
-        jac_gas = np.zeros((n_pol_jac+1, rads.shape[1]))
-        delta_rad = rads / rads[0, :]  # Equivalent to L1/L0
-        # Change in methane concentration = Delta_XCH4 = XCH4(L1)-XCH4(L0), the first conc is 0
-        delta_mr = self.conc
-
-        for i in range(rads.shape[1]):
-            # Function that relates L1/L0 and Delta_XCH4 (ppm): Second order Polynomial
-            jac_gas[:, i] = np.polyfit(delta_mr, delta_rad[:, i], n_pol_jac)
-
-        # get the derivate with 1 ppm for the unit spectrum
-        unit_conc = 1  # ppm
-        K = 2 * jac_gas[0, :] * unit_conc + jac_gas[1, :]  # Derivative of the Second order Poynomial
-
-        return K
-
-    def fit_slope(self, scaling=100.):
+    def fit_slope(self, scaling=1e5):
         """Fit the slope for conc and rads
 
         Args:
@@ -464,25 +433,13 @@ class Unit_spec():
 
         LOG.info('Convolving rads (Done)')
 
-        if self.fit_unit == 'lognormal':
-            if len(rads.shape) == 2:
-                K = self._lognormal_fit(rads)
-            elif len(rads.shape) == 3:
-                K_list = []
-                for x in range(rads.shape[0]):
-                    K = self._lognormal_fit(rads[x, ...])
-                    K_list.append(K)
-                K = np.stack(K_list).T  # dims: bands, x
-
-        elif self.fit_unit == 'poly':
-            if len(rads.shape) == 2:
-                K = self._poly_fit(rads)
-            else:
-                raise ValueError(f'Polyfit only supports 2D rads (conc, bands). Your input is {rads.shape}')
-
-        elif self.fit_unit == 'linear':
-            unit_conc = 1  # ppm
-            # first-order Taylor expansion: xm = xr(1-kΔc)
-            K = (self.rad_unit-rads[0, :]) / unit_conc / (rads[0, :] + 1e-12)
+        if len(rads.shape) == 2:
+            K = self._unit_fit(rads)
+        elif len(rads.shape) == 3:
+            K_list = []
+            for x in range(rads.shape[0]):
+                K = self._unit_fit(rads[x, ...])
+                K_list.append(K)
+            K = np.stack(K_list).T  # dims: bands, x
 
         return K * scaling

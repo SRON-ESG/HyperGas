@@ -23,7 +23,7 @@ class MatchedFilter():
     """The MatchedFilter Class."""
 
     def __init__(self, scn, wvl_intervals, species='ch4',
-                 fit_unit='poly', mode='column', rad_source='model',
+                 mode='column', rad_dist='normal', rad_source='model',
                  land_mask=True, land_mask_source='GSHHS', plume_mask=None,
                  scaling=1e5,
                  ):
@@ -42,10 +42,10 @@ class MatchedFilter():
             species (str): The species to be retrieved
                 'ch4' or 'co2'
                 Default: 'ch4'
-            fit_unit (str): The fitting method ('lognormal', 'poly', or 'linear') to calculate the unit CH4 spectrum
-                Default: 'poly'
             mode (str): the mode ("column" or "scene") to apply matched filter.
                 Default: 'column'. Be careful of noise if you apply the matched filter for the whole scene.
+            rad_dist (str): The assumed rads distribution ('normal' or 'lognormal')
+                Default: 'normal'
             rad_source (str):
                 The data ('model' or 'lut') used for calculating rads or transmissions
                 Default: 'model'
@@ -69,9 +69,9 @@ class MatchedFilter():
         # add to the class
         self.radiance = radiance
         self.mode = mode
+        self.rad_dist = rad_dist
         self.rad_source = rad_source
         self.species = species
-        self.fit_unit = fit_unit
         self.scaling = scaling
 
         # calculate unit spectrum
@@ -80,13 +80,13 @@ class MatchedFilter():
             # calculate K by column because we have central wavelength per column
             central_wavelengths = scn['central_wavelengths'].where(wvl_mask, drop=True)
             K = Unit_spec(self.radiance, central_wavelengths,
-                          self.wvl_min, self.wvl_max, self.species, self.fit_unit, self.rad_source).fit_slope(scaling=scaling)
+                          self.wvl_min, self.wvl_max, self.species, self.rad_source).fit_slope(scaling=scaling)
             self.K = xr.DataArray(K, dims=['bands', 'x'],
                                   coords={'bands': self.radiance.coords['bands']})
         else:
             # calculate K using the default dim named 'bands'
             K = Unit_spec(self.radiance, self.radiance.coords['bands'],
-                          self.wvl_min, self.wvl_max, self.species, self.fit_unit, self.rad_source).fit_slope(scaling=scaling)
+                          self.wvl_min, self.wvl_max, self.species, self.rad_source).fit_slope(scaling=scaling)
             self.K = xr.DataArray(K, dims='bands', coords={'bands': self.radiance.coords['bands']})
 
         # calculate the land/ocean segmentation
@@ -143,14 +143,15 @@ class MatchedFilter():
 
                 # calculate the background stats if there're many valid values
                 if mask.sum() > 1:
-                    if self.fit_unit == 'lognormal':
+                    if self.rad_dist == 'lognormal':
                         # calculate lognormal rads
                         lograds = np.log(radiance, out=np.zeros_like(radiance), where=radiance > 0)
                         background = algo.calc_stats(lograds, mask=mask_exclude_plume, index=None, allow_nan=True)
 
                         # apply the matched filter
                         a = matched_filter(lograds, K, background)
-                    else:
+                    elif self.rad_dist == 'normal':
+                        # linearized MF
                         background = algo.calc_stats(radiance, mask=mask_exclude_plume, index=None, allow_nan=True)
 
                         # get mean value
@@ -161,6 +162,8 @@ class MatchedFilter():
 
                         # apply the matched filter
                         a = matched_filter(radiance, target, background)
+                    else:
+                        raise ValueError(f"{self.rad_dist} is not supported. Please use 'normal' or 'lognormal' as rad_dist.")
 
                     # concat data
                     alpha[:, 0][mask] = a[:, 0][mask]
