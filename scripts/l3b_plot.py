@@ -88,7 +88,7 @@ def plot_data(filename, savename):
     ax.texts[0].remove()
 
     # plot rgb and ch4 data
-    m = ds['ch4'].plot(x='longitude', y='latitude', vmin=0, vmax=2000, cmap='plasma', add_colorbar=False,
+    m = ds['ch4'].plot(x='longitude', y='latitude', vmin=0, vmax=300, cmap='plasma', add_colorbar=False,
                        # cbar_kwargs={'label': 'CH$_4$ Enhancement (ppb)', 'orientation': 'horizontal', 'shrink': 0.7}
                        )
 
@@ -140,6 +140,7 @@ def plot_data(filename, savename):
     # ax.quiverkey(q_geosfp, 0.8, 0, wspd_max, f'{wspd_max} m/s (GEOS-FP)', fontproperties={'size': 8}, labelcolor='w')
 
     title = df['datetime'].item().replace('T', ' ') + '\n' \
+            + 'Lat: ' + str(df['plume_latitude'].item()) + ' Lon: ' + str(df['plume_longitude'].item()) + '\n' \
             + str(round(df['emission'].item()/1e3, 2)) + ' t/h $\pm$ ' \
             + str(round(df['emission_uncertainty']/df['emission']*100, 2).item()) + '%'
 
