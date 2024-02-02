@@ -8,7 +8,8 @@ Clone the repository first and choose perferred installation method below.
 git clone git@gitlab.sron.nl:esg/tropomi-l4/hsi/HyperGas.git
 ```
 
-### Conda (recommended)
+### Step 1: Create Env
+
 Install all packages from the `environment.yml` file:
 
 ```bash
@@ -29,16 +30,24 @@ conda activate hypergas
 
 If you want to activate it by default, you can add the above line to your `~/.bashrc`.
 
-### Pip (not recommended)
+Finally, run `pip install -e .` inside the `HyperGas` folder.
 
-Run `pip install -e .` inside the `HyperGas` folder. Please note that HyperGas depends on multiple packages that may cause problems when installed with pip. 
+### Step 2: Update Satpy
 
-### Update Satpy (necessary)
-
-Because the Hyperspectral readers have not been merged, you need to update the satpy package after the basic installation.
+Because the Hyperspectral readers of Satpy have not been merged, you need to update the satpy package after the basic installation.
 
 ```bash
 pip install git+https://github.com/zxdawn/satpy.git@hyper
+```
+
+### Step 3: Fix spectral
+
+Edit `spectral/algorithms/algorithms.py` to prevent the `np.linalg.inv` singular matrix error (See this [issue](https://github.com/spectralpython/spectral/issues/159)).
+
+```python
+# You can find the <spectral_path> like this:
+import spectral
+print(spectral.__file__)
 ```
 
 ## Documentation
