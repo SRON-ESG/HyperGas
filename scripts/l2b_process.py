@@ -81,19 +81,21 @@ class L2B():
         self.hyp = hyp
 
 
-    def retrieve(self, land_mask=True, plume_mask=None, rad_dist='normal'):
+    def retrieve(self, land_mask=True, plume_mask=None, land_mask_source='GSHHS', rad_dist='normal'):
         """run retrieval"""
         # retrieve trace gas
         LOG.info(f'Retrieving {self.species}')
         self.hyp.retrieve(wvl_intervals=[1300, 2500],
                           land_mask=land_mask,
                           plume_mask=plume_mask,
+                          land_mask_source=land_mask_source,
                           rad_dist=rad_dist,
                           species=self.species,
                           )
         gas_swir = self.hyp.scene[self.species]
         self.hyp.retrieve(land_mask=land_mask,
                           plume_mask=plume_mask,
+                          land_mask_source=land_mask_source,
                           rad_dist=rad_dist,
                           species=self.species,
                           )
