@@ -10,6 +10,7 @@
 import itertools
 import os
 import sys
+import random
 from glob import glob
 
 import geopandas as gpd
@@ -481,10 +482,14 @@ with col3:
                           lon_mask.max().item(), lat_mask.max().item()]
 
                 # get the location attrs
-                geolocator = Nominatim(user_agent='hyper')
-                location = geolocator.reverse(
-                    f'{plume_dict[pick_plume_name][0]}, {plume_dict[pick_plume_name][1]}', exactly_one=True, language='en')
-                address = location.raw['address']
+                try:
+                    geolocator = Nominatim(user_agent='hyper'+str(random.randint(1,100)))
+                    location = geolocator.reverse(
+                        f'{plume_dict[pick_plume_name][0]}, {plume_dict[pick_plume_name][1]}', exactly_one=True, language='en')
+                    address = location.raw['address']
+                except Exception as e:
+                    st.warning('Can not access openstreetmap. Leave location info to empty.')
+                    address = {}
 
                 # save ime results
                 ime_results = {'plume_id': f"{instrument}-{t_overpass.strftime('%Y%m%dt%H%M%S')}-{pick_plume_name}",
