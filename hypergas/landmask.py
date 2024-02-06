@@ -48,6 +48,6 @@ def Land_mask(lon, lat, source='GSHHS'):
     
     # save to DataArray
     segmentation = xr.DataArray(landmask, dims=['y', 'x'])
-    segmentation.attrs['description'] = 'Natural Earth land mask (0: ocean/lake, 1: land)'
+    segmentation.attrs['description'] = f'{source} land mask (0: ocean/lake, 1: land)'
 
     return segmentation
