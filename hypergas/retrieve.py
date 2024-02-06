@@ -152,7 +152,11 @@ class MatchedFilter():
                         a = matched_filter(lograds, K, background)
                     elif self.rad_dist == 'normal':
                         # linearized MF
-                        background = algo.calc_stats(radiance, mask=mask_exclude_plume, index=None, allow_nan=True)
+                        if sum(mask_exclude_plume) > 1:
+                            background = algo.calc_stats(radiance, mask=mask_exclude_plume, index=None, allow_nan=True)
+                        else:
+                            # if all pixels are masked, we use the default mask
+                            background = algo.calc_stats(radiance, mask=mask, index=None, allow_nan=True)
 
                         # get mean value
                         mu = background.mean
