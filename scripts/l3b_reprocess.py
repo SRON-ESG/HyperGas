@@ -40,7 +40,7 @@ INSTITUTION = 'SRON Netherlands Institute for Space Research'
 PATTERNS = ['ENMAP01-____L3B*.csv', 'EMIT_L3B*.csv', 'PRS_L3_*.csv']
 
 
-def reprocess_data(filename, reprocess_nc):
+def reprocess_data(filename, reprocess_nc, wind_data):
     LOG.info('Reading csv and nc files ...')
     df = pd.read_csv(filename, dtype={'wind_weights': bool})
     plume_filename = filename.replace('.csv', '.nc')
@@ -51,6 +51,20 @@ def reprocess_data(filename, reprocess_nc):
         pixel_res = 60  # meter
     elif platform in ['EnMAP', 'PRISMA']:
         pixel_res = 30  # meter
+
+    if wind_data == 'auto':
+        wind_source = df['wind_source'].item()
+        wspd = df['wind_speed'].item()
+    elif wind_data in ['ERA5', 'GEOS-FP']:
+        wind_source = wind_data
+        ds = xr.open_dataset(plume_filename)
+        u10 = ds['u10'].sel(source=wind_source).item()
+        v10 = ds['v10'].sel(source=wind_source).item()
+        wspd = np.sqrt(u10**2 + v10**2)
+        ds.close()
+
+    else:
+        raise ValueError(f'{wind_data} is not supported. Please use "ERA5" or "GEOS-FP"')
 
     if reprocess_nc:
         # read L2B data
@@ -71,7 +85,7 @@ def reprocess_data(filename, reprocess_nc):
         html_filename = os.path.join(os.path.dirname(plume_filename),
                                      os.path.basename(plume_filename).replace(f'_{pick_plume_name}.nc', '.html')
                                      )
-        wind_source = df['wind_source'].item()
+
         wind_weights = df['wind_weights'].item()
         niter = df['niter'].item()
         size_median = df['size_median'].item()
@@ -137,15 +151,15 @@ def reprocess_data(filename, reprocess_nc):
                                                      pick_plume_name=df['plume_id'].item().split('-')[-1],
                                                      pixel_res=pixel_res,
                                                      alpha1=df['alpha1'].item(), alpha2=df['alpha2'].item(), alpha3=df['alpha3'].item(),
-                                                     wind_source=df['wind_source'].item(), wspd=df['wind_speed'].item(),
+                                                     wind_source=wind_source, wspd=wspd,
                                                      land_only=True)
 
     LOG.info('Recalculating emission rates (fetch) ...')
     Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch \
         = calc_emiss_fetch(f_ch4_mask=plume_filename,
                            pixel_res=pixel_res,
-                           wind_source=df['wind_source'].item(),
-                           wspd=df['wind_speed'].item()
+                           wind_source=wind_source,
+                           wspd=wspd
                            )
 
     # calculate plume bounds
@@ -180,7 +194,10 @@ def reprocess_data(filename, reprocess_nc):
 
 def main():
     # whether regenerate the L3 plume NetCDF file based on csv settings
-    reprocess_nc = True
+    reprocess_nc = False
+
+    # which wind source data to be applied
+    wind_data = 'auto'  # 'auto', 'ERA5', or 'GEOS-FP'
 
     # get the filname list
     filelist = list(chain(*[glob(os.path.join(data_dir, pattern), recursive=True) for pattern in PATTERNS]))
@@ -191,7 +208,7 @@ def main():
 
     for filename in filelist:
         LOG.info(f'Reprocessing {filename} ...')
-        reprocess_data(filename, reprocess_nc)
+        reprocess_data(filename, reprocess_nc, wind_data)
 
 
 if __name__ == '__main__':
