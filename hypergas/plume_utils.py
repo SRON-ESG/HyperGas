@@ -9,6 +9,7 @@
 
 import base64
 import os
+import gc
 import logging
 import warnings
 
@@ -411,6 +412,8 @@ def calc_random_err(ch4, ch4_mask, area, sp):
                 IME_noplume.append(ch4.where(ch4_bkgd_mask, drop=True).sum().values * 7.16e-7 * area)
 
     std_value = np.array(IME_noplume).std()
+    del IME_noplume
+    gc.collect()
 
     return std_value
 
