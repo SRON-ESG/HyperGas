@@ -75,7 +75,7 @@ class L2B_plot():
 
 def read_markers():
     # read pre-saved markers if it exists
-    path_hyper = os.path.dirname(pkgutil.get_loader('hyperch4').path)
+    path_hyper = os.path.dirname(pkgutil.get_loader('hypergas').path)
     with open(os.path.join(path_hyper, 'config.yaml')) as f:
         settings = yaml.safe_load(f)
 
