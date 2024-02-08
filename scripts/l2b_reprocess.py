@@ -74,9 +74,10 @@ def main():
         # get file with same prefix because one scene may have multiple plumes
         prefix = file_plume0.split('plume0')[0]
         filenames = glob(f"{prefix}*.nc")
-        for filename in filenames:
-            LOG.info(f"Reprocessing {prefix.replace('L3', 'L2')} ...")
-            reprocess_data(filename, prefix, species, land_mask_source, rad_dist)
+
+        LOG.info(f"Reprocessing {prefix.replace('L3', 'L2')} ...")
+        # only need to reprocess L2 once
+        reprocess_data(filenames[0], prefix, species, land_mask_source, rad_dist)
 
 
 if __name__ == '__main__':
