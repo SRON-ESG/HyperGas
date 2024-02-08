@@ -168,12 +168,18 @@ class Map():
                 if vmax <= cmap_vmax:
                     # set vmax as user defined value, if cmap_vmax is larger.
                     cmap_vmax = vmax
+                if cmap_vmax < vmin:
+                    # if the maximum value is negative, hard-code to 1
+                    cmap_vmax = vmin + 1
             else:
                 # set the vmax according to user's input
                 #   the variable should be trace gas enhancement
                 cmap = 'plasma'
                 vmin = 0
                 cmap_vmax = vmax
+                if cmap_vmax < vmin:
+                    # if the maximum value is negative
+                    cmap_vmax = vmin + 1
 
             fig, ax = plt.subplots(subplot_kw=dict(projection=self._get_cartopy_crs_from_epsg(out_epsg)))
 
