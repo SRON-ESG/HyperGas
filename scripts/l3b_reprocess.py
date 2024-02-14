@@ -39,7 +39,6 @@ INSTITUTION = 'SRON Netherlands Institute for Space Research'
 # set filename pattern to load data automatically
 PATTERNS = ['ENMAP01-____L3B*.csv', 'EMIT_L3B*.csv', 'PRS_L3_*.csv']
 
-
 def reprocess_data(filename, reprocess_nc, wind_data):
     LOG.info('Reading csv and nc files ...')
     df = pd.read_csv(filename, dtype={'wind_weights': bool})
@@ -147,12 +146,13 @@ def reprocess_data(filename, reprocess_nc, wind_data):
 
     LOG.info('Recalculating emission rates ...')
     wspd, wdir, l_eff, u_eff, IME, Q, Q_err, \
-        err_random, err_wind, err_shape = calc_emiss(f_ch4_mask=plume_filename,
-                                                     pick_plume_name=df['plume_id'].item().split('-')[-1],
-                                                     pixel_res=pixel_res,
-                                                     alpha1=df['alpha1'].item(), alpha2=df['alpha2'].item(), alpha3=df['alpha3'].item(),
-                                                     wind_source=wind_source, wspd=wspd,
-                                                     land_only=True)
+        err_random, err_wind  = calc_emiss(f_ch4_mask=plume_filename,
+                                           pick_plume_name=df['plume_id'].item().split('-')[-1],
+                                           pixel_res=pixel_res,
+                                           alpha1=df['alpha1'].item(), alpha2=df['alpha2'].item(), alpha3=df['alpha3'].item(),
+                                           wind_source=wind_source, wspd=wspd,
+                                           land_only=True,
+                                           )
 
     LOG.info('Recalculating emission rates (fetch) ...')
     Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch \
@@ -183,7 +183,6 @@ def reprocess_data(filename, reprocess_nc, wind_data):
     df['emission_uncertainty'] = Q_err
     df['emission_uncertainty_random'] = err_random
     df['emission_uncertainty_wind'] = err_wind
-    df['emission_uncertainty_shape'] = err_shape
     df['emission_fetch'] = Q_fetch
     df['emission_fetch_uncertainty'] = Q_fetch_err
     df['emission_fetch_uncertainty_ime'] = err_ime_fetch

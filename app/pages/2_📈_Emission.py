@@ -433,15 +433,15 @@ with col3:
 
                 # calculate emissions using the IME method with Ueff
                 wind_speed, wdir, l_eff, u_eff, IME, Q, Q_err, \
-                    err_random, err_wind, err_shape = calc_emiss(plume_nc_filename, pick_plume_name,
-                                                                 pixel_res=pixel_res,
-                                                                 alpha1=alpha1,
-                                                                 alpha2=alpha2,
-                                                                 alpha3=alpha3,
-                                                                 wind_source=wind_source,
-                                                                 wspd=wind_speed,
-                                                                 land_only=land_only
-                                                                 )
+                    err_random, err_wind = calc_emiss(plume_nc_filename, pick_plume_name,
+                                                      pixel_res=pixel_res,
+                                                      alpha1=alpha1,
+                                                      alpha2=alpha2,
+                                                      alpha3=alpha3,
+                                                      wind_source=wind_source,
+                                                      wspd=wind_speed,
+                                                      land_only=land_only
+                                                      )
 
                 # calculate emissions using the IME-fetch method with U10
                 Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch \
@@ -460,7 +460,6 @@ with col3:
                                IME: {IME:.2f} kg,
                                err_random: {err_random:.2f} kg/h,
                                err_wind: {err_wind:.2f} kg/h,
-                               err_shape: {err_shape:.2f} kg/h,
                                ]
                            ''', icon="🔥")
                 st.warning(f'''**IME-fetch (U10):**
@@ -511,7 +510,6 @@ with col3:
                                'emission_uncertainty': Q_err,
                                'emission_uncertainty_random': err_random,
                                'emission_uncertainty_wind': err_wind,
-                               'emission_uncertainty_shape': err_shape,
                                'emission_fetch': Q_fetch,
                                'emission_fetch_uncertainty': Q_fetch_err,
                                'emission_fetch_uncertainty_ime': err_ime_fetch,

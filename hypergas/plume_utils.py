@@ -498,17 +498,14 @@ def calc_emiss(f_ch4_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.6
     LOG.info('Calculating wind error')
     err_wind = calc_wind_error(wspd, IME, l_eff, alpha1, alpha2, alpha3)
 
-    # 3. alpha2 (shape)
-    LOG.info('Calculating shape error')
-    err_shape = (IME / l_eff) * (alpha2 * (0.66-0.42)/0.42)
-
-    Q_err = np.sqrt(err_random**2 + err_wind**2 + err_shape**2)
+    # sum error
+    Q_err = np.sqrt(err_random**2 + err_wind**2)
 
     ds.close()
     ds_original.close()
 
     return wspd, wdir, l_eff, u_eff, IME, Q*3600, Q_err*3600, \
-        err_random*3600, err_wind*3600, err_shape*3600  # kg/h
+        err_random*3600, err_wind*3600  # kg/h
 
 
 def calc_emiss_fetch(f_ch4_mask, pixel_res=30, wind_source='ERA5', wspd=None):
