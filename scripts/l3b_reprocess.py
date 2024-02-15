@@ -51,19 +51,20 @@ def reprocess_data(filename, reprocess_nc, wind_data):
     elif platform in ['EnMAP', 'PRISMA']:
         pixel_res = 30  # meter
 
+    # set wind source
     if wind_data == 'auto':
         wind_source = df['wind_source'].item()
-        wspd = df['wind_speed'].item()
     elif wind_data in ['ERA5', 'GEOS-FP']:
         wind_source = wind_data
-        ds = xr.open_dataset(plume_filename)
-        u10 = ds['u10'].sel(source=wind_source).item()
-        v10 = ds['v10'].sel(source=wind_source).item()
-        wspd = np.sqrt(u10**2 + v10**2)
-        ds.close()
-
     else:
         raise ValueError(f'{wind_data} is not supported. Please use "ERA5" or "GEOS-FP"')
+
+    # calculate wind speed
+    ds = xr.open_dataset(plume_filename)
+    u10 = ds['u10'].sel(source=wind_source).item()
+    v10 = ds['v10'].sel(source=wind_source).item()
+    wspd = np.sqrt(u10**2 + v10**2)
+    ds.close()
 
     if reprocess_nc:
         # read L2B data
