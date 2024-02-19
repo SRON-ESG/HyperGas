@@ -64,6 +64,7 @@ def reprocess_data(filename, reprocess_nc, wind_data):
     u10 = ds['u10'].sel(source=wind_source).item()
     v10 = ds['v10'].sel(source=wind_source).item()
     wspd = np.sqrt(u10**2 + v10**2)
+
     ds.close()
 
     if reprocess_nc:
@@ -146,7 +147,7 @@ def reprocess_data(filename, reprocess_nc, wind_data):
         gc.collect()
 
     LOG.info('Recalculating emission rates ...')
-    wspd, wdir, l_eff, u_eff, IME, Q, Q_err, \
+    wspd, wdir, wspd_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q, Q_err, \
         err_random, err_wind  = calc_emiss(f_ch4_mask=plume_filename,
                                            pick_plume_name=df['plume_id'].item().split('-')[-1],
                                            pixel_res=pixel_res,
@@ -176,6 +177,9 @@ def reprocess_data(filename, reprocess_nc, wind_data):
     LOG.info(f'Updating {filename} ...')
     df['wind_speed'] = wspd
     df['wind_direction'] = wdir
+    df['wind_source_all'] = [wind_source_all]
+    df['wind_speed_all'] = [wspd_all]
+    df['wind_direction_all'] = [wdir_all]
     df['leff_ime'] = l_eff
     df['ueff_ime'] = u_eff
     df['ime'] = IME

@@ -432,7 +432,7 @@ with col3:
                 pick_plume_name = filename[-11: -5]
 
                 # calculate emissions using the IME method with Ueff
-                wind_speed, wdir, l_eff, u_eff, IME, Q, Q_err, \
+                wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q, Q_err, \
                     err_random, err_wind = calc_emiss(plume_nc_filename, pick_plume_name,
                                                       pixel_res=pixel_res,
                                                       alpha1=alpha1,
@@ -514,7 +514,7 @@ with col3:
                                'emission_fetch_uncertainty': Q_fetch_err,
                                'emission_fetch_uncertainty_ime': err_ime_fetch,
                                'emission_fetch_uncertainty_wind': err_wind_fetch,
-                               'wind_speed': wind_speed,  # u10
+                               'wind_speed': wind_speed,
                                'wind_direction': wdir,
                                'wind_source': wind_source,
                                'ime': IME,
@@ -530,6 +530,9 @@ with col3:
                                'wind_weights': wind_weights,
                                'source_tropomi': source_tropomi,
                                'source_trace': source_trace,
+                               'wind_speed_all': [wind_speed_all],
+                               'wind_direction_all': [wdir_all],
+                               'wind_source_all': [wind_source_all],
                                }
 
                 # convert to DataFrame and export data as csv file

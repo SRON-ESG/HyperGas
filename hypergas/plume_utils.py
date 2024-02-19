@@ -433,6 +433,9 @@ def calc_emiss(f_ch4_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.6
     Return:
         wspd: Mean wind speed (m/s)
         wdir: Mean wind direction (deg)
+        wspd_all: List of available wind speed (m/s)
+        wdir_all: List of available wind direction (deg)
+        wind_source_all: List of wind source (str)
         L_eff: Effctive length (m)
         U_eff: Effective wind speed (m/s)
         Q: Emission rate (kg/h)
@@ -474,6 +477,13 @@ def calc_emiss(f_ch4_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.6
         wspd = np.sqrt(u10**2 + v10**2)
     wdir = (270-np.rad2deg(np.arctan2(v10, u10))) % 360
 
+    # check all wind products
+    wind_source_all = list(ds['source'].to_numpy())
+    wspd_all = np.sqrt(ds['u10']**2+ds['v10']**2)
+    wdir_all = (270-np.rad2deg(np.arctan2(ds['v10'], ds['u10']))) % 360
+    wspd_all = list(wspd_all.to_numpy())
+    wdir_all = list(wdir_all.to_numpy())
+
     # effective wind speed
     u_eff = alpha1 * np.log(wspd) + alpha2 + alpha3 * wspd
 
@@ -504,7 +514,7 @@ def calc_emiss(f_ch4_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.6
     ds.close()
     ds_original.close()
 
-    return wspd, wdir, l_eff, u_eff, IME, Q*3600, Q_err*3600, \
+    return wspd, wdir, wspd_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q*3600, Q_err*3600, \
         err_random*3600, err_wind*3600  # kg/h
 
 
