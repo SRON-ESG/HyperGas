@@ -138,12 +138,14 @@ class Map():
 
         self.map = m
 
-    def plot_png(self, out_epsg=3857, vmax=300, export_dir=None):
+    def plot_png(self, out_epsg=3857, vmax=None, export_dir=None):
         """Plot data and export to png files"""
+
         for varname in self.varnames:
             # load data
             da_ortho = self.ds[varname]
 
+            # plot variables
             if varname == 'rgb':
                 # transpose the bands
                 da_ortho = da_ortho.transpose(..., 'bands')
@@ -165,20 +167,33 @@ class Map():
                     cmap_vmax = da_ortho.where(self.ds['segmentation']>=1).max()
                 else:
                     cmap_vmax = da_ortho.max()
-                if vmax <= cmap_vmax:
-                    # set vmax as user defined value, if cmap_vmax is larger.
-                    cmap_vmax = vmax
+
+                # crop cmap_max to max(vmax, vmin+1)
+                if vmax is not None:
+                    if vmax <= cmap_vmax:
+                        # set vmax as user defined value, if cmap_vmax is larger.
+                        cmap_vmax = vmax
                 if cmap_vmax < vmin:
                     # if the maximum value is negative, hard-code to 1
                     cmap_vmax = vmin + 1
             else:
+                # set vmax for species automatically
+                #   Note that vmax of radiance and denoised variables are set based on percentile values above
+                if vmax is None:
+                    if 'ch4' in varname:
+                        cmap_vmax = 300 # ppb
+                    elif 'co2' in varname:
+                        cmap_vmax = 10 # ppm
+                else:
+                    cmap_vmax = vmax
+
                 # set the vmax according to user's input
                 #   the variable should be trace gas enhancement
                 cmap = 'plasma'
                 vmin = 0
-                cmap_vmax = vmax
+
+                # in case the maximum value is negative
                 if cmap_vmax < vmin:
-                    # if the maximum value is negative
                     cmap_vmax = vmin + 1
 
             fig, ax = plt.subplots(subplot_kw=dict(projection=self._get_cartopy_crs_from_epsg(out_epsg)))
@@ -214,7 +229,7 @@ class Map():
         del da_ortho, fig, ax
         gc.collect()
 
-    def plot(self, out_epsg=3857, vmax=300, show_layers=None, opacities=None,
+    def plot(self, out_epsg=3857, vmax=None, show_layers=None, opacities=None,
              marker=None, df_marker=None, export_dir=None, draw_polygon=True):
         """Plot data, export to png files, plot folium map, and export to html files
 
@@ -222,7 +237,7 @@ class Map():
             out_epsg (int):
                 EPSG code of the output projection (3857 is the proj of folium Map)
             vmax (float):
-                The cmap vmax for plotting species (ppb)
+                The cmap vmax for plotting species (unit is as same as species variable)
             show_layers (boolean list):
                 Whether the layers will be shown on opening (the length should be as same as varnames)
             opacities (float list):

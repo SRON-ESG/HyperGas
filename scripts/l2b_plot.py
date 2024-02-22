@@ -35,10 +35,38 @@ LOG = logging.getLogger(__name__)
 # set filename pattern to load data automatically
 PATTERNS = ['ENMAP01-____L2B*.nc', 'EMIT_L2B*.nc', 'PRS_L2_*.nc']
 
-# modify the settings
-SPECIES = 'ch4'  # 'ch4' or 'co2'
-VMAX = 300   # suggested setting: 300 for ch4 (ppb), 30 for co2 (ppm)
-VARNAMES = ['rgb', 'radiance_2100', SPECIES, f'{SPECIES}_comb', f'{SPECIES}_denoise', f'{SPECIES}_comb_denoise']
+# --- settings --- #
+# whether combine all htmls into one html
+#   this is useful to compare plumes on different days
+map_allinone = True
+
+# set species to be plotted (3 formats)
+#   'all': retrieve all supported gases
+#   single gas name str, e.g. 'ch4'
+#   list of gas names, e.g. ['ch4', 'co2']
+species = 'all'
+
+# colorbar vmax of species
+vmax = None  # This can be None or single value (None: vmax will be set automatically for different species; single value: it will overwrite all vmax)
+# --- settings --- #
+
+# set variables automatically
+if species == 'all':
+    species_list = ['ch4', 'co2']
+elif type(species) is list:
+    species_list = species
+elif type(species) is str:
+    species_list = [species]
+else:
+    raise ValueError(f"species should be one str or list of str. {species} is not supported")
+
+species_vnames = []
+for species in species_list:
+    species_vnames.extend([species, f'{species}_comb', f'{species}_denoise', f'{species}_comb_denoise'])
+
+varnames = ['rgb', 'radiance_2100']
+varnames.extend(species_vnames)
+
 
 
 class L2B_plot():
@@ -58,18 +86,18 @@ class L2B_plot():
 
     def make_map(self):
         """"Make the background folium map"""
-        LOG.debug(f'Create the map for {VARNAMES}')
-        self.m = Map(self.ds, VARNAMES)
+        LOG.debug(f'Create the map for {varnames}')
+        self.m = Map(self.ds, varnames)
         self.m.initialize()
 
     def plot(self):
         """Plot data on folium map."""
         LOG.debug('Plot the data on map')
-        # the length of `show_layers` and `opacities` should be as same as VARNAMES
-        self.m.plot(show_layers=[False]*(len(VARNAMES)-1)+[True],
-                    opacities=[0.9]+[0.7]*(len(VARNAMES)-1),
+        # the length of `show_layers` and `opacities` should be as same as varnames
+        self.m.plot(show_layers=[False]*(len(varnames)-1)+[True],
+                    opacities=[0.9]+[0.7]*(len(varnames)-1),
                     df_marker=self.df_marker,
-                    vmax=VMAX
+                    vmax=vmax,
                     )
 
 
@@ -116,22 +144,23 @@ def plot_data(filelist, df_marker, len_chunklist, index):
         del l2b_map.ds, l2b_map.m, l2b_map
         gc.collect()
 
-        # 2. one map for all files
-        LOG.info('Making a whole map (to be exported at the end)')
-        if l2b_map_allinone.m is None:
-            # make the background map only once
-            l2b_map_allinone.make_map()
-        else:
-            # if the background map is already there, just replace the dataset to be plotted
-            l2b_map_allinone.m.ds = l2b_map_allinone.ds
+        if map_allinone:
+            # 2. one map for all files
+            LOG.info('Making a whole map (to be exported at the end)')
+            if l2b_map_allinone.m is None:
+                # make the background map only once
+                l2b_map_allinone.make_map()
+            else:
+                # if the background map is already there, just replace the dataset to be plotted
+                l2b_map_allinone.m.ds = l2b_map_allinone.ds
 
-        # update scene center
-        l2b_map_allinone.m.center_map = scene_center
+            # update scene center
+            l2b_map_allinone.m.center_map = scene_center
 
-        # plot the variables
-        l2b_map_allinone.plot()
-        del l2b_map_allinone.m.ds, l2b_map_allinone.ds
-        gc.collect()
+            # plot the variables
+            l2b_map_allinone.plot()
+            del l2b_map_allinone.m.ds, l2b_map_allinone.ds
+            gc.collect()
 
     # use the folder name as html name
     savename_all = os.path.join(os.path.dirname(filelist[0]), Path(filelist[0]).parent.parts[-1] + '.html')
@@ -141,9 +170,10 @@ def plot_data(filelist, df_marker, len_chunklist, index):
         savename_all = savename_all.replace('.html', f'_{index}.html')
 
     # export combined html file
-    l2b_map_allinone.m.export(savename_all)
-    del l2b_map_allinone.m, l2b_map_allinone
-    gc.collect()
+    if map_allinone:
+        l2b_map_allinone.m.export(savename_all)
+        del l2b_map_allinone.m, l2b_map_allinone
+        gc.collect()
 
 
 def main(chunk=8, skip_exist=True, plot_markers=False):
