@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Copyright (c) 2023 HyperCH4 developers
+# Copyright (c) 2023 HyperGas developers
 #
-# This file is part of hyperch4.
+# This file is part of hypergas.
 #
-# hyperch4 is a library to retrieve methane from hyperspectral satellite data
-"""Streamlit app for calculating ch4 emission rates"""
+# hypergas is a library to retrieve trace gases from hyperspectral satellite data
+"""Streamlit app for calculating trace gas emission rates"""
 
 import itertools
 import os
@@ -39,7 +39,7 @@ INSTITUTION = 'SRON Netherlands Institute for Space Research'
 
 with col2:
     # --- Load data and plot it over background map --- #
-    st.info('Load data and check the quickview of map and CH$_4$', icon="1️⃣")
+    st.info('Load data and check the quickview of map and trace gases', icon="1️⃣")
 
     # set the folder path
     folderPath = st.text_input('**Enter L2 folder path:**')
@@ -108,7 +108,8 @@ if filename is not None:
 col3, col4 = st.columns([6, 3])
 
 # set default params which can be modified from the form
-params = {'niter': 1, 'size_median': 3, 'sigma_guass': 2, 'quantile': 0.98,
+params = {'gas': 'CH4',
+          'niter': 1, 'size_median': 3, 'sigma_guass': 2, 'quantile': 0.98,
           'wind_source': None, 'wind_weights': True, 'land_only': True, 'wind_speed': None,
           'alpha1': 0.0, 'alpha2': 0.66, 'alpha3': 0.34,
           'name': '', 'ipcc_sector': 'Solid Waste (6A)',
@@ -145,7 +146,7 @@ with col3:
         # --- Create plume mask --- #
         with st.form("mask_form"):
             # --- Generate plume mask by submitting the center location --- #
-            st.info("Create CH$_4$ plume mask from selected plume.", icon="2️⃣")
+            st.info("Create gas plume mask from selected plume marker.", icon="2️⃣")
             st.warning(
                 'Don\'t need to run this again, if you already have the plume HTML file.', icon="☕️")
 
@@ -154,6 +155,10 @@ with col3:
 
             if plume_dict is not None:
                 # input of several params
+                # trace gas name
+                gases = ('CH4', 'CO2')
+                gas = st.selectbox('Trace Gas', gases, index=gases.index(params['gas'])).lower()
+
                 plume_names = list(plume_dict.keys())
                 if 'plume' in os.path.basename(filename):
                     file_mask_exist = glob(filename.replace('.html', '.csv'))[0]
@@ -206,8 +211,8 @@ with col3:
                                                index=wind_source_names.index(params['wind_source']),
                                                )
 
-                plume_varname = st.selectbox("Pick varname for creating plume mask:",
-                                             ('ch4_comb_denoise', 'ch4_denoise', 'ch4'),
+                plume_varname = st.selectbox("Pick varname type for creating plume mask:",
+                                             (f'comb_denoise', f'denoise', 'original'),
                                              index=0,
                                              )
 
@@ -215,7 +220,7 @@ with col3:
                                            value=params['wind_weights'],
                                            )
 
-                only_plume = st.checkbox('Whether only plot ch4 plume',
+                only_plume = st.checkbox(f'Whether only plot plume',
                                          value=True,
                                          )
 
@@ -265,14 +270,14 @@ with col3:
 
                     with xr.open_dataset(ds_name, decode_coords='all') as ds:
                         # create mask and plume html file
-                        mask, lon_mask, lat_mask, plume_html_filename = mask_data(filename, ds, longitude, latitude,
+                        mask, lon_mask, lat_mask, plume_html_filename = mask_data(filename, ds, gas, longitude, latitude,
                                                                                   pick_plume_name, plume_varname,
                                                                                   wind_source, wind_weights, land_only, land_mask_source,
                                                                                   niter, size_median, sigma_guass, quantile,
                                                                                   only_plume)
 
                         # mask data
-                        ch4_mask = ds['ch4'].where(mask)
+                        gas_mask = ds[gas].where(mask)
 
                         # calculate mean wind and surface pressure in the plume
                         u10 = ds['u10'].where(mask).mean(dim=['y', 'x'])
@@ -285,9 +290,9 @@ with col3:
                         sp.attrs = ds['sp'].attrs
 
                         # save useful number for attrs
-                        sza = ds['ch4'].attrs['sza']
-                        vza = ds['ch4'].attrs['vza']
-                        start_time = ds['ch4'].attrs['start_time']
+                        sza = ds[gas].attrs['sza']
+                        vza = ds[gas].attrs['vza']
+                        start_time = ds[gas].attrs['start_time']
 
                     # export masked data (plume)
                     if 'plume' in os.path.basename(filename):
@@ -301,7 +306,7 @@ with col3:
 
 
                     # merge data
-                    ds_merge = xr.merge([ch4_mask, u10, v10, sp])
+                    ds_merge = xr.merge([gas_mask, u10, v10, sp])
 
                     # add crs info
                     if ds.rio.crs:
@@ -326,7 +331,8 @@ with col3:
                     ds_merge.to_netcdf(plume_nc_filename)
 
                 # save mask setting
-                mask_setting = {'wind_source': wind_source,
+                mask_setting = {'gas': gas.upper(),
+                                'wind_source': wind_source,
                                 'niter': niter,
                                 'size_median': size_median,
                                 'sigma_guass': sigma_guass,
@@ -363,7 +369,7 @@ with col3:
 with col3:
     with st.form("emiss_form"):
         # --- Create emission rate --- #
-        st.info('Estimating the CH$_4$ emission rate using IME method', icon="3️⃣")
+        st.info('Estimating the gas emission rate using IME method', icon="3️⃣")
 
         # input alphas for calculating U_eff
         st.success('U_eff = alpha1 * np.log(wind_speed_average) + alpha2 + alpha3 * wind_speed_average', icon='🧮')
@@ -376,7 +382,7 @@ with col3:
         name = st.text_input('Sitename (any name you like)', value=params['name'])
 
         # ipcc sector name
-        sectors = ('Electricity Generation (1A1)', 'Coal Mining (1B1a)', 'Oil & Gas (1B2)', 'Livestock (4B)', 'Solid Waste (6A)', 'Solid Waste (6A)', 'Other')
+        sectors = ('Electricity Generation (1A1)', 'Coal Mining (1B1a)', 'Oil & Gas (1B2)', 'Livestock (4B)', 'Solid Waste (6A)', 'Other')
         ipcc_sector = st.selectbox('IPCC sector', sectors, index=sectors.index(params['ipcc_sector']))
 
         # platform for csv output
@@ -432,8 +438,9 @@ with col3:
                 pick_plume_name = filename[-11: -5]
 
                 # calculate emissions using the IME method with Ueff
+                gas = params['gas'].lower()
                 wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q, Q_err, \
-                    err_random, err_wind = calc_emiss(plume_nc_filename, pick_plume_name,
+                    err_random, err_wind = calc_emiss(gas, plume_nc_filename, pick_plume_name,
                                                       pixel_res=pixel_res,
                                                       alpha1=alpha1,
                                                       alpha2=alpha2,
@@ -445,7 +452,7 @@ with col3:
 
                 # calculate emissions using the IME-fetch method with U10
                 Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch \
-                    = calc_emiss_fetch(plume_nc_filename,
+                    = calc_emiss_fetch(gas, plume_nc_filename,
                                        pixel_res=pixel_res,
                                        wind_source=wind_source,
                                        wspd=wind_speed
@@ -453,7 +460,7 @@ with col3:
 
                 # print the emission data
                 st.warning(f'''**IME (Ueff):**
-                               The CH$_4$ emission rate is {Q:.2f} kg/h $\pm$ {Q_err/Q*100:.2f}% ({Q_err:.2f} kg/h).
+                               The {gas.upper()} emission rate is {Q:.2f} kg/h $\pm$ {Q_err/Q*100:.2f}% ({Q_err:.2f} kg/h).
                                [
                                U$_{{eff}}$: {u_eff:.2f} m/s,
                                L$_{{eff}}$: {l_eff:.2f} m,
@@ -463,7 +470,7 @@ with col3:
                                ]
                            ''', icon="🔥")
                 st.warning(f'''**IME-fetch (U10):**
-                               The CH$_4$ emission rate is {Q_fetch:.2f} kg/h $\pm$ {Q_fetch_err/Q_fetch*100:.2f}% ({Q_fetch_err:.2f} kg/h).
+                               The {gas.upper()} emission rate is {Q_fetch:.2f} kg/h $\pm$ {Q_fetch_err/Q_fetch*100:.2f}% ({Q_fetch_err:.2f} kg/h).
                                [
                                err_wind: {err_wind_fetch:.2f} kg/h,
                                err_ime: {err_ime_fetch:.2f} kg/h,
@@ -472,10 +479,10 @@ with col3:
 
                 # calculate plume bounds
                 with xr.open_dataset(plume_nc_filename) as ds:
-                    plume_mask = ~ds['ch4'].isnull()
+                    plume_mask = ~ds[gas].isnull()
                     lon_mask = ds['longitude'].where(plume_mask, drop=True)
                     lat_mask = ds['latitude'].where(plume_mask, drop=True)
-                    t_overpass = pd.to_datetime(ds['ch4'].attrs['start_time'])
+                    t_overpass = pd.to_datetime(ds[gas].attrs['start_time'])
 
                 bounds = [lon_mask.min().item(), lat_mask.min().item(),
                           lon_mask.max().item(), lat_mask.max().item()]
@@ -500,7 +507,7 @@ with col3:
                                'city': address.get('city', ''),
                                'name': name,
                                'ipcc_sector': ipcc_sector,
-                               'gas': 'CH4',
+                               'gas': gas.upper(),
                                'cmf_type': 'mf',
                                'plume_bounds': [bounds],
                                'instrument': instrument,

@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Copyright (c) 2023 HyperCH4 developers
+# Copyright (c) 2023 HyperGas developers
 #
-# This file is part of hyperch4.
+# This file is part of hypergas.
 #
-# hyperch4 is a library to retrieve methane from hyperspectral satellite data
-"""Some utils used for calculating CH4 plume mask and emission rates"""
+# hypergas is a library to retrieve trace gases from hyperspectral satellite data
+"""Some utils used for creating plume mask and gas emission rates"""
 
 import base64
 import os
@@ -29,7 +29,7 @@ LOG = logging.getLogger(__name__)
 warnings.filterwarnings('ignore')
 
 # calculate IME (kg m-2)
-mass = 16.04e-3  # molar mass CH4 [kg/mol]
+mass = {'ch4': 16.04e-3, 'co2': 44.01e-3}  # molar mass [kg/mol]
 mass_dry_air = 28.964e-3  # molas mass dry air [kg/mol]
 grav = 9.8  # gravity (m s-2)
 
@@ -146,7 +146,7 @@ def get_index_nearest(lons, lats, lon_target, lat_target):
     return y_target, x_target
 
 
-def plume_mask(ds, lon_target, lat_target, plume_varname='ch4_comb_denoise',
+def plume_mask(ds, gas, lon_target, lat_target, plume_varname='comb_denoise',
                wind_source='ERA5', wind_weights=True, land_only=False, land_mask_source='GSHHS',
                niter=1, quantile_value=0.98, size_median=3, sigma_guass=2):
     """Get the plume mask based on matched filter results
@@ -162,11 +162,12 @@ def plume_mask(ds, lon_target, lat_target, plume_varname='ch4_comb_denoise',
         - fill holes of mask
 
     Args:
+        gas (str): the gas field to be masked
         lon_target (float): source longitude for picking plume dilation mask
         lat_target (float): source latitude for picking plume dilation mask
-        plume_varname (str): the variable used to create plume mask (Default:ch4_comb_denoise)
+        plume_varname (str): the variable used to create plume mask (Default:comb_denoise)
         wind_source (str): 'ERA5' or 'GEOS-FP'
-        wind_weights (boolean): whether apply the wind weights to ch4 fields
+        wind_weights (boolean): whether apply the wind weights to gas fields
         n_iter (int): number of iterations for dilations
         quantile_value (float): the lower quantile limit of enhancements are included in the mask
         size_median (int): size for median filter
@@ -176,7 +177,16 @@ def plume_mask(ds, lon_target, lat_target, plume_varname='ch4_comb_denoise',
     lon = ds['longitude']
     lat = ds['latitude']
 
-    ch4 = getattr(ds, plume_varname, ds['ch4'])
+    # get the variable for plume masking
+    #   default: <gas>_comb_denoise
+    if plume_varname == 'comb_denoise':
+        varname = f'{gas}_comb_denoise'
+    elif plume_varname == 'denoise':
+        varname = f'{gas}_denoise'
+    else:
+        varname = gas
+
+    da_gas = getattr(ds, plume_varname, ds[gas])
 
     # get_neighbour_info() returns indices in the flattened lat/lon grid. Compute the 2D grid indices:
     y_target, x_target = get_index_nearest(ds['longitude'], ds['latitude'], lon_target, lat_target)
@@ -186,9 +196,9 @@ def plume_mask(ds, lon_target, lat_target, plume_varname='ch4_comb_denoise',
         angle_wind_rad, angle_wind = get_wind_azimuth(ds['u10'].sel(source=wind_source).isel(y=y_target, x=x_target).item(),
                                                       ds['v10'].sel(source=wind_source).isel(y=y_target, x=x_target).item())
         weights = conish_2d(lon, lat, lon_target, lat_target, np.pi/2. - angle_wind_rad)
-        ch4_weights = ch4 * weights
+        da_gas_weights = da_gas * weights
     else:
-        ch4_weights = ch4
+        da_gas_weights = da_gas
 
     # set oceanic pixel values to nan
     if land_only:
@@ -196,18 +206,18 @@ def plume_mask(ds, lon_target, lat_target, plume_varname='ch4_comb_denoise',
         if segmentation.isel(y=y_target, x=x_target).values != 0 :
             # because sometimes cartopy land mask is not accurate
             #  we need to make sure the source point is not on the ocean
-            ch4_weights = ch4_weights.where(segmentation)
+            da_gas_weights = da_gas_weights.where(segmentation)
         else:
             LOG.warning('The source point is over ocean! Please make sure you choose the suitable cfeature.')
 
     # set init mask by the quantile value
-    mask_buf = np.zeros(np.shape(ch4))
-    mask_buf[ch4_weights >= ch4_weights.quantile(quantile_value)] = 1.
+    mask_buf = np.zeros(np.shape(da_gas))
+    mask_buf[da_gas_weights >= da_gas_weights.quantile(quantile_value)] = 1.
 
     # blur the mask
     median_blurred = ndimage.median_filter(mask_buf, size_median)
     gaussmed_blurred = ndimage.gaussian_filter(median_blurred, sigma_guass)
-    mask = np.zeros(np.shape(ch4))
+    mask = np.zeros(np.shape(da_gas))
     mask[gaussmed_blurred > 0.05] = 1.
 
     # dilation
@@ -222,7 +232,7 @@ def plume_mask(ds, lon_target, lat_target, plume_varname='ch4_comb_denoise',
     mask = labeled_mask == feature_label
 
     # create the positive mask
-    fg_mask = ch4_weights.where(mask) > 0
+    fg_mask = da_gas_weights.where(mask) > 0
     # erosion the mask and propagate again
     eroded_square = ndimage.binary_erosion(fg_mask)
     reconstruction = ndimage.binary_propagation(eroded_square, mask=fg_mask)
@@ -233,27 +243,28 @@ def plume_mask(ds, lon_target, lat_target, plume_varname='ch4_comb_denoise',
     lon_mask = xr.DataArray(lon, dims=['y', 'x']).where(mask).rename('longitude')
     lat_mask = xr.DataArray(lat, dims=['y', 'x']).where(mask).rename('latitude')
 
-    return ds['ch4'], mask, lon_mask, lat_mask
+    return mask, lon_mask, lat_mask
 
 
-def plot_mask(filename, ds, ch4, mask, lon_target, lat_target, pick_plume_name, only_plume=True):
+def plot_mask(filename, ds, gas, mask, lon_target, lat_target, pick_plume_name, only_plume=True):
     """Plot masked data"""
     # get masked plume data
-    ch4_mask = ch4.where(xr.DataArray(mask, dims=list(ch4.dims)))
-    ds['plume'] = ch4_mask
+    da_gas = ds[gas]
+    da_gas_mask = da_gas.where(xr.DataArray(mask, dims=list(da_gas.dims)))
+    ds[f'{gas}_plume'] = da_gas_mask
 
     if only_plume:
         # only plot plume for quick check
-        m = Map(ds, varnames=['plume'], center_map=[lat_target, lon_target])
+        m = Map(ds, varnames=[f'{gas}_plume'], center_map=[lat_target, lon_target])
         m.initialize()
-        m.plot(show_layers=[True], opacities=[0.9], vmax=300,
+        m.plot(show_layers=[True], opacities=[0.9],
                marker=[lat_target, lon_target], export_dir=os.path.dirname(filename), draw_polygon=False)
     else:
         # plot all important data
-        m = Map(ds, varnames=['rgb', 'ch4', 'ch4_comb', 'ch4_comb_denoise',
-                'plume'], center_map=[lat_target, lon_target])
+        m = Map(ds, varnames=['rgb', gas, f'{gas}_comb', f'{gas}_comb_denoise',
+                f'{gas}_plume'], center_map=[lat_target, lon_target])
         m.initialize()
-        m.plot(show_layers=[False, False, False, False, True], opacities=[0.9, 0.8, 0.8, 0.8, 0.8],  vmax=300,
+        m.plot(show_layers=[False, False, False, False, True], opacities=[0.9, 0.8, 0.8, 0.8, 0.8],
                marker=[lat_target, lon_target], export_dir=os.path.dirname(filename), draw_polygon=False)
 
     # export to html file
@@ -271,7 +282,7 @@ def plot_mask(filename, ds, ch4, mask, lon_target, lat_target, pick_plume_name, 
     return plume_html_filename
 
 
-def mask_data(filename, ds, lon_target, lat_target, pick_plume_name, plume_varname,
+def mask_data(filename, ds, gas, lon_target, lat_target, pick_plume_name, plume_varname,
               wind_source, wind_weights, land_only, land_mask_source,
               niter, size_median, sigma_guass, quantile_value, only_plume):
     '''Generate and plot masked plume data
@@ -279,12 +290,13 @@ def mask_data(filename, ds, lon_target, lat_target, pick_plume_name, plume_varna
     Args:
         filename (str): input filename
         ds (Dataset): L2 data
+        gas (str): the gas field to be masked
         lon_target (float): The longitude of plume source
         lat_target (float): The latitude of plume source
         pick_plume_name (str): the plume name (plume0, plume1, ....)
-        plume_varname (str): the variable used to create plume mask (Default:ch4_comb_denoise)
+        plume_varname (str): the variable used to create plume mask (Default:comb_denoise)
         wind_source (str): 'ERA5' or 'GEOS-FP'
-        wind_weights (boolean): whether apply the wind weights to ch4 fields
+        wind_weights (boolean): whether apply the wind weights to gas fields
         n_iter (int): number of iterations for dilations
         quantile_value (float): the lower quantile limit of enhancements are included in the mask
         size_median (int): size for median filter
@@ -297,14 +309,14 @@ def mask_data(filename, ds, lon_target, lat_target, pick_plume_name, plume_varna
         plume_html_filename (str): exported plume html filename
         '''
     # create the plume mask
-    ch4, mask, lon_mask, lat_mask = plume_mask(ds, lon_target, lat_target, plume_varname=plume_varname,
-                                               wind_source=wind_source, wind_weights=wind_weights,
-                                               land_only=land_only, land_mask_source=land_mask_source,
-                                               niter=niter, size_median=size_median, sigma_guass=sigma_guass,
-                                               quantile_value=quantile_value)
+    mask, lon_mask, lat_mask = plume_mask(ds, gas, lon_target, lat_target, plume_varname=plume_varname,
+                                          wind_source=wind_source, wind_weights=wind_weights,
+                                          land_only=land_only, land_mask_source=land_mask_source,
+                                          niter=niter, size_median=size_median, sigma_guass=sigma_guass,
+                                          quantile_value=quantile_value)
 
     # plot the mask (png and html)
-    plume_html_filename = plot_mask(filename, ds, ch4, mask, lon_target, lat_target,
+    plume_html_filename = plot_mask(filename, ds, gas, mask, lon_target, lat_target,
                                     pick_plume_name, only_plume=only_plume)
 
     return mask, lon_mask, lat_mask, plume_html_filename
@@ -326,12 +338,19 @@ def create_circular_mask(h, w, center=None, radius=None):
     return mask
 
 
-def ime_radius(ch4, mask, sp, area):
-    ch4_mask = ch4.where(mask)
-    if ch4_mask.attrs['units'] == 'ppb':
-        delta_omega = ch4_mask * 1.0e-9 * (mass / mass_dry_air) * sp / grav
-    elif ch4_mask.attrs['units'] == 'ppm m':
-        delta_omega = ch4_mask * 7.16e-7
+def ime_radius(gas, da_gas, mask, sp, area):
+    gas_mask = da_gas.where(mask)
+    unit = gas_mask.attrs['units']
+
+    if unit == 'ppb':
+        delta_omega = gas_mask * 1.0e-9 * (mass[gas] / mass_dry_air) * sp / grav
+    elif unit == 'ppm':
+        delta_omega = gas_mask * 1.0e-6 * (mass[gas] / mass_dry_air) * sp / grav
+    elif unit == 'ppm m':
+        delta_omega = gas_mask * 7.16e-7
+    else:
+        raise ValueError(f"Unit '{unit}' is not supported yet. Please add it here.")
+
     IME = np.nansum(delta_omega * area)
 
     return IME
@@ -384,14 +403,14 @@ def calc_wind_error_fetch(wspd, ime_l_mean):
     return wind_error
 
 
-def calc_random_err(ch4, ch4_mask, area, sp):
+def calc_random_err(gas, da_gas, gas_mask, area, sp):
     """Calculate random error by moving plume around the whole scene"""
-    # crop ch4 to valid region
-    ch4_mask_crop = ch4_mask.where(~ch4_mask.isnull()).dropna(dim='y', how='all').dropna(dim='x', how='all')
+    # crop gas field to valid region
+    gas_mask_crop = gas_mask.where(~gas_mask.isnull()).dropna(dim='y', how='all').dropna(dim='x', how='all')
 
     # get the shape of input data and mask
-    bkgd_rows, bkgd_cols = ch4_mask.shape
-    mask_rows, mask_cols = ch4_mask_crop.shape
+    bkgd_rows, bkgd_cols = gas_mask.shape
+    mask_rows, mask_cols = gas_mask_crop.shape
 
     # Insert plume mask data at a random position
     IME_noplume = []
@@ -401,15 +420,21 @@ def calc_random_err(ch4, ch4_mask, area, sp):
         row_idx = np.random.randint(0, bkgd_rows - mask_rows)
         col_idx = np.random.randint(0, bkgd_cols - mask_cols)
 
-        if not np.any(ch4[row_idx:row_idx+mask_rows, col_idx:col_idx+mask_cols].isnull()):
-            ch4_bkgd_mask = xr.zeros_like(ch4)
-            ch4_bkgd_mask[row_idx:row_idx+mask_rows, col_idx:col_idx+mask_cols] = ch4_mask_crop.values
-            ch4_bkgd_mask = ch4_bkgd_mask.fillna(0)
-            if ch4.attrs['units'] == 'ppb':
-                IME_noplume.append(ch4.where(ch4_bkgd_mask, drop=True).sum().values *
-                                   1.0e-9 * (mass / mass_dry_air) * sp / grav * area)
-            elif ch4.attrs['units'] == 'ppm m':
-                IME_noplume.append(ch4.where(ch4_bkgd_mask, drop=True).sum().values * 7.16e-7 * area)
+        if not np.any(da_gas[row_idx:row_idx+mask_rows, col_idx:col_idx+mask_cols].isnull()):
+            gas_bkgd_mask = xr.zeros_like(da_gas)
+            gas_bkgd_mask[row_idx:row_idx+mask_rows, col_idx:col_idx+mask_cols] = gas_mask_crop.values
+            gas_bkgd_mask = gas_bkgd_mask.fillna(0)
+            unit = da_gas.attrs['units']
+            if unit == 'ppb':
+                IME_noplume.append(da_gas.where(gas_bkgd_mask, drop=True).sum().values *
+                                   1.0e-9 * (mass[gas] / mass_dry_air) * sp / grav * area)
+            elif unit == 'ppm':
+                IME_noplume.append(da_gas.where(gas_bkgd_mask, drop=True).sum().values *
+                                   1.0e-6 * (mass[gas] / mass_dry_air) * sp / grav * area)
+            elif unit == 'ppm m':
+                IME_noplume.append(da_gas.where(gas_bkgd_mask, drop=True).sum().values * 7.16e-7 * area)
+            else:
+                raise ValueError(f"Unit '{unit}' is not supported yet. Please add it here.")
 
     std_value = np.array(IME_noplume).std()
     del IME_noplume
@@ -418,12 +443,13 @@ def calc_random_err(ch4, ch4_mask, area, sp):
     return std_value
 
 
-def calc_emiss(f_ch4_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.66, alpha3=0.34,
+def calc_emiss(gas, f_gas_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.66, alpha3=0.34,
                wind_source='ERA5', wspd=None, land_only=True):
     '''Calculate the emission rate (kg/h) using IME method
 
     Args:
-        f_ch4_mask: The NetCDF file of mask created by `mask_data` function
+        gas (str): the gas field to be masked
+        f_gas_mask: The NetCDF file of mask created by `mask_data` function
         pick_plume_name (str): the plume name (plume0, plume1, ....)
         pixel_res (float): pixel resolution (meter)
         alpha1--3 (float): The coefficients for effective wind (U_eff)
@@ -446,27 +472,34 @@ def calc_emiss(f_ch4_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.6
 
     '''
     # read file and pick valid data
-    file_original = f_ch4_mask.replace('L3', 'L2').replace(f'_{pick_plume_name}.nc', '.nc')
+    file_original = f_gas_mask.replace('L3', 'L2').replace(f'_{pick_plume_name}.nc', '.nc')
     ds_original = xr.open_dataset(file_original)
-    ds = xr.open_dataset(f_ch4_mask)
+    ds = xr.open_dataset(f_gas_mask)
 
     # get the masked plume data
-    ch4_mask = ds.dropna(dim='y', how='all').dropna(dim='x', how='all')['ch4']
+    gas_mask = ds.dropna(dim='y', how='all').dropna(dim='x', how='all')[gas]
 
     # area of pixel in m2
     area = pixel_res*pixel_res
 
     # calculate Leff using the root method in meter
-    plume_pixel_num = (~ch4_mask.isnull()).sum()
+    plume_pixel_num = (~gas_mask.isnull()).sum()
     l_eff = np.sqrt(plume_pixel_num * area).item()
 
-    # calculate IME
+    # calculate IME (kg)
     LOG.info('Calculating IME')
     sp = ds['sp'].mean().item()  # use the mean surface pressure (Pa)
-    if ch4_mask.attrs['units'] == 'ppb':
-        delta_omega = ch4_mask * 1.0e-9 * (mass / mass_dry_air) * sp / grav
-    elif ch4_mask.attrs['units'] == 'ppm m':
-        delta_omega = ch4_mask * 7.16e-7
+    unit = gas_mask.attrs['units']
+
+    if unit == 'ppb':
+        delta_omega = gas_mask * 1.0e-9 * (mass[gas] / mass_dry_air) * sp / grav
+    elif unit == 'ppm':
+        delta_omega = gas_mask * 1.0e-6 * (mass[gas] / mass_dry_air) * sp / grav
+    elif unit == 'ppm m':
+        delta_omega = gas_mask * 7.16e-7
+    else:
+        raise ValueError(f"Unit '{unit}' is not supported yet. Please add it here.")
+
     IME = np.nansum(delta_omega * area)
 
     # get wind info
@@ -498,10 +531,10 @@ def calc_emiss(f_ch4_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.6
         lon = ds_original['longitude']
         lat = ds_original['latitude']
         segmentation = Land_mask(lon.data, lat.data)
-        ds_original['ch4'] = ds_original['ch4'].where(segmentation)
-        ds['ch4'] = ds['ch4'].where(segmentation)
+        ds_original[gas] = ds_original[gas].where(segmentation)
+        ds[gas] = ds[gas].where(segmentation)
 
-    IME_std = calc_random_err(ds_original['ch4'], ds['ch4'], area, sp)
+    IME_std = calc_random_err(gas, ds_original[gas], ds[gas], area, sp)
     err_random = u_eff / l_eff * IME_std
 
     # 2. wind error
@@ -518,11 +551,12 @@ def calc_emiss(f_ch4_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.6
         err_random*3600, err_wind*3600  # kg/h
 
 
-def calc_emiss_fetch(f_ch4_mask, pixel_res=30, wind_source='ERA5', wspd=None):
+def calc_emiss_fetch(gas, f_gas_mask, pixel_res=30, wind_source='ERA5', wspd=None):
     """Calculate the emission rate (kg/h) using IME-fetch method
 
     Args:
-        f_ch4_mask: The NetCDF file of mask created by `mask_data` function
+        gas (str): the gas field to be masked
+        f_gas_mask: The NetCDF file of mask created by `mask_data` function
         pixel_res (float): pixel resolution (meter)
 
     Return:
@@ -533,15 +567,15 @@ def calc_emiss_fetch(f_ch4_mask, pixel_res=30, wind_source='ERA5', wspd=None):
     """
     # read file and pick valid data
     LOG.info('Reading data')
-    ds = xr.open_dataset(f_ch4_mask)
+    ds = xr.open_dataset(f_gas_mask)
     sp = ds['sp'].mean().item()  # use the mean surface pressure (Pa)
 
-    df = pd.read_csv(f_ch4_mask.replace('.nc', '.csv'))
+    df = pd.read_csv(f_gas_mask.replace('.nc', '.csv'))
     lon_target = df['plume_longitude']
     lat_target = df['plume_latitude']
 
     # get the masked plume data
-    ch4_mask = ds.dropna(dim='y', how='all').dropna(dim='x', how='all')['ch4']
+    gas_mask = ds.dropna(dim='y', how='all').dropna(dim='x', how='all')[gas]
 
     # get wind info
     LOG.info('Calculating wind info')
@@ -555,8 +589,8 @@ def calc_emiss_fetch(f_ch4_mask, pixel_res=30, wind_source='ERA5', wspd=None):
 
     # create mask centered on source point
     LOG.info('Calculating the index of source loc')
-    mask = np.zeros(ch4_mask.shape)
-    y_target, x_target = get_index_nearest(ch4_mask['longitude'], ch4_mask['latitude'], lon_target, lat_target)
+    mask = np.zeros(gas_mask.shape)
+    y_target, x_target = get_index_nearest(gas_mask['longitude'], gas_mask['latitude'], lon_target, lat_target)
     mask[y_target, x_target] = 1
 
     # calculate plume height, width, and diagonal
@@ -574,7 +608,7 @@ def calc_emiss_fetch(f_ch4_mask, pixel_res=30, wind_source='ERA5', wspd=None):
                                     center=(x_target, y_target),
                                     radius=r)
 
-        IME = ime_radius(ch4_mask, mask, sp, area)
+        IME = ime_radius(gas, gas_mask, mask, sp, area)
         ime.append(IME)
 
         # no new plume pixels anymore
