@@ -9,6 +9,7 @@
 
 from matplotlib import rcParams
 import gc
+import re
 import logging
 import os
 from ast import literal_eval
@@ -50,6 +51,12 @@ rcParams['figure.titlesize'] = font_size
 rcParams['figure.titleweight'] = 'bold'
 
 
+def replace_number_with_subscript(input_string):
+    def replace(match):
+        return match.group(1) + '$_{' + match.group(2) + '}$'
+
+    return re.sub(r'([A-Za-z]+)(\d+)', replace, input_string)
+
 def plot_data(filename, savename):
     """Plot L3 data"""
     LOG.info(f'Plotting {filename}')
@@ -59,7 +66,8 @@ def plot_data(filename, savename):
     df = pd.read_csv(filename.replace('.nc', '.csv'), converters={'plume_bounds': literal_eval})
 
     # subset data to plume
-    ds = ds.where(~ds['ch4'].isnull(), drop=True)
+    gas = df['gas'].item().lower()
+    ds = ds.where(~ds[gas].isnull(), drop=True)
 
     proj = ccrs.PlateCarree()
 
@@ -87,8 +95,16 @@ def plot_data(filename, savename):
     # remove watermark
     ax.texts[0].remove()
 
-    # plot rgb and ch4 data
-    m = ds['ch4'].plot(x='longitude', y='latitude', vmin=0, vmax=300, cmap='plasma', add_colorbar=False,
+    # set colorbar limit
+    if gas == 'ch4':
+        vmax = 300  # ppb
+    elif gas == 'co2':
+        vmax = 10  # ppm
+    else:
+        raise ValueError("Please set cmap limit for {gas} here.")
+
+    # plot rgb and gas data
+    m = ds[gas].plot(x='longitude', y='latitude', vmin=0, vmax=vmax, cmap='plasma', add_colorbar=False,
                        # cbar_kwargs={'label': 'CH$_4$ Enhancement (ppb)', 'orientation': 'horizontal', 'shrink': 0.7}
                        )
 
@@ -98,18 +114,19 @@ def plot_data(filename, savename):
     ax_cb = divider.append_axes("bottom", size="7%", pad="2%", axes_class=plt.Axes)
     fig.add_axes(ax_cb)
 
-    out_bnd = (ds['ch4'] < 0).any().item() + (ds['ch4'] > 300).any().item()
+    out_bnd = (ds[gas] < 0).any().item() + (ds[gas] > vmax).any().item()
 
     if out_bnd == 0:
         extend = None
     elif out_bnd == 2:
         extend = 'both'
-    elif (ds['ch4'] < 0).any():
+    elif (ds[gas] < 0).any():
         extend = 'min'
     else:
         extend = 'max'
 
-    plt.colorbar(m, cax=ax_cb, extend=extend, label='CH$_4$ Enhancement (ppb)', orientation='horizontal')
+    cb_label = replace_number_with_subscript(f'{gas.upper()} Enhancement (ppb)')
+    plt.colorbar(m, cax=ax_cb, extend=extend, label=cb_label, orientation='horizontal')
 
     # add source point marker
     ax.scatter(df['plume_longitude'], df['plume_latitude'], color='yellow',
@@ -176,7 +193,7 @@ def main(skip_exist=True):
 
 if __name__ == '__main__':
     # root dir of hyper data
-    root_dir = '/data/xinz/EMIT/Hyper_TROPOMI_plume/'
+    root_dir = '/data/xinz/Hyper_TROPOMI_plume/'
     lowest_dirs = get_dirs(root_dir)
 
     # whether skip dir which contains exported html
