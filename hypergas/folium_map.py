@@ -184,6 +184,8 @@ class Map():
                         cmap_vmax = 300 # ppb
                     elif 'co2' in varname:
                         cmap_vmax = 10 # ppm
+                    else:
+                        raise ValueError(f"{varname} is not supported for auto colormap. Please check and add it here.")
                 else:
                     cmap_vmax = vmax
 
