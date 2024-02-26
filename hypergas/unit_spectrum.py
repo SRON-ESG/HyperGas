@@ -12,9 +12,10 @@ import os
 from datetime import datetime
 from math import cos, pi, radians
 
-import numpy as np
-import xarray as xr
 import h5py
+import numpy as np
+import pandas as pd
+import xarray as xr
 import yaml
 
 from .lut_interp import spline_5deg_lookup
@@ -41,14 +42,14 @@ class Unit_spec():
             wvl_max (float):
                 The upper limit of wavelength [nm] for matched filter
             species (str): The species to be retrieved
-                'ch4' or 'co2'
+                'ch4', 'co2', or 'no2'
                 Default: 'ch4'
             rad_source (str):
                 The data ('model' or 'lut') used for calculating rads or transmissions
                 Default: 'model'
                 Refs:
                     model: Gloudemans et al. (2008)
-                    lut: Foote et al. (2021) https://hive.utah.edu/concern/datasets/9w0323039
+                    lut: only supporting ch4 and co2; Foote et al. (2021) https://hive.utah.edu/concern/datasets/9w0323039
         """
         # load settings
         _dirname = os.path.dirname(__file__)
@@ -69,14 +70,9 @@ class Unit_spec():
         self.wvl_min = wvl_min
         self.wvl_max = wvl_max
 
-        # read ref data
-        date_time = radiance.attrs['start_time']
-        self.doy = (date_time - datetime(date_time.year, 1, 1)).days + 1
-        self.lat = radiance.attrs['area'].get_lonlats()[1].mean()
-        self.refdata = self._read_refdata()
-
         # create an array of concentrations
         #   you can modify it, but please keep the first one as zero
+        #   the unit should be ppm for rad_source==model
         self.species = species.upper()
         if self.species == 'CH4':
             if self.rad_source == 'model':
@@ -88,8 +84,19 @@ class Unit_spec():
                 self.conc = np.array([0, 2.5, 5.0, 10.0, 20.0, 40.0, 80.0, 160.0])  # ppm
             elif self.rad_source == 'lut':
                 self.conc = np.array([0, 2e4, 4e4, 8e4, 1.6e5, 3.2e5, 6.4e5, 1.28e6])  # ppm m
+        elif self.species == 'NO2':
+            if self.rad_source == 'model':
+                self.conc = np.array([0, 10.0, 20.0, 40.0, 80.0, 160.0, 320.0, 640.0])*2.9*1e-6  # umol m-2 --> ppm
+            else:
+                raise ValueError(f"Please set rad_source to 'model' for {species}.")
         else:
             raise ValueError(f"Please input a correct species name (ch4 or co2). {species} is not supported.")
+
+        # read ref data
+        date_time = radiance.attrs['start_time']
+        self.doy = (date_time - datetime(date_time.year, 1, 1)).days + 1
+        self.lat = radiance.attrs['area'].get_lonlats()[1].mean()
+        self._read_refdata()
 
     def _model(self):
         """ Determine atmospheric model
@@ -127,48 +134,50 @@ class Unit_spec():
             else:
                 model = 2
 
+        # fixme: NO2 only supports US Standard Atmosphere
+        if self.species == 'NO2':
+            model = 5
+
         self.model = model
-
-    def _read_abs(self, species):
-        '''Read the absorption file'''
-        abs_filename = f'absorption_cs_{species}_ALL_{MODE[self.model]}.csv'
-        LOG.debug(f'Reading the absorption file: {abs_filename}')
-
-        return np.genfromtxt(os.path.join(self.absorption_dir,
-                                          abs_filename),
-                             delimiter=',')
 
     def _read_refdata(self):
         '''Read reference data'''
         # determine the model name
         self._model()
 
-        # read absorption data
-        sigma_H2O = self._read_abs('H2O')
-        sigma_CO2 = self._read_abs('CO2')
-        sigma_N2O = self._read_abs('N2O')
-        sigma_CO = self._read_abs('CO')
-        sigma_CH4 = self._read_abs('CH4')
-
-        # read typical absorption data
+        # read atmosphere profile
         atm_filename = f'atmosphere_{MODE[self.model]}.dat'
         LOG.debug(f'Read atm file: {atm_filename}')
-        data_abs = np.loadtxt(os.path.join(self.absorption_dir, atm_filename))
+        df_atm = pd.read_csv(os.path.join(self.absorption_dir, atm_filename), comment='#', header=None, sep='\t')
+
+        if len(df_atm.columns) == 10:
+            col_names = ['thickness', 'pressure', 'temperature', 'H2O', 'CO2', 'O3', 'N2O', 'CO', 'CH4', 'O2']
+        if len(df_atm.columns) == 11:
+            # US standard atmosphere profile
+            col_names = ['thickness', 'pressure', 'temperature', 'H2O', 'CO2', 'O3', 'N2O', 'CO', 'CH4', 'O2', 'NO2']
+
+        df_atm.columns = col_names
+
+        # fixme: set NO2 to 0 if the column is not existed.
+        if 'NO2' not in col_names:
+            df_atm['NO2'] = 0
 
         # read solar irradiance data
-        #   if you modify the wavelength and use `type=radiance` in the `_radianceCalc` function
-        #   you need to update the `w[i]` there
-        E_filename = 'solar_irradiance_0400-2600nm_highres_sparse.dat'
-        Edata = np.loadtxt(os.path.join(self.irradiance_dir, E_filename))
-        Edata[:, 0] = np.round(Edata[:, 0], 2)
+        E_filename = 'solar_irradiance_0400-2600nm_highres_sparse.nc'
+        Edata = xr.open_dataset(os.path.join(self.irradiance_dir, E_filename))['irradiance']
 
-        # combine into one dict
-        data = {'abs': data_abs, 'sigma_H2O': sigma_H2O, 'sigma_CO2': sigma_CO2,
-                'sigma_N2O': sigma_N2O, 'sigma_CO': sigma_CO, 'sigma_CH4': sigma_CH4,
-                'solar_irradiance': Edata
-                }
+        # convert units to W m-2 um-1
+        Edata *= 1e3
 
-        return data
+        # read abs data
+        abs_filename = f'absorption_cs_ALL_{MODE[self.model]}.nc'
+        LOG.debug(f'Reading the absorption file: {abs_filename}')
+        ds_abs = xr.open_dataset(os.path.join(self.absorption_dir, abs_filename))
+
+        # save into class
+        self.atm = df_atm
+        self.solar_irradiance = Edata
+        self.abs = ds_abs
 
     def _radianceCalc(self, del_omega, albedo=0.15, return_type='transmission'):
         """Function to calculate spectral radiance over selected band range
@@ -188,11 +197,12 @@ class Unit_spec():
         """
         # column number density [cm^-2]
         # we need to assign the copied data, otherwise it will be overwrited in each loop
-        nH2O = self.refdata['abs'][:, 3].copy()
-        nCO2 = self.refdata['abs'][:, 4].copy()
-        nN2O = self.refdata['abs'][:, 6].copy()
-        nCO = self.refdata['abs'][:, 7].copy()
-        nCH4 = self.refdata['abs'][:, 8].copy()
+        nH2O = self.atm['H2O'].copy().values
+        nCO2 = self.atm['CO2'].copy().values
+        nN2O = self.atm['N2O'].copy().values
+        nCO = self.atm['CO'].copy().values
+        nCH4 = self.atm['CH4'].copy().values
+        nNO2 = self.atm['NO2'].copy().values
 
         # add species by "d_omega" [mol m-2] to the first layer
         nH2O[0] = nH2O[0] + del_omega['H2O'] * 6.023e+23 / 10000
@@ -200,37 +210,37 @@ class Unit_spec():
         nN2O[0] = nN2O[0] + del_omega['N2O'] * 6.023e+23 / 10000
         nCO[0] = nCO[0] + del_omega['CO'] * 6.023e+23 / 10000
         nCH4[0] = nCH4[0] + del_omega['CH4'] * 6.023e+23 / 10000
+        nNO2[0] = nNO2[0] + del_omega['NO2'] * 6.023e+23 / 10000
         LOG.debug(f"RadianceCalc omega2 : {nCH4[0]}")
 
-        nLayer = nH2O.shape[0]
+        # crop solar irradiance and absorption data to the same wavelength range
+        #   the numeric issue could lead to one or two offset
+        #   so it is better to use the nearest method to get the same data
+        wavelength = self.abs['abs_H2O'].sel(wavelength=slice(self.wvl_min, self.wvl_max)).coords['wavelength'].data
+        Edata = self.solar_irradiance
+        Edata_subset = Edata.sel(wavelength=wavelength, method='nearest')
+        Edata_subset = Edata_subset.data
 
-        wavenumber1 = np.round((1e+07)/self.wvl_min, 1)  # [cm^-1]
-        wavenumber2 = np.round((1e+07)/self.wvl_max, 1)  # [cm^-1]
+        sigma_H2O_subset = self.abs['abs_H2O'].sel(wavelength=slice(self.wvl_min, self.wvl_max)).data
+        sigma_CO2_subset = self.abs['abs_CO2'].sel(wavelength=slice(self.wvl_min, self.wvl_max)).data
+        sigma_N2O_subset = self.abs['abs_N2O'].sel(wavelength=slice(self.wvl_min, self.wvl_max)).data
+        sigma_CO_subset = self.abs['abs_CO'].sel(wavelength=slice(self.wvl_min, self.wvl_max)).data
+        sigma_CH4_subset = self.abs['abs_CH4'].sel(wavelength=slice(self.wvl_min, self.wvl_max)).data
 
-        Edata = self.refdata['solar_irradiance']
+        optd_H2O = np.matmul(sigma_H2O_subset, nH2O)
+        optd_CO2 = np.matmul(sigma_CO2_subset, nCO2)
+        optd_N2O = np.matmul(sigma_N2O_subset, nN2O)
+        optd_CO = np.matmul(sigma_CO_subset, nCO)
+        optd_CH4 = np.matmul(sigma_CH4_subset, nCH4)
 
-        # because the generated abs is from 400 to 2600 nm, we need to make sure the index is same
-        Edata_subset = Edata[np.where(Edata[:, 0] < 1e7/2600)[0][-1]:np.where(Edata[:, 0] > 1e7/400)[0][0]]
+        if 'NO2' in list(self.abs.keys()):
+            # fixme: only calculate optd when the NO2 profile is available (standard model)
+            sigma_NO2_subset = self.abs['abs_NO2'].sel(wavelength=slice(self.wvl_min, self.wvl_max)).data
+            optd_NO2 = np.matmul(sigma_NO2_subset, nNO2)
+        else:
+            optd_NO2 = 0
 
-        # crop to interested wavelength range
-        id2 = np.where(Edata_subset[:, 0] < wavenumber1)[0][-1]
-        id1 = np.where(Edata_subset[:, 0] > wavenumber2)[0][0]
-        w = Edata_subset[id1:id2, 0]
-        wavelength = 1e+07/w  # [nm]
-
-        sigma_H2O_subset = self.refdata['sigma_H2O'][id1:id2]
-        sigma_CO2_subset = self.refdata['sigma_CO2'][id1:id2]
-        sigma_N2O_subset = self.refdata['sigma_N2O'][id1:id2]
-        sigma_CO_subset = self.refdata['sigma_CO'][id1:id2]
-        sigma_CH4_subset = self.refdata['sigma_CH4'][id1:id2]
-
-        optd_H2O = np.matmul(sigma_H2O_subset, nH2O[0:nLayer])
-        optd_CO2 = np.matmul(sigma_CO2_subset, nCO2[0:nLayer])
-        optd_N2O = np.matmul(sigma_N2O_subset, nN2O[0:nLayer])
-        optd_CO = np.matmul(sigma_CO_subset, nCO[0:nLayer])
-        optd_CH4 = np.matmul(sigma_CH4_subset, nCH4[0:nLayer])
-
-        tau_vert = optd_H2O + optd_CO2 + optd_N2O + optd_CO + optd_CH4
+        tau_vert = optd_H2O + optd_CO2 + optd_N2O + optd_CO + optd_CH4 + optd_NO2
 
         def f_young(za):
             za = radians(za)
@@ -247,27 +257,13 @@ class Unit_spec():
         transmission = np.exp(-tau_lambda)
 
         if return_type == 'transmission':
-            # ascending order of wavelength
-            return wavelength[::-1], transmission[::-1]
+            return wavelength, transmission
         elif return_type == 'radiance':
-            E_lambda = np.zeros([w.shape[0]])
-            w = np.round(w, 2)
-
-            for i in range(w.shape[0]):
-                # 400 -- 2600 nm
-                if w[i] <= 1e7/2600:
-                    w[i] = 1e7/2600
-                elif w[i] >= 1e7/400:
-                    w[i] = 1e7/400
-                index = int(np.where(Edata_subset[:, 0] == w[i])[0])
-                E_lambda[i] = Edata_subset[index, 1]
-
             # irradiance to radiance
             self.albedo = albedo
             consTerm = albedo * cos(radians(self.sza)) / pi
-            L_lambda = consTerm * np.exp(-tau_lambda) * E_lambda
-            # ascending order of wavelength
-            return wavelength[::-1], L_lambda[::-1]
+            L_lambda = consTerm * np.exp(-tau_lambda) * Edata_subset
+            return wavelength, L_lambda
         else:
             raise ValueError(f"Unrecognized return_type: {return_type}. It should be 'transmission' or 'radiance'")
 
@@ -312,7 +308,7 @@ class Unit_spec():
 
         # set the enhancement of multiple gases
         #   xch4 is converted from ppb to mol/m2 by divideing by 2900
-        delta_omega = {'H2O': 0, 'CO2': 0, 'N2O': 0, 'CO': 0, 'CH4': 0}
+        delta_omega = {'H2O': 0, 'CO2': 0, 'N2O': 0, 'CO': 0, 'CH4': 0, 'NO2': 0}
         delta_omega.update({self.species: self.conc*1000/2900})
 
         # calculate the transmission or sensor-reaching radiance with these gases
@@ -356,7 +352,6 @@ class Unit_spec():
 
         return resampled
 
-
     def convolve_rads_lut(self):
         """Calculate the convolved sensor-reaching rads.
 
@@ -367,7 +362,7 @@ class Unit_spec():
         # set params for LUT
         sensor_altitude = 100
         ground_elevation = 0
-        order = 1 # Spline interpolation degree
+        order = 1  # Spline interpolation degree
         water_vapor = 1.3
 
         param = {'zenith': self.sza,
@@ -380,13 +375,13 @@ class Unit_spec():
                  }
 
         # read LUT
-        lut_file = os.path.join(self.modtran_dir, 'dataset_ch4_full.hdf5')
+        lut_file = os.path.join(self.modtran_dir, f'dataset_{self.species.lower()}_full.hdf5')
         lut = h5py.File(lut_file, 'r', rdcc_nbytes=4194304)
         self.wvl_lut = lut['wave'][:]
         grid_data = lut['modtran_data']
 
         # calculate the rads with 1 ppm m CH4 for `unit_spec`
-        rad_unit = spline_5deg_lookup(grid_data, conc=1, **param)
+        # rad_unit = spline_5deg_lookup(grid_data, conc=1, **param)
 
         # array for saving rads
         rads_omega = np.empty((len(self.conc), grid_data.shape[-1]))
@@ -401,7 +396,6 @@ class Unit_spec():
             raise ValueError(f'self.wvl_sensor should be 1D for LUT. Your input is {self.wvl_sensor.sizes}')
 
         return resampled
-
 
     def _unit_fit(self, rads):
         # https://github.com/markusfoote/mag1c/blob/8b9ceae186f4e125bc9f628db82f41bce4c6011f/mag1c/mag1c.py#L241
