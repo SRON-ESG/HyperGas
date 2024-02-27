@@ -40,7 +40,7 @@ class MatchedFilter():
             wvl_intervals (list): The wavelength range [nm] used in matched filter. It can be one list or nested list.
                 e.g. [2110, 2450] or [[1600, 1750], [2110, 2450]]
             species (str): The species to be retrieved
-                'ch4' or 'co2'
+                species defined in the config.yaml file
                 Default: 'ch4'
             mode (str): the mode ("column" or "scene") to apply matched filter.
                 Default: 'column'. Be careful of noise if you apply the matched filter for the whole scene.
@@ -126,7 +126,11 @@ class MatchedFilter():
     #     return scaler.transform(data)
 
     def col_matched_filter(self, radiance, segmentation, plume_mask, K):
-        """Calculate stats of data."""
+        """Calculate stats of data.
+
+        Return
+            gas enhancement (ppm)
+        """
         if self.mode == 'column':
             # create empty alpha with shape: [nrows('y'), 1]
             alpha = np.full((radiance.shape[0], 1), fill_value=np.nan, dtype=float)
@@ -191,7 +195,12 @@ class MatchedFilter():
         else:
             raise ValueError(f'Wrong mode: {self.mode}. It should be "column" or "scene".')
 
-        return alpha
+        if self.rad_source == 'model':
+            # ppm
+            return alpha
+        elif self.rad_source == 'lut':
+            # ppm m -> ppm assuming a scale height of about 8km
+            return alpha * 1.25e-4
 
     def smf(self):
         """Standard/Robust matched filter
@@ -199,7 +208,7 @@ class MatchedFilter():
             Compute mean and covariance of set of each column and then run standard matched filter
 
         Returns:
-            Trace gas enhancements (ppb)
+            Trace gas enhancements (ppm)
         """
         if self.mode == 'scene':
             # calculate the background of whole scene

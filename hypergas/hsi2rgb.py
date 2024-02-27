@@ -45,7 +45,7 @@ def Hsi2rgb(wY, HSI, ydim, xdim, d, threshold):
     # load settings
     _dirname = os.path.dirname(__file__)
     with open(os.path.join(_dirname, 'config.yaml')) as f:
-        settings = yaml.safe_load(f)
+        settings = yaml.safe_load(f)['data']
 
     # slice data to VIS
     rgb_dir = os.path.join(_dirname, settings['rgb_dir'])

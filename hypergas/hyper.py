@@ -9,6 +9,8 @@
 import logging
 from datetime import timedelta
 
+import os
+import yaml
 import numpy as np
 import xarray as xr
 from pyorbital import orbital
@@ -22,7 +24,6 @@ from .tle import TLE
 from .wind import Wind
 
 AVAILABLE_READERS = ['hsi_l1b', 'emit_l1b', 'hyc_l1']
-SPECIES_NAME = {'ch4': 'methane', 'co2': 'carbon dioxide'}
 LOG = logging.getLogger(__name__)
 
 
@@ -65,6 +66,13 @@ class Hyper():
 
         self.available_dataset_names = self._get_dataset_names()
 
+        # load settings
+        _dirname = os.path.dirname(__file__)
+        with open(os.path.join(_dirname, 'config.yaml')) as f:
+            settings = yaml.safe_load(f)
+
+        self.species_setting = settings['species']
+
     def _get_dataset_names(self):
         """Get the necessary dataset_names for retrieval."""
         if self.reader == 'hsi_l1b':
@@ -92,7 +100,7 @@ class Hyper():
         """Create RGB composite"""
         try:
             # --- HSI2RGB method ---
-            LOG.debug('Use HSI2RGB method for RGB image')
+            LOG.info('Use HSI2RGB method for RGB image')
 
             # slice data to VIS range
             da_vis = self.scene['radiance'].sel(bands=slice(380, 750))
@@ -117,7 +125,7 @@ class Hyper():
             self.scene['rgb'] = rgb
         except:
             # --- nearest method ---
-            LOG.debug('Use Nearest method for RGB image')
+            LOG.info('HSI2RGB failed. Using Nearest method for RGB image now.')
 
             def gamma_norm(band):
                 """Apply gamma_norm to create RGB composite"""
@@ -199,6 +207,21 @@ class Hyper():
             del new_data.attrs['calibration']
 
         return new_data
+
+    def _scale_units(self, units):
+        """Scale units from ppm"""
+        if units == 'ppm':
+            scale = 1
+        elif units == 'ppm m':
+            scale = 1/1.25e-4
+        elif units == 'ppb':
+            scale = 1e3
+        elif units == 'umol m-2':
+            scale = 1000/2900*1e6  # ppm -> umol m-2
+        else:
+            raise ValueError(f'We do not support converting ppm to {units}.')
+
+        return scale
 
     def load(self, drop_waterbands=True):
         """Load data into xarray Dataset using satpy
@@ -293,7 +316,7 @@ class Hyper():
         self._rgb_composite()
 
     def retrieve(self, wvl_intervals=None, species='ch4',
-                 algo='smf', mode='column', rad_dist='normal', rad_source='model',
+                 algo='smf', mode='column', rad_dist='normal',
                  land_mask=True, land_mask_source='GSHHS', plume_mask=None):
         """Retrieve trace gas enhancements
 
@@ -313,9 +336,6 @@ class Hyper():
                 Default: 'column'. Be careful of noise if you apply the matched filter for the whole scene.
             rad_dist (str): The assumed rads distribution ('normal' or 'lognormal')
                 Default: 'normal'
-            rad_source (str):
-                The data ('model' or 'lut') used for calculating rads or transmissions
-                Default: 'model'
             land_mask (boolean): Whether apply the matched filter to continental and oceanic pixels seperately.
                 Default: True
             land_mask_source (str): the data source of land mask ('GSHHS' or 'Natural Earth')
@@ -323,32 +343,18 @@ class Hyper():
             plume_mask (2d array): Manual mask. 0: neglected pixels, 1: valid pixels.
                 Default: None
         """
-        # set default wvl_interval and convert units (ppm) to a suitable one
-        if rad_source == 'lut':
-            units = 'ppm m'
-            unit_scale = 1
-            if wvl_intervals is None:
-                if species == 'ch4':
-                    wvl_intervals = [2110, 2450]
-                elif species == 'co2':
-                    wvl_intervals = [1930, 2200]
-                else:
-                    raise ValueError(f"Please input a correct species name (ch4 or co2). {species} is not supported.")
-        elif rad_source == 'model':
-            if species == 'ch4':
-                    units = 'ppb'
-                    unit_scale = 1000  # output unit is ppm, scale it to ppb
-                    if wvl_intervals is None:
-                        wvl_intervals = [2110, 2450]
-            elif species == 'co2':
-                units = 'ppm'
-                unit_scale = 1
-                if wvl_intervals is None:
-                    wvl_intervals = [1930, 2200]
-            else:
-                raise ValueError(f"Please input a correct species name (ch4 or co2). {species} is not supported.")
-        else:
-            raise ValueError(f"Please input a correct rad_source name (model or lut). {rad_source} is not supported.")
+        rad_source = self.species_setting[species]['rad_source']
+        if wvl_intervals is None:
+            wvl_intervals = self.species_setting[species]['wavelength']
+
+        if rad_source not in ['model', 'lut']:
+            raise ValueError(f"The rad_source in the config.yaml file should be 'model' or 'lut'. {rad_source} is not supported.")
+
+        units = self.species_setting[species]['units']
+        unit_scale = self._scale_units(units)
+
+        if (rad_source == 'lut') and (species not in ['ch4', 'co2']):
+            raise ValueError(f"Please input a correct species name (ch4 or co2). {species} is not supported by LUT.")
 
         mf = MatchedFilter(self.scene, wvl_intervals, species, mode, rad_dist, rad_source, land_mask, land_mask_source, plume_mask)
         segmentation = mf.segmentation
@@ -368,10 +374,10 @@ class Hyper():
                               'description': 'Natural Earth land mask (0: ocean/lake, 1: land). If 1+ values are available, this is pixel classifications',
                               }
 
-        enhancement_attrs = {'standard_name': f'{SPECIES_NAME[species]}_enhancement',
-                             'long_name': f'{SPECIES_NAME[species]}_enhancement',
+        enhancement_attrs = {'standard_name': f"{self.species_setting[species]['name']}_enhancement",
+                             'long_name': f"{self.species_setting[species]['name']}_enhancement",
                              'units': units,
-                             'description': f'{SPECIES_NAME[species]} enhancement derived by the {wvl_intervals[0]}~{wvl_intervals[1]} nm window',
+                             'description': f"{self.species_setting[species]['name']} enhancement derived by the {wvl_intervals[0]}~{wvl_intervals[1]} nm window",
                              }
 
         enhancement = self._copy_attrs(enhancement, enhancement_attrs)

@@ -9,11 +9,13 @@
 
 import logging
 import os
+import yaml
 import warnings
 from glob import glob
 from itertools import chain
 from pathlib import Path
 
+import hypergas
 from hypergas import Hyper
 
 warnings.filterwarnings("ignore")
@@ -51,8 +53,14 @@ class L2B():
         self.reader = reader
         self.filename = filename
 
+        # load settings
+        _dirname = os.path.dirname(hypergas.__file__)
+        with open(os.path.join(_dirname, 'config.yaml')) as f:
+            settings = yaml.safe_load(f)
+        self.species_setting = settings['species']
+
         if species == 'all':
-            self.species = ['ch4', 'co2']
+            self.species = list(self.species_setting.keys())
         elif type(species) is list:
             self.species = species
         elif type(species) is str:
@@ -88,37 +96,34 @@ class L2B():
 
         self.hyp = hyp
 
-    def retrieve(self, land_mask=True, plume_mask=None, land_mask_source='GSHHS', rad_dist='normal', rad_source='model'):
+    def retrieve(self, land_mask=True, plume_mask=None, land_mask_source='GSHHS', rad_dist='normal'):
         """run retrieval"""
         # retrieve trace gas
         for species in self.species:
             LOG.info(f'Retrieving {species}')
             # set the broad retrieval window to denoise background signals
-            if species in ['ch4', 'co2']:
-                full_wvl_interval = [1300, 2500]
+            full_wvl_interval = self.species_setting[species]['full_wavelength']
             self.hyp.retrieve(wvl_intervals=full_wvl_interval,
                               land_mask=land_mask,
                               plume_mask=plume_mask,
                               land_mask_source=land_mask_source,
                               rad_dist=rad_dist,
-                              rad_source=rad_source,
                               species=species,
                               )
-            gas_swir = self.hyp.scene[species]
+            gas_fullwvl = self.hyp.scene[species]
             self.hyp.retrieve(land_mask=land_mask,
                               plume_mask=plume_mask,
                               land_mask_source=land_mask_source,
                               rad_dist=rad_dist,
-                              rad_source=rad_source,
                               species=species,
                               )
             gas = self.hyp.scene[species]
 
             # calculate gas_comb
-            diff = gas_swir - gas
-            scale = gas.std()/gas_swir.std()
-            # scale if gas_swir < gas
-            self.hyp.scene[f'{species}_comb'] = gas.where(diff > 0, gas_swir*scale).rename(f'{species}_comb')
+            diff = gas_fullwvl - gas
+            scale = gas.std()/gas_fullwvl.std()
+            # scale if gas_fullwvl < gas
+            self.hyp.scene[f'{species}_comb'] = gas.where(diff > 0, gas_fullwvl*scale).rename(f'{species}_comb')
 
     def _update_scene(self):
         # update Scene values
@@ -298,7 +303,7 @@ def main():
         l2b_scene = L2B(filename, species, skip_exist)
 
         if not l2b_scene.skip:
-            l2b_scene.retrieve(rad_dist='normal', rad_source='model')
+            l2b_scene.retrieve(rad_dist='normal')
             l2b_scene.denoise()
             l2b_scene.ortho()
             l2b_scene.to_netcdf()

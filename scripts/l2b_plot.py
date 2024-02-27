@@ -21,6 +21,7 @@ import pandas as pd
 import xarray as xr
 import yaml
 
+import hypergas
 from hypergas.folium_map import Map
 from utils import get_dirs
 
@@ -50,9 +51,15 @@ species = 'all'
 vmax = None  # This can be None or single value (None: vmax will be set automatically for different species; single value: it will overwrite all vmax)
 # --- settings --- #
 
+# load settings
+_dirname = os.path.dirname(hypergas.__file__)
+with open(os.path.join(_dirname, 'config.yaml')) as f:
+    settings = yaml.safe_load(f)
+species_setting = settings['species']
+
 # set variables automatically
 if species == 'all':
-    species_list = ['ch4', 'co2']
+    species_list = list(species_setting.keys())
 elif type(species) is list:
     species_list = species
 elif type(species) is str:
@@ -66,7 +73,6 @@ for species in species_list:
 
 varnames = ['rgb', 'radiance_2100']
 varnames.extend(species_vnames)
-
 
 
 class L2B_plot():

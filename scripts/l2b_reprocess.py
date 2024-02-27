@@ -40,7 +40,7 @@ def reprocess_data(filename, prefix, species, land_mask_source, rad_dist):
                            )
 
     # create mask, 0 (plume): not included in matched filter
-    mask = (~ds['ch4'].isnull()).sum(dim='plume_id')
+    mask = (~ds[species].isnull()).sum(dim='plume_id')
     mask = mask == 0
     swath_def = geometry.SwathDefinition(lons=ds['longitude'], lats=ds['latitude'])
 

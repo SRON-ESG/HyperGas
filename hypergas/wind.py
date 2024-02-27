@@ -26,7 +26,7 @@ class Wind():
         # load settings
         _dirname = os.path.dirname(__file__)
         with open(os.path.join(_dirname, 'config.yaml')) as f:
-            settings = yaml.safe_load(f)
+            settings = yaml.safe_load(f)['data']
 
         self.era5_dir = os.path.join(_dirname, settings['era5_dir'])
         self.geosfp_dir = os.path.join(_dirname, settings['geosfp_dir'])

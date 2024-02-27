@@ -55,10 +55,12 @@ class Unit_spec():
         _dirname = os.path.dirname(__file__)
         with open(os.path.join(_dirname, 'config.yaml')) as f:
             settings = yaml.safe_load(f)
+            data_setting = settings['data']
+            species_setting = settings['species']
 
-        self.absorption_dir = os.path.join(_dirname, settings['absorption_dir'])
-        self.irradiance_dir = os.path.join(_dirname, settings['irradiance_dir'])
-        self.modtran_dir = os.path.join(_dirname, settings['modtran_dir'])
+        self.absorption_dir = os.path.join(_dirname, data_setting['absorption_dir'])
+        self.irradiance_dir = os.path.join(_dirname, data_setting['irradiance_dir'])
+        self.modtran_dir = os.path.join(_dirname, data_setting['modtran_dir'])
         self.rad_source = rad_source
 
         # load variables from the "radiance" DataArray
@@ -72,25 +74,10 @@ class Unit_spec():
 
         # create an array of concentrations
         #   you can modify it, but please keep the first one as zero
-        #   the unit should be ppm for rad_source==model
+        #   the unit should be ppm for rad_source=='model' or 'ppm m' for rad_source=='lut'
+        self.conc = np.array(species_setting[species]['concentrations'])
+
         self.species = species.upper()
-        if self.species == 'CH4':
-            if self.rad_source == 'model':
-                self.conc = np.array([0, 0.1, 0.2, 0.4, 0.8, 1.6, 3.2, 6.4])  # ppm
-            elif self.rad_source == 'lut':
-                self.conc = np.array([0, 1e3, 2e3, 4e3, 8e3, 1.6e4, 3.2e4, 6.4e4])  # ppm m
-        elif self.species == 'CO2':
-            if self.rad_source == 'model':
-                self.conc = np.array([0, 2.5, 5.0, 10.0, 20.0, 40.0, 80.0, 160.0])  # ppm
-            elif self.rad_source == 'lut':
-                self.conc = np.array([0, 2e4, 4e4, 8e4, 1.6e5, 3.2e5, 6.4e5, 1.28e6])  # ppm m
-        elif self.species == 'NO2':
-            if self.rad_source == 'model':
-                self.conc = np.array([0, 10.0, 20.0, 40.0, 80.0, 160.0, 320.0, 640.0])*2.9*1e-6  # umol m-2 --> ppm
-            else:
-                raise ValueError(f"Please set rad_source to 'model' for {species}.")
-        else:
-            raise ValueError(f"Please input a correct species name (ch4 or co2). {species} is not supported.")
 
         # read ref data
         date_time = radiance.attrs['start_time']
@@ -147,7 +134,7 @@ class Unit_spec():
 
         # read atmosphere profile
         atm_filename = f'atmosphere_{MODE[self.model]}.dat'
-        LOG.debug(f'Read atm file: {atm_filename}')
+        LOG.info(f'Read atm file: {atm_filename}')
         df_atm = pd.read_csv(os.path.join(self.absorption_dir, atm_filename), comment='#', header=None, sep='\t')
 
         if len(df_atm.columns) == 10:
@@ -215,10 +202,10 @@ class Unit_spec():
 
         # crop solar irradiance and absorption data to the same wavelength range
         #   the numeric issue could lead to one or two offset
-        #   so it is better to use the nearest method to get the same data
+        #   so it is better to use the nearest method to get the same data with small tolerance
         wavelength = self.abs['abs_H2O'].sel(wavelength=slice(self.wvl_min, self.wvl_max)).coords['wavelength'].data
         Edata = self.solar_irradiance
-        Edata_subset = Edata.sel(wavelength=wavelength, method='nearest')
+        Edata_subset = Edata.sel(wavelength=wavelength, tolerance=1e-5, method='nearest')
         Edata_subset = Edata_subset.data
 
         sigma_H2O_subset = self.abs['abs_H2O'].sel(wavelength=slice(self.wvl_min, self.wvl_max)).data
@@ -302,8 +289,7 @@ class Unit_spec():
         """Calculate the convolved sensor-reaching rads or transmissions.
 
         Return
-            conc (1d array): the manually set concentrations
-            rads (2d array, [conc*wvl]): radiances or transmissions for `conc`
+            convolved rads (2d array, [conc*wvl]): radiances or transmissions for `conc`
         """
 
         # set the enhancement of multiple gases
@@ -356,8 +342,7 @@ class Unit_spec():
         """Calculate the convolved sensor-reaching rads.
 
         Return
-            conc (1d array): the manually set concentrations
-            rads (2d array, [conc*wvl]): radiances or transmissions for `conc`
+            convolved rads (2d array, [conc*wvl]): radiances or transmissions for `conc`
         """
         # set params for LUT
         sensor_altitude = 100
@@ -417,7 +402,7 @@ class Unit_spec():
             scaling: the scaling factor to ensure numerical stability
         """
         # calculate rads based on conc
-        LOG.info('Convolving rads ...')
+        LOG.info(f'Convolving rads ({self.wvl_min}~{self.wvl_max} nm) ...')
         if self.rad_source == 'model':
             rads = self.convolve_rads()
         elif self.rad_source == 'lut':

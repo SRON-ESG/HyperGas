@@ -181,9 +181,35 @@ class Map():
                 #   Note that vmax of radiance and denoised variables are set based on percentile values above
                 if vmax is None:
                     if 'ch4' in varname:
-                        cmap_vmax = 300 # ppb
+                        # hard-code vmax
+                        if da_ortho.attrs['units'] == 'ppb':
+                            cmap_vmax = 300
+                        elif da_ortho.attrs['units'] == 'ppm':
+                            cmap_vmax = 0.3
+                        elif da_ortho.attrs['units'] == 'ppm m':
+                            cmap_vmax = 0.3/1.25e-4
+                        elif da_ortho.attrs['units'] == 'umol m-2':
+                            cmap_vmax = 300/2900*1e6
                     elif 'co2' in varname:
-                        cmap_vmax = 10 # ppm
+                        # hard-code vmax
+                        if da_ortho.attrs['units'] == 'ppb':
+                            cmap_vmax = 1e4
+                        elif da_ortho.attrs['units'] == 'ppm':
+                            cmap_vmax = 10
+                        elif da_ortho.attrs['units'] == 'ppm m':
+                            cmap_vmax = 10/1.25e-4
+                        elif da_ortho.attrs['units'] == 'umol m-2':
+                            cmap_vmax = 1e4/2900*1e6
+                    elif 'no2' in varname:
+                        # hard-code vmax
+                        if da_ortho.attrs['units'] == 'ppb':
+                            cmap_vmax = 80*1e-6*2900
+                        elif da_ortho.attrs['units'] == 'ppm':
+                            cmap_vmax = 80*1e-6*2900/1000
+                        elif da_ortho.attrs['units'] == 'ppm m':
+                            cmap_vmax = 80*1e-6*2900/1000/1.25e-4
+                        elif da_ortho.attrs['units'] == 'umol m-2':
+                            cmap_vmax = 80
                     else:
                         raise ValueError(f"{varname} is not supported for auto colormap. Please check and add it here.")
                 else:
