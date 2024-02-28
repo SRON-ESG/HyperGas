@@ -113,7 +113,7 @@ def read_markers():
     with open(os.path.join(path_hyper, 'config.yaml')) as f:
         settings = yaml.safe_load(f)
 
-    filename_marker = os.path.join(path_hyper, settings['markers_filename'])
+    filename_marker = os.path.join(path_hyper, settings['data']['markers_filename'])
     if os.path.exists(filename_marker):
         df_marker = pd.read_csv(filename_marker)
     else:
