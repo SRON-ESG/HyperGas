@@ -395,7 +395,7 @@ class Unit_spec():
 
         return K
 
-    def fit_slope(self, scaling=1e5):
+    def fit_slope(self, scaling=None):
         """Fit the slope for conc and rads
 
         Args:
@@ -421,4 +421,8 @@ class Unit_spec():
                 K_list.append(K)
             K = np.stack(K_list).T  # dims: bands, x
 
-        return K * scaling
+        if scaling is None:
+            # auto calculation of scaling factor
+            scaling = round(-1/K[K<0].max(), -1)
+
+        return K * scaling, scaling

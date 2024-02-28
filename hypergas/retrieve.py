@@ -25,7 +25,7 @@ class MatchedFilter():
     def __init__(self, scn, wvl_intervals, species='ch4',
                  mode='column', rad_dist='normal', rad_source='model',
                  land_mask=True, land_mask_source='GSHHS', plume_mask=None,
-                 scaling=1e5,
+                 scaling=None,
                  ):
         """Initialize MatchedFilter.
 
@@ -72,20 +72,19 @@ class MatchedFilter():
         self.rad_dist = rad_dist
         self.rad_source = rad_source
         self.species = species
-        self.scaling = scaling
 
         # calculate unit spectrum
         loaded_names = [x['name'] for x in scn.keys()]
         if 'central_wavelengths' in loaded_names:
             # calculate K by column because we have central wavelength per column
             central_wavelengths = scn['central_wavelengths'].where(wvl_mask, drop=True)
-            K = Unit_spec(self.radiance, central_wavelengths,
+            K, self.scaling = Unit_spec(self.radiance, central_wavelengths,
                           self.wvl_min, self.wvl_max, self.species, self.rad_source).fit_slope(scaling=scaling)
             self.K = xr.DataArray(K, dims=['bands', 'x'],
                                   coords={'bands': self.radiance.coords['bands']})
         else:
             # calculate K using the default dim named 'bands'
-            K = Unit_spec(self.radiance, self.radiance.coords['bands'],
+            K, self.scaling = Unit_spec(self.radiance, self.radiance.coords['bands'],
                           self.wvl_min, self.wvl_max, self.species, self.rad_source).fit_slope(scaling=scaling)
             self.K = xr.DataArray(K, dims='bands', coords={'bands': self.radiance.coords['bands']})
 
