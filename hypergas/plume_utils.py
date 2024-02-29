@@ -362,7 +362,7 @@ def calc_wind_error(wspd, IME, l_eff,
     """Calculate wind error with random distribution"""
     # Generate U10 distribution
     #   uncertainty = 50%, if wspd <= 3 m/s
-    #   uncertainty = 1.5 m/s, if wspd > 2 m/s
+    #   uncertainty = 1.5 m/s, if wspd > 3 m/s
     if wspd <= 3:
         sigma = wspd * 0.5
     else:
