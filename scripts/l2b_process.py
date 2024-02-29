@@ -12,6 +12,7 @@ import os
 import yaml
 import warnings
 from glob import glob
+import numpy as np
 from itertools import chain
 from pathlib import Path
 
@@ -143,40 +144,44 @@ class L2B():
             self.hyp.scene['sp'] = self.sp_corr
 
     def _ortho_enmap(self):
+
+        for species in self.species:
+            # calculate the mean wavelength used in the retrieval
+            retrieval_wavelength = self.species_setting[species]['wavelength']
+            # mean_wvl = 2300  # np.mean(retrieval_wavelength)  # error when saving different projs
+            mean_wvl = np.mean(retrieval_wavelength)  # error when saving different projs
+
+            # use the mean wvl as the bands for correcting gas enhancement field
+            setattr(self, f'{species}_corr', self.hyp.terrain_corr(
+                varname=species, rpcs=self.hyp.scene['rpc_coef_swir'].sel(bands_swir=mean_wvl, method='nearest').item())
+            )
+            setattr(self, f'{species}_comb_corr', self.hyp.terrain_corr(
+                varname=f'{species}_comb', rpcs=self.hyp.scene['rpc_coef_swir'].sel(bands_swir=mean_wvl, method='nearest').item())
+            )
+            setattr(self, f'{species}_denoise_corr', self.hyp.terrain_corr(
+                varname=f'{species}_denoise', rpcs=self.hyp.scene['rpc_coef_swir'].sel(bands_swir=mean_wvl, method='nearest').item())
+            )
+            setattr(self, f'{species}_comb_denoise_corr', self.hyp.terrain_corr(
+                varname=f'{species}_comb_denoise', rpcs=self.hyp.scene['rpc_coef_swir'].sel(bands_swir=mean_wvl, method='nearest').item())
+            )
+
         self.rgb_corr = self.hyp.terrain_corr(varname='rgb', rpcs=self.hyp.scene['rpc_coef_vnir'].sel(
             bands_vnir=650, method='nearest').item())
         self.segmentation_corr = self.hyp.terrain_corr(varname='segmentation', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
-            bands_swir=2300, method='nearest').item())
+            bands_swir=mean_wvl, method='nearest').item())
         self.radiance_2100_corr = self.hyp.terrain_corr(varname='radiance_2100', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
-            bands_swir=2300, method='nearest').item())
-
-        for species in self.species:
-            setattr(self, f'{species}_corr', self.hyp.terrain_corr(
-                varname=species, rpcs=self.hyp.scene['rpc_coef_swir'].sel()))
-
-            setattr(self, f'{species}_corr', self.hyp.terrain_corr(
-                varname=species, rpcs=self.hyp.scene['rpc_coef_swir'].sel(bands_swir=2300, method='nearest').item())
-            )
-            setattr(self, f'{species}_comb_corr', self.hyp.terrain_corr(
-                varname=f'{species}_comb', rpcs=self.hyp.scene['rpc_coef_swir'].sel(bands_swir=2300, method='nearest').item())
-            )
-            setattr(self, f'{species}_denoise_corr', self.hyp.terrain_corr(
-                varname=f'{species}_denoise', rpcs=self.hyp.scene['rpc_coef_swir'].sel(bands_swir=2300, method='nearest').item())
-            )
-            setattr(self, f'{species}_comb_denoise_corr', self.hyp.terrain_corr(
-                varname=f'{species}_comb_denoise', rpcs=self.hyp.scene['rpc_coef_swir'].sel(bands_swir=2300, method='nearest').item())
-            )
+            bands_swir=mean_wvl, method='nearest').item())
 
         if self.hyp.wind:
             self.u10_corr = self.hyp.terrain_corr(varname='u10', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
-                bands_swir=2300, method='nearest').item())
+                bands_swir=mean_wvl, method='nearest').item())
             self.v10_corr = self.hyp.terrain_corr(varname='v10', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
-                bands_swir=2300, method='nearest').item())
+                bands_swir=mean_wvl, method='nearest').item())
             self.sp_corr = self.hyp.terrain_corr(varname='sp', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
-                bands_swir=2300, method='nearest').item())
+                bands_swir=mean_wvl, method='nearest').item())
 
-        self.rgb_corr = self.rgb_corr.interp_like(self.gas_corr)
-        self.rgb_corr.attrs['area'] = self.gas_corr.attrs['area']
+        self.rgb_corr = self.rgb_corr.interp_like(getattr(self, f'{species}_corr'))
+        self.rgb_corr.attrs['area'] = getattr(self, f'{species}_corr').attrs['area']
 
         self._update_scene()
 
