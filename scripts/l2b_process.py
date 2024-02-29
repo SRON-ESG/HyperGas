@@ -144,13 +144,13 @@ class L2B():
             self.hyp.scene['sp'] = self.sp_corr
 
     def _ortho_enmap(self):
+        # calculate the mean wavelength for retrieving the first species
+        #   to make sure all results share a same proj later
+        #   this can cause some pixel offsets if the wvls of different species span a wide range
+        retrieval_wavelength = self.species_setting[self.species[0]]['wavelength']
+        mean_wvl = np.mean(retrieval_wavelength)
 
         for species in self.species:
-            # calculate the mean wavelength used in the retrieval
-            retrieval_wavelength = self.species_setting[species]['wavelength']
-            # mean_wvl = 2300  # np.mean(retrieval_wavelength)  # error when saving different projs
-            mean_wvl = np.mean(retrieval_wavelength)  # error when saving different projs
-
             # use the mean wvl as the bands for correcting gas enhancement field
             setattr(self, f'{species}_corr', self.hyp.terrain_corr(
                 varname=species, rpcs=self.hyp.scene['rpc_coef_swir'].sel(bands_swir=mean_wvl, method='nearest').item())
