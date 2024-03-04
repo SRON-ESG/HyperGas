@@ -186,6 +186,7 @@ class Unit_spec():
         # we need to assign the copied data, otherwise it will be overwrited in each loop
         nH2O = self.atm['H2O'].copy().values
         nCO2 = self.atm['CO2'].copy().values
+        nO3 = self.atm['O3'].copy().values
         nN2O = self.atm['N2O'].copy().values
         nCO = self.atm['CO'].copy().values
         nCH4 = self.atm['CH4'].copy().values
@@ -194,6 +195,7 @@ class Unit_spec():
         # add species by "d_omega" [mol m-2] to the first layer
         nH2O[0] = nH2O[0] + del_omega['H2O'] * 6.023e+23 / 10000
         nCO2[0] = nCO2[0] + del_omega['CO2'] * 6.023e+23 / 10000
+        nO3[0] = nO3[0] + del_omega['O3'] * 6.023e+23 / 10000
         nN2O[0] = nN2O[0] + del_omega['N2O'] * 6.023e+23 / 10000
         nCO[0] = nCO[0] + del_omega['CO'] * 6.023e+23 / 10000
         nCH4[0] = nCH4[0] + del_omega['CH4'] * 6.023e+23 / 10000
@@ -224,10 +226,13 @@ class Unit_spec():
             # fixme: only calculate optd when the NO2 profile is available (standard model)
             sigma_NO2_subset = self.abs['abs_NO2'].sel(wavelength=slice(self.wvl_min, self.wvl_max)).data
             optd_NO2 = np.matmul(sigma_NO2_subset, nNO2)
+            sigma_O3_subset = self.abs['abs_O3'].sel(wavelength=slice(self.wvl_min, self.wvl_max)).data
+            optd_O3 = np.matmul(sigma_O3_subset, nO3)
         else:
             optd_NO2 = 0
+            optd_O3 = 0
 
-        tau_vert = optd_H2O + optd_CO2 + optd_N2O + optd_CO + optd_CH4 + optd_NO2
+        tau_vert = optd_H2O + optd_CO2 + optd_O3  + optd_N2O + optd_CO + optd_CH4 + optd_NO2
 
         def f_young(za):
             za = radians(za)
@@ -294,7 +299,7 @@ class Unit_spec():
 
         # set the enhancement of multiple gases
         #   xch4 is converted from ppb to mol/m2 by divideing by 2900
-        delta_omega = {'H2O': 0, 'CO2': 0, 'N2O': 0, 'CO': 0, 'CH4': 0, 'NO2': 0}
+        delta_omega = {'H2O': 0, 'CO2': 0, 'O3': 0, 'N2O': 0, 'CO': 0, 'CH4': 0, 'NO2': 0}
         delta_omega.update({self.species: self.conc*1000/2900})
 
         # calculate the transmission or sensor-reaching radiance with these gases
@@ -423,6 +428,10 @@ class Unit_spec():
 
         if scaling is None:
             # auto calculation of scaling factor
-            scaling = round(-1/K[K<0].max(), -1)
+            K_negative_max = K[K<0].max()
+            if K_negative_max > -1:
+                scaling = round(-1/K_negative_max, -1)
+            else:
+                scaling = round(-K_negative_max, -1)
 
         return K * scaling, scaling
