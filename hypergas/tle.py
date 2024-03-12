@@ -26,8 +26,8 @@ class TLE():
         with open(os.path.join(_dirname, 'config.yaml')) as f:
             settings = yaml.safe_load(f)
 
-        username = settings['spacetrack_usename']
-        password = settings['spacetrack_password']
+        username = settings['data']['spacetrack_usename']
+        password = settings['data']['spacetrack_password']
 
         # connect to the client
         self.client = SpaceTrackClient(identity=username, password=password)
