@@ -156,10 +156,18 @@ def plot_data(filename, savename):
     # ax.quiverkey(q_era5, 0.8, 0.1, wspd_max, f'{wspd_max} m/s (ERA5)', fontproperties={'size': 8}, labelcolor='w')
     # ax.quiverkey(q_geosfp, 0.8, 0, wspd_max, f'{wspd_max} m/s (GEOS-FP)', fontproperties={'size': 8}, labelcolor='w')
 
+    # add shape error if the source type is waste
+    if df['ipcc_sector'].item() == 'Solid Waste (6A)':
+        df['emission_uncertainty'] = np.sqrt(df['emission_uncertainty']**2+(df['emission']*0.05)**2)
+
     title = df['datetime'].item().replace('T', ' ') + '\n' \
             + 'Lat: ' + str(df['plume_latitude'].item()) + ' Lon: ' + str(df['plume_longitude'].item()) + '\n' \
             + str(round(df['emission'].item()/1e3, 2)) + ' t/h $\pm$ ' \
             + str(round(df['emission_uncertainty']/df['emission']*100, 2).item()) + '%'
+
+    # add name to title if exists
+    if df['name'] is not None:
+        title = df['name'].item() + '\n' + title
 
     ax.set_title('')
     plt.suptitle(title)
