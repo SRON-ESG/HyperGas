@@ -38,7 +38,7 @@ def Land_mask(lon, lat, source='GSHHS'):
     points_gdf = gpd.GeoDataFrame(geometry=points, crs="EPSG:4326")
     
     # Spatially join the points with the land polygons
-    joined = gpd.sjoin(points_gdf, land_gdf, how='left', op='within')
+    joined = gpd.sjoin(points_gdf, land_gdf, how='left', predicate='within')
 
     # Check if each point is within a land polygon
     is_within_land = joined['index_right'].notnull()
