@@ -279,15 +279,19 @@ with col3:
                         # mask data
                         gas_mask = ds[gas].where(mask)
 
-                        # calculate mean wind and surface pressure in the plume
-                        u10 = ds['u10'].where(mask).mean(dim=['y', 'x'])
-                        v10 = ds['v10'].where(mask).mean(dim=['y', 'x'])
-                        sp = ds['sp'].where(mask).mean(dim=['y', 'x'])
+                        # calculate mean wind and surface pressure in the plume if they are existed
+                        if all(key in ds.keys() for key in ['u10', 'v10', 'sp']):
+                            u10 = ds['u10'].where(mask).mean(dim=['y', 'x'])
+                            v10 = ds['v10'].where(mask).mean(dim=['y', 'x'])
+                            sp = ds['sp'].where(mask).mean(dim=['y', 'x'])
 
-                        # keep attrs
-                        u10.attrs = ds['u10'].attrs
-                        v10.attrs = ds['v10'].attrs
-                        sp.attrs = ds['sp'].attrs
+                            # keep attrs
+                            u10.attrs = ds['u10'].attrs
+                            v10.attrs = ds['v10'].attrs
+                            sp.attrs = ds['sp'].attrs
+                            array_list = [gas_mask, u10, v10, sp]
+                        else:
+                            array_list = [gas_mask]
 
                         # save useful number for attrs
                         sza = ds[gas].attrs['sza']
@@ -304,9 +308,8 @@ with col3:
                     else:
                         plume_nc_filename = filename.replace('.html', f'_{pick_plume_name}.nc').replace('L2', 'L3')
 
-
                     # merge data
-                    ds_merge = xr.merge([gas_mask, u10, v10, sp])
+                    ds_merge = xr.merge(array_list)
 
                     # add crs info
                     if ds.rio.crs:
