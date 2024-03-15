@@ -14,6 +14,7 @@ import xarray as xr
 from spectral.algorithms.detectors import matched_filter
 
 from .landmask import Land_mask
+from .cluster import PCA_kmeans
 from .unit_spectrum import Unit_spec
 
 LOG = logging.getLogger(__name__)
@@ -24,8 +25,8 @@ class MatchedFilter():
 
     def __init__(self, scn, wvl_intervals, species='ch4',
                  mode='column', rad_dist='normal', rad_source='model',
-                 land_mask=True, land_mask_source='GSHHS', plume_mask=None,
-                 scaling=None,
+                 land_mask=True, land_mask_source='GSHHS', cluster=False,
+                 plume_mask=None, scaling=None,
                  ):
         """Initialize MatchedFilter.
 
@@ -53,6 +54,8 @@ class MatchedFilter():
                 Default: True
             land_mask_source (str): the data source of land mask ('GSHHS' or 'Natural Earth')
                 Default: GSHHS
+            cluster (boolean): Whether apply the pixel classification
+                Default: False
             plume_mask (2d array): 0: neglected pixels, 1: plume pixels.
                 Default: None
             scaling (float): The scaling factor for alpha to ensure numerical stability.
@@ -91,7 +94,9 @@ class MatchedFilter():
         # calculate the land/ocean segmentation
         self.land_mask = land_mask
 
-        if land_mask:
+        if cluster:
+            segmentation = PCA_kmeans(self.radiance)
+        elif land_mask:
             # get lon and lat from area attrs
             lons, lats = self.radiance.attrs['area'].get_lonlats()
             # create land mask from 10-m Natural Earth data

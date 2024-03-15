@@ -97,7 +97,7 @@ class L2B():
 
         self.hyp = hyp
 
-    def retrieve(self, land_mask=True, plume_mask=None, land_mask_source='GSHHS', rad_dist='normal'):
+    def retrieve(self, land_mask=True, plume_mask=None, land_mask_source='GSHHS', cluster=False, rad_dist='normal'):
         """run retrieval"""
         # retrieve trace gas
         for species in self.species:
@@ -108,6 +108,7 @@ class L2B():
                               land_mask=land_mask,
                               plume_mask=plume_mask,
                               land_mask_source=land_mask_source,
+                              cluster=cluster,
                               rad_dist=rad_dist,
                               species=species,
                               )
@@ -115,6 +116,7 @@ class L2B():
             self.hyp.retrieve(land_mask=land_mask,
                               plume_mask=plume_mask,
                               land_mask_source=land_mask_source,
+                              cluster=cluster,
                               rad_dist=rad_dist,
                               species=species,
                               )
@@ -279,6 +281,8 @@ def main():
     # if skip already processed file
     skip_exist = True
 
+    # whether cluster pixels for matched filter
+
     # set species to be retrieved (3 formats)
     #   'all': retrieve all supported gases
     #   single gas name str, e.g. 'ch4'
@@ -308,7 +312,7 @@ def main():
         l2b_scene = L2B(filename, species, skip_exist)
 
         if not l2b_scene.skip:
-            l2b_scene.retrieve(rad_dist='normal')
+            l2b_scene.retrieve(rad_dist='normal', cluster=False)
             l2b_scene.denoise()
             l2b_scene.ortho()
             l2b_scene.to_netcdf()

@@ -317,7 +317,8 @@ class Hyper():
 
     def retrieve(self, wvl_intervals=None, species='ch4',
                  algo='smf', mode='column', rad_dist='normal',
-                 land_mask=True, land_mask_source='GSHHS', plume_mask=None):
+                 land_mask=True, land_mask_source='GSHHS',
+                 cluster=False, plume_mask=None):
         """Retrieve trace gas enhancements
 
         Args:
@@ -340,6 +341,8 @@ class Hyper():
                 Default: True
             land_mask_source (str): the data source of land mask ('GSHHS' or 'Natural Earth')
                 Default: GSHHS
+            cluster (boolean): Whether apply the pixel classification
+                Default: False
             plume_mask (2d array): Manual mask. 0: neglected pixels, 1: valid pixels.
                 Default: None
         """
@@ -356,7 +359,7 @@ class Hyper():
         if (rad_source == 'lut') and (species not in ['ch4', 'co2']):
             raise ValueError(f"Please input a correct species name (ch4 or co2). {species} is not supported by LUT.")
 
-        mf = MatchedFilter(self.scene, wvl_intervals, species, mode, rad_dist, rad_source, land_mask, land_mask_source, plume_mask)
+        mf = MatchedFilter(self.scene, wvl_intervals, species, mode, rad_dist, rad_source, land_mask, land_mask_source, cluster, plume_mask)
         segmentation = mf.segmentation
         enhancement = getattr(mf, algo)()
 
