@@ -15,14 +15,13 @@ Below is an illustration of how to include carbon monoxide (CO):
 
 .. code-block:: yaml
 
-    co2:
-        name: carbon dioxide
-        wavelength: [1930, 2200]
-        full_wavelength: [1300, 2500]
+    co:
+        name: carbon monoxide
+        wavelength: [2305, 2385]
+        full_wavelength: [1300,2500]
         rad_source: model
-        concentrations: [0, 2.5, 5.0, 10.0, 20.0, 40.0, 80.0, 160.0]  # for rad_source=="model", units: ppm
-        # concentrations: [0.0e+4, 2.0e+4, 4.0e+4, 8.0e+4, 1.6e+5, 3.2e+5, 6.4e+5, 1.28e+6] # for rad_source=="lut", units: ppm m
-        units: ppm
+        concentrations: [0, 0.1, 0.2, 0.4, 0.8, 1.6, 3.2, 6.4]
+        units: ppb
 
 .. note::
 
