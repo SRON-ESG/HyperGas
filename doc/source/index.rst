@@ -6,6 +6,8 @@
 HyperGas's Documentation!
 =======================================
 
+.. image:: ../fig/logo.png
+
 HyperGas is a python library for reading, processing, and writing data from Hyperspectral Imagers (HSI).
 The reading function is built upon HSI readers
 (`EMIT <https://github.com/pytroll/satpy/pull/2592>`_,
