@@ -39,7 +39,7 @@ INSTITUTION = 'SRON Netherlands Institute for Space Research'
 # set filename pattern to load data automatically
 PATTERNS = ['ENMAP01-____L3B*.csv', 'EMIT_L3B*.csv', 'PRS_L3_*.csv']
 
-def reprocess_data(filename, reprocess_nc, wind_data):
+def reprocess_data(species, filename, reprocess_nc, wind_data):
     LOG.info('Reading csv and nc files ...')
     df = pd.read_csv(filename, dtype={'wind_weights': bool})
     plume_filename = filename.replace('.csv', '.nc')
@@ -77,10 +77,10 @@ def reprocess_data(filename, reprocess_nc, wind_data):
         latitude = df['plume_latitude'].item()
 
         # read plume mask settings
-        plume_varname = 'ch4_comb_denoise'
+        plume_varname = '{species}_comb_denoise'
         land_only = True
         land_mask_source = 'GSHHS'
-        only_plume = True
+
         plume_num = re.search('plume(.*).nc', os.path.basename(plume_filename)).group(1)
         pick_plume_name = 'plume' + plume_num
         html_filename = os.path.join(os.path.dirname(plume_filename),
@@ -94,14 +94,14 @@ def reprocess_data(filename, reprocess_nc, wind_data):
         quantile = df['quantile'].item()
 
         # create new mask
-        mask, lon_mask, lat_mask, plume_html_filename = mask_data(html_filename, ds_l2b, longitude, latitude,
+        mask, lon_mask, lat_mask, plume_html_filename = mask_data(html_filename, ds_l2b, species, longitude, latitude,
                                                                   pick_plume_name, plume_varname,
                                                                   wind_source, wind_weights, land_only, land_mask_source,
                                                                   niter, size_median, sigma_guass, quantile,
-                                                                  only_plume)
+                                                                  only_plume=True)
 
         # mask data
-        ch4_mask = ds_l2b['ch4'].where(mask)
+        species_mask = ds_l2b[species].where(mask)
 
         # calculate mean wind and surface pressure in the plume
         u10 = ds_l2b['u10'].where(mask).mean(dim=['y', 'x'])
@@ -109,12 +109,12 @@ def reprocess_data(filename, reprocess_nc, wind_data):
         sp = ds_l2b['sp'].where(mask).mean(dim=['y', 'x'])
 
         # save useful number for attrs
-        sza = ds_l2b['ch4'].attrs['sza']
-        vza = ds_l2b['ch4'].attrs['vza']
-        start_time = ds_l2b['ch4'].attrs['start_time']
+        sza = ds_l2b[species].attrs['sza']
+        vza = ds_l2b[species].attrs['vza']
+        start_time = ds_l2b[species].attrs['start_time']
 
         # merge data
-        ds_merge = xr.merge([ch4_mask, u10, v10, sp])
+        ds_merge = xr.merge([species_mask, u10, v10, sp])
 
         # add crs info
         if ds_l2b.rio.crs:
@@ -148,7 +148,8 @@ def reprocess_data(filename, reprocess_nc, wind_data):
 
     LOG.info('Recalculating emission rates ...')
     wspd, wdir, wspd_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q, Q_err, \
-        err_random, err_wind  = calc_emiss(f_ch4_mask=plume_filename,
+        err_random, err_wind  = calc_emiss(gas=species,
+                                           f_gas_mask=plume_filename,
                                            pick_plume_name=df['plume_id'].item().split('-')[-1],
                                            pixel_res=pixel_res,
                                            alpha1=df['alpha1'].item(), alpha2=df['alpha2'].item(), alpha3=df['alpha3'].item(),
@@ -158,7 +159,8 @@ def reprocess_data(filename, reprocess_nc, wind_data):
 
     LOG.info('Recalculating emission rates (fetch) ...')
     Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch \
-        = calc_emiss_fetch(f_ch4_mask=plume_filename,
+        = calc_emiss_fetch(gas=species,
+                           f_gas_mask=plume_filename,
                            pixel_res=pixel_res,
                            wind_source=wind_source,
                            wspd=wspd
@@ -166,7 +168,7 @@ def reprocess_data(filename, reprocess_nc, wind_data):
 
     # calculate plume bounds
     with xr.open_dataset(plume_filename) as ds:
-        plume_mask = ~ds['ch4'].isnull()
+        plume_mask = ~ds[species].isnull()
         lon_mask = ds['longitude'].where(plume_mask, drop=True)
         lat_mask = ds['latitude'].where(plume_mask, drop=True)
 
@@ -198,7 +200,10 @@ def reprocess_data(filename, reprocess_nc, wind_data):
 
 def main():
     # whether regenerate the L3 plume NetCDF file based on csv settings
-    reprocess_nc = False
+    reprocess_nc = True
+
+    # the gas to be reprocessed
+    species = 'ch4'
 
     # which wind source data to be applied
     wind_data = 'auto'  # 'auto', 'ERA5', or 'GEOS-FP'
@@ -212,7 +217,7 @@ def main():
 
     for filename in filelist:
         LOG.info(f'Reprocessing {filename} ...')
-        reprocess_data(filename, reprocess_nc, wind_data)
+        reprocess_data(species, filename, reprocess_nc, wind_data)
 
 
 if __name__ == '__main__':
