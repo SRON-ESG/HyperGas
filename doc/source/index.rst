@@ -59,6 +59,8 @@ Documentation
    data_download
    quickstart
    batch_processing
+   plume_app
+   dev_guide
 
 
 Indices and tables

@@ -3,8 +3,8 @@ Configuration
 
 HyperGas automatically reads settings from a YAML file called ``config.yaml``.
 This file is located at ``<HyperGas_dir>/hypergas/config.yaml``.
-All path names in the config file are relative paths under ``<HyperGas_dir>/hypergas/``.
-For instance, ``resources/absorption`` is equivalent to ``<HyperGas_dir>/hypergas/resources/absorption/``.
+All path names in the config file are relative paths within ``<HyperGas_dir>/hypergas/``.
+For instance, ``resources/absorption`` corresponds to ``<HyperGas_dir>/hypergas/resources/absorption/``.
 
 Parameters
 ----------
@@ -13,7 +13,6 @@ Parameters
 absorption_dir
 ^^^^^^^^^^^^^^
 
-
 The directory where absorption line data is stored.
 Default path: ``resources/absorption``.
 The directory structure should be as follows:
@@ -21,21 +20,18 @@ The directory structure should be as follows:
 .. code-block::
 
     ├── absorption
-    │   ├── absorption_cs_CH4_ALL_midlatitudesummer.csv
-    │   ├── absorption_cs_CH4_ALL_midlatitudewinter.csv
-    │   ├── absorption_cs_CH4_ALL_standard.csv
-    │   ├── absorption_cs_CH4_ALL_subarcticsummer.csv
-    │   ├── absorption_cs_CH4_ALL_subarcticwinter.csv
-    │   ├── absorption_cs_CH4_ALL_tropical.csv
-    │   ├── absorption_cs_CH4_SWIR_midlatitudesummer.csv
-    │   ├── absorption_cs_CO2_ALL_midlatitudesummer.csv
-    │   ├── absorption_cs_CO2_ALL_midlatitudewinter.csv
-    │   ├── absorption_cs_CO2_ALL_standard.csv
-    │   ├── absorption_cs_CO2_ALL_subarcticsummer.csv
-    │   ├── absorption_cs_CO2_ALL_subarcticwinter.csv
-    │   ├── absorption_cs_CO2_ALL_tropical.csv
-    │   ├── absorption_cs_CO2_SWIR_midlatitudesummer.csv
-    │   ├── ............
+    │   ├── absorption_cs_ALL_midlatitudesummer.nc
+    │   ├── absorption_cs_ALL_midlatitudewinter.nc
+    │   ├── absorption_cs_ALL_standard.nc
+    │   ├── absorption_cs_ALL_subarcticsummer.nc
+    │   ├── absorption_cs_ALL_subarcticwinter.nc
+    │   ├── absorption_cs_ALL_tropical.nc
+    │   ├── atmosphere_midlatitudesummer.dat
+    │   ├── atmosphere_midlatitudewinter.dat
+    │   ├── atmosphere_standard.dat
+    │   ├── atmosphere_subarcticsummer.dat
+    │   ├── atmosphere_subarcticwinter.dat
+    │   ├── atmosphere_tropical.dat
 
 
 irradiance_dir
@@ -47,7 +43,19 @@ Default path: ``resources/irradiance_dir``.
 .. code-block::
 
     └── solar_irradiance
-        └── solar_irradiance_0400-2600nm_highres_sparse.dat
+        └── solar_irradiance_0400-2600nm_highres_sparse.nc
+
+modtran_dir
+^^^^^^^^^^^
+
+The directory where MODTRAN LUT data is stored.
+Default path: ``resources/modtran_full``.
+
+.. code-block::
+
+    ├── modtran_full
+    │   ├── dataset_ch4_full.hdf5
+    │   └── dataset_co2_full.hdf5
 
 rgb_dir
 ^^^^^^^
@@ -112,8 +120,9 @@ markers_filename
 ^^^^^^^^^^^^^^^^
 
 The csv file which saves pre-defined markers.
-It should contains at least two columns: *latitude* and *longitude*.
-The batch processing script ``l2b_plot.py`` will add CircleMarkers on Map and click it to see correcponding DataFrame info.
+It should contain at least two columns: *latitude* and *longitude*.
+The batch processing script ``l2b_plot.py`` will place CircleMarkers on the map.
+Clicking on a marker will display the correcponding DataFrame information.
 Default: ``resources/markers/markers.csv``
 
 spacetrack_usename and spacetrack_password

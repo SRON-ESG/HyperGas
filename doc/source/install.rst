@@ -7,7 +7,7 @@ Clone the repository first and choose perferred installation method below.
 .. code-block:: bash
 
     git clone git@gitlab.sron.nl:esg/tropomi-l4/hsi/HyperGas.git
-
+    cd HyperGas
 
 Step 1: Create Env
 ==================
