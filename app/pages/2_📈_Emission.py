@@ -162,7 +162,7 @@ with col3:
                 plume_names = list(plume_dict.keys())
                 if 'plume' in os.path.basename(filename):
                     file_mask_exist = glob(filename.replace('.html', '.csv'))[0]
-                    pick_plume_name_default = file_mask_exist[-10:-4]
+                    pick_plume_name_default = file_mask_exist.split('_')[-1][:-4]
                 else:
                     pick_plume_name_default = plume_names[0]
                 pick_plume_name = st.selectbox("Pick plume here:",
