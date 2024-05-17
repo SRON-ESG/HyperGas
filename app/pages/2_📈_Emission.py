@@ -438,7 +438,7 @@ with col3:
             with st.spinner('Calculating emission rate ...'):
                 # set output name
                 plume_nc_filename = filename.replace('.html', '.nc')
-                pick_plume_name = filename[-11: -5]
+                pick_plume_name = filename.split('_')[-1][:-5]
 
                 # calculate emissions using the IME method with Ueff
                 gas = params['gas'].lower()
