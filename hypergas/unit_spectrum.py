@@ -430,8 +430,8 @@ class Unit_spec():
             # auto calculation of scaling factor
             K_negative_max = K[K<0].max()
             if K_negative_max > -1:
-                scaling = round(-1/K_negative_max, -1)
+                scaling = round(-1/K_negative_max, 1)
             else:
-                scaling = round(-K_negative_max, -1)
+                scaling = round(-K_negative_max, 1)
 
         return K * scaling, scaling
