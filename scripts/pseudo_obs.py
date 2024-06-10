@@ -93,12 +93,6 @@ def pseudo_plume(ds, type='area'):
 
     # save as DataArray
     emiss_rate = ds['ch4'].copy(deep=True, data=emiss_rate)
-    #emiss_rate = xr.DataArray(emiss_rate,
-    #                          dims=['name', 'time'],
-    #                          coords={'name': emiss_rate_area.coords['name'],
-    #                                  'time': emiss_rate_area.coords['time']
-    #                                 }
-    #                         )
     emiss_rate = emiss_rate.rename('emission_rate')
     emiss_rate.attrs['units'] = 't h-1'
     emiss_rate.attrs['description'] = 'methane emission rate'
