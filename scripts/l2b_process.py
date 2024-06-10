@@ -223,13 +223,20 @@ class L2B():
 
         # we need a higher weight for denoising PRISMA data
         if self.reader == 'hyc_l1':
-            weight = 90
+            weight = 150
         else:
             weight = 50
 
         for species in self.species:
             self.hyp.scene[f'{species}_denoise'] = self.hyp.denoise(varname=species, weight=weight)
             self.hyp.scene[f'{species}_comb_denoise'] = self.hyp.denoise(varname=f'{species}_comb', weight=weight)
+
+    def plume_mask(self):
+        """Create a priori plume mask"""
+        LOG.info(f'Creating {self.species} plume mask')
+
+        for species in self.species:
+            self.hyp.scene[f'{species}_plume_mask'] = self.hyp.plume_mask(varname=f'{species}_comb')
 
     def to_netcdf(self):
         """Save scene to netcdf file."""
@@ -245,7 +252,7 @@ class L2B():
         # set saved variables
         species_vnames = []
         for species in self.species:
-            species_vnames.extend([species, f'{species}_comb', f'{species}_denoise', f'{species}_comb_denoise'])
+            species_vnames.extend([species, f'{species}_comb', f'{species}_denoise', f'{species}_comb_denoise', f'{species}_plume_mask'])
         vnames = ['u10', 'v10', 'sp', 'rgb', 'segmentation', 'radiance_2100']
         vnames.extend(species_vnames)
         loaded_names = [x['name'] for x in self.hyp.scene.keys()]
@@ -260,7 +267,8 @@ class L2B():
         for vname in vnames:
             self.hyp.scene[vname] = self.hyp.scene[vname].squeeze()
             # remove the useless filename attrs which has already been saved as global attrs
-            del self.hyp.scene[vname].attrs['filename']
+            if 'filename' in self.hyp.scene[vname].attrs:
+                del self.hyp.scene[vname].attrs['filename']
 
         # export to NetCDF file
         self.hyp.scene.save_datasets(datasets=vnames, filename=self.savename,
@@ -312,9 +320,12 @@ def main():
         l2b_scene = L2B(filename, species, skip_exist)
 
         if not l2b_scene.skip:
-            l2b_scene.retrieve(rad_dist='normal', cluster=False)
+            # rad_dist: 'normal', 'lognormal'
+            # land_mask_source: 'GSHHS', 'Natural Earth'
+            l2b_scene.retrieve(rad_dist='normal', cluster=False, land_mask_source='GSHHS')
             l2b_scene.denoise()
             l2b_scene.ortho()
+            l2b_scene.plume_mask()
             l2b_scene.to_netcdf()
 
         del l2b_scene

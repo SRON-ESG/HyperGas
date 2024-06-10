@@ -22,6 +22,7 @@ from .orthorectification import Ortho
 from .retrieve import MatchedFilter
 from .tle import TLE
 from .wind import Wind
+from .a_priori_mask import Mask
 
 AVAILABLE_READERS = ['hsi_l1b', 'emit_l1b', 'hyc_l1']
 LOG = logging.getLogger(__name__)
@@ -416,3 +417,24 @@ class Hyper():
         da_denoise = Denoise(self.scene, varname, method=method, weight=weight).smooth()
 
         return da_denoise
+
+    def plume_mask(self, varname='ch4_comb_denoise', n_min_threshold=5, sigma_threshold=1):
+        """Create a priori plume masks
+
+        Args:
+            scn (Satpy Scene):
+                Scene including one variable named "segmentation" which is calculated by `Land_mask`
+                    segmentation (xarray DataArray):
+                        0: ocean, >0: land
+            varname (str):
+                The variable used to create plume mask. (Recommend: <gas>_comb_denoise)
+            n_min_threshold (int):
+                The minimum number of points per threshold for detecting features.
+                Default: 5
+            sigma_threshold (int):
+                Gaussian filter sigma for smoothing field.
+                Default: 1. Because the <gas>_comb_denoise field is already smoothed, 1 should be high enough.
+        """
+        thresholds, features, da_plume_mask = Mask(self.scene, varname, n_min_threshold=n_min_threshold, sigma_threshold=sigma_threshold).get_feature_mask()
+
+        return da_plume_mask
