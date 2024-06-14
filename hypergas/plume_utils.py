@@ -8,21 +8,25 @@
 """Some utils used for creating plume mask and gas emission rates"""
 
 import base64
-import os
 import gc
 import logging
+import math
+import os
 import warnings
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 import pyresample
 import xarray as xr
 from branca.element import MacroElement
-from hypergas.folium_map import Map
-from hypergas.landmask import Land_mask
 from jinja2 import Template
 from pyresample.geometry import SwathDefinition
 from scipy import ndimage
+from shapely.geometry import Polygon
+
+from hypergas.folium_map import Map
+from hypergas.landmask import Land_mask
 
 LOG = logging.getLogger(__name__)
 
@@ -130,6 +134,33 @@ def conish_2d(x, y, xc, yc, r):
     return out
 
 
+def _azimuth(point1, point2):
+    '''azimuth between 2 points (interval 0 - 180)
+    # https://stackoverflow.com/a/66118219/7347925
+    '''
+    angle = np.arctan2(point2[0] - point1[0], point2[1] - point1[1])
+    return np.degrees(angle) if angle > 0 else np.degrees(angle) + 180
+
+
+def _dist(a, b):
+    '''distance between points'''
+    return math.hypot(b[0] - a[0], b[1] - a[1])
+
+
+def azimuth_mrr(mrr):
+    '''azimuth of minimum_rotated_rectangle'''
+    bbox = list(mrr.exterior.coords)
+    axis1 = _dist(bbox[0], bbox[3])
+    axis2 = _dist(bbox[0], bbox[1])
+
+    if axis1 <= axis2:
+        az = _azimuth(bbox[0], bbox[1])
+    else:
+        az = _azimuth(bbox[0], bbox[3])
+
+    return az
+
+
 def get_index_nearest(lons, lats, lon_target, lat_target):
     # define the areas for data and source point
     area_source = SwathDefinition(lons=lons, lats=lats)
@@ -186,7 +217,7 @@ def plume_mask(ds, gas, lon_target, lat_target, plume_varname='comb_denoise',
     else:
         varname = gas
 
-    da_gas = getattr(ds, plume_varname, ds[gas])
+    da_gas = getattr(ds, varname, ds[gas])
 
     # get_neighbour_info() returns indices in the flattened lat/lon grid. Compute the 2D grid indices:
     y_target, x_target = get_index_nearest(ds['longitude'], ds['latitude'], lon_target, lat_target)
@@ -203,7 +234,7 @@ def plume_mask(ds, gas, lon_target, lat_target, plume_varname='comb_denoise',
     # set oceanic pixel values to nan
     if land_only:
         segmentation = Land_mask(lon.data, lat.data, land_mask_source)
-        if segmentation.isel(y=y_target, x=x_target).values != 0 :
+        if segmentation.isel(y=y_target, x=x_target).values != 0:
             # because sometimes cartopy land mask is not accurate
             #  we need to make sure the source point is not on the ocean
             da_gas_weights = da_gas_weights.where(segmentation)
@@ -322,6 +353,123 @@ def mask_data(filename, ds, gas, lon_target, lat_target, pick_plume_name, plume_
     return mask, lon_mask, lat_mask, plume_html_filename
 
 
+def select_connect_masks(masks, y_target, x_target, az_max=30, dist_max=180):
+    '''
+    Select connected masks by dilation and limit the minimum rectangle angle difference
+
+    Args:
+        masks (2D DataArray):
+            a priori mask from L2 data
+        y_target (float):
+            yindex of source target
+        x_target (float):
+            xindex of source targeta
+        az_max (float):
+            maximum of azimuth of minimum rotated rectangle. (Default: 30)
+        dist_max (float):
+            maximum of dilation distance (meter)
+
+    Return:
+        plume masks (DataArray)
+    '''
+    # get the source label of original mask
+    mask_target = masks[y_target, x_target].item()
+
+    # dilation mask
+    struct = ndimage.generate_binary_structure(2, 2)
+    dxy = abs(masks.coords['y'].diff('y')[0])
+    niter = int(dist_max/dxy)
+    masks_dilation = masks.copy(deep=True, data=ndimage.binary_dilation(masks.fillna(0), iterations=niter, structure=struct))
+
+    # Label connected components in the dilated array
+    labeled_array, num_features = ndimage.label(masks_dilation)
+    masks_dilation = masks.copy(deep=True, data=labeled_array).where(masks.notnull())
+
+    # get the dilation mask which contains mask including the target
+    mask_dilation_target = masks_dilation[y_target, x_target].values
+    mask_dilation_target = masks_dilation.where(masks_dilation == mask_dilation_target)
+
+    # mask in the dilation mask
+    masks_in_dilation = masks.where((masks > 0) & (mask_dilation_target > 0))
+
+    # unique mask labels within the dilation mask
+    connect_labels = np.unique(masks_in_dilation.data.flatten())
+
+    # create mask polygons
+    df_mask = masks.to_dataframe().reset_index()
+    df_mask = df_mask[df_mask[masks.name] > 0]
+    gdf_polygon = gpd.GeoDataFrame(geometry=df_mask.groupby(masks.name)
+                                   .apply(lambda g: Polygon(gpd.points_from_xy(g['longitude'], g['latitude'])))
+                                   )
+
+    # calculate mrr and azimuth angle
+    gdf_polygon['mrrs'] = gdf_polygon.geometry.apply(lambda geom: geom.minimum_rotated_rectangle)
+    gdf_polygon['az'] = gdf_polygon['mrrs'].apply(azimuth_mrr)
+
+    # get the polygons inside the dilation mask which includes the target mask
+    gdf_polygon_connect = gdf_polygon[gdf_polygon.index.isin(connect_labels)]
+
+    if len(gdf_polygon_connect) > 1:
+        # calculate polygon distance
+        gdf_polygon_connect['distance'] = gdf_polygon_connect.geometry.apply(
+            lambda g: gdf_polygon_connect[gdf_polygon_connect.index == mask_target]['geometry'].distance(g, align=False))
+
+        # sort masks by distance
+        gdf_polygon_connect.sort_values('distance', inplace=True)
+
+        # calcualte differences of az
+        gdf_polygon_connect.loc[:, 'az_diff'] = gdf_polygon_connect['az'].diff().abs().fillna(0)
+
+        # Drop rows where az_diff is larger than az_max
+        for i in range(len(gdf_polygon_connect) - 1):
+            if i >= len(gdf_polygon_connect)-1:
+                break
+            if (gdf_polygon_connect['az_diff'].iloc[i+1] > az_max) and (gdf_polygon_connect['distance'].iloc[i+1] > 0):
+                gdf_polygon_connect = gdf_polygon_connect.drop(gdf_polygon_connect.index[i+1])
+                gdf_polygon_connect['az_diff'] = gdf_polygon_connect['az'].diff().abs().fillna(0)
+
+    # get final mask
+    mask = masks_in_dilation.isin(gdf_polygon_connect.index)
+
+    return mask
+
+
+def a_priori_mask_data(filename, ds, gas, lon_target, lat_target, pick_plume_name,
+                       wind_source, land_only, land_mask_source, only_plume):
+    '''Read a priori plume masks and connect them by conditions
+
+    Args:
+        filename (str): input filename
+        ds (Dataset): L2 data
+        gas (str): the gas field to be masked
+        lon_target (float): The longitude of plume source
+        lat_target (float): The latitude of plume source
+        pick_plume_name (str): the plume name (plume0, plume1, ....)
+        wind_source (str): 'ERA5' or 'GEOS-FP'
+
+    Return:
+        mask (DataArray): Boolean mask (pixel)
+        lon_mask (DataArray): plume longitude
+        lat_mask (DataArray): plume latitude
+        plume_html_filename (str): exported plume html filename
+        '''
+    # get the y/x index of the source location
+    y_target, x_target = get_index_nearest(ds['longitude'], ds['latitude'], lon_target, lat_target)
+
+    # select connected masks
+    mask = select_connect_masks(ds[f'{gas}_mask'], y_target, x_target)
+
+    # get the masked lon and lat
+    lon_mask = xr.DataArray(ds['longitude'], dims=['y', 'x']).where(mask).rename('longitude')
+    lat_mask = xr.DataArray(ds['latitude'], dims=['y', 'x']).where(mask).rename('latitude')
+
+    # plot the mask (png and html)
+    plume_html_filename = plot_mask(filename, ds, gas, mask, lon_target, lat_target,
+                                    pick_plume_name, only_plume=only_plume)
+
+    return mask, lon_mask, lat_mask, plume_html_filename
+
+
 def create_circular_mask(h, w, center=None, radius=None):
     if center is None:
         # use the middle of the image
@@ -371,13 +519,13 @@ def calc_wind_error(wspd, IME, l_eff,
     wspd_distribution = np.random.normal(wspd, sigma, size=1000)
 
     # Calculate Ueff distribution
-    u_eff_distribution = alpha1 * np.log(wspd) + alpha2 + alpha3 * wspd_distribution
+    u_eff_distribution = alpha1 * np.log(wspd_distribution) + alpha2 + alpha3 * wspd_distribution
 
     # Calculate Q distribution
     Q_distribution = u_eff_distribution * IME / l_eff
 
     # Calculate standard deviation of Q distribution
-    wind_error = np.std(Q_distribution)
+    wind_error = np.nanstd(Q_distribution)
 
     return wind_error
 
@@ -596,7 +744,8 @@ def calc_emiss_fetch(gas, f_gas_mask, pixel_res=30, wind_source='ERA5', wspd=Non
     # calculate plume height, width, and diagonal
     h = mask.shape[0]
     w = mask.shape[1]
-    r_max = np.sqrt(h**2+w**2)
+    # r_max = np.sqrt(h**2+w**2)
+    r_max = 1e3  # limit to 1 km
 
     # calculate IME by increasing mask radius
     LOG.info('Calculating IME')
@@ -624,11 +773,11 @@ def calc_emiss_fetch(gas, f_gas_mask, pixel_res=30, wind_source='ERA5', wspd=Non
 
     # ---- uncertainty ----
     # 1. ime
-    LOG.info(f'Calculating IME error')
+    LOG.info('Calculating IME error')
     err_ime = Q * ime_l_std / ime_l_mean
 
     # 2. wind error
-    LOG.info(f'Calculating wind error')
+    LOG.info('Calculating wind error')
     err_wind = calc_wind_error_fetch(wspd, ime_l_mean)
 
     # sum error

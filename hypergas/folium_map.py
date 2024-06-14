@@ -176,6 +176,20 @@ class Map():
                 if cmap_vmax < vmin:
                     # if the maximum value is negative, hard-code to 1
                     cmap_vmax = vmin + 1
+            elif 'mask' in varname:
+                # plot a priori plume mask
+                cmap = 'tab20c'
+                vmin = 0
+                cmap_vmax = None
+
+                # remove background mask (0)
+                da_ortho = da_ortho.where(da_ortho>0)
+
+                # pick mask with more than 5 pixels
+                da_count = da_ortho.groupby(da_ortho).count()
+                da_count = da_count.where(da_count > 5).dropna(varname)
+                count_unique = da_count.coords[varname].values
+                da_ortho = da_ortho.where(np.isin(da_ortho, count_unique, 0))
             else:
                 # set vmax for species automatically
                 #   Note that vmax of radiance and denoised variables are set based on percentile values above
@@ -387,6 +401,7 @@ class Map():
                                                .replace('.', f'_{varname}.')
                                                .replace('_RAD', '').replace('L1', 'L2'))).with_suffix('.png')
 
+            # plot 2D trace gas field
             raster = folium.raster_layers.ImageOverlay(image=str(output_png),
                                                        opacity=self.opacities[index],
                                                        bounds=self.img_bounds,
