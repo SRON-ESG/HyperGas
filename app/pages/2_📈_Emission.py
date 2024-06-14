@@ -80,7 +80,8 @@ with col2:
         filename = html_filepath_list[index]
 
         # read the plume source info from geojson file
-        prefix = os.path.join(os.path.dirname(filename), os.path.basename(filename.replace('L3', 'L2')).split('_plume')[0]).replace('.html', '')
+        prefix = os.path.join(os.path.dirname(filename), os.path.basename(
+            filename.replace('L3', 'L2')).split('_plume')[0]).replace('.html', '')
         gjs_filename = list(filter(lambda x: prefix in x, gjs_filepath_list))[0]
         geo_df = gpd.read_file(gjs_filename)
         geo_df_list = [[point.xy[1][0], point.xy[0][0]] for point in geo_df.geometry]
@@ -190,9 +191,9 @@ with col3:
                                         )
 
                 land_mask_source = st.selectbox("Pick data source for creating land mask:",
-                                             ('GSHHS', 'Natural Earth'),
-                                             index=0,
-                                             )
+                                                ('GSHHS', 'Natural Earth'),
+                                                index=0,
+                                                )
 
             submitted = st.form_submit_button("Submit")
 
@@ -332,7 +333,8 @@ with col3:
         name = st.text_input('Sitename (any name you like)', value=params['name'])
 
         # ipcc sector name
-        sectors = ('Electricity Generation (1A1)', 'Coal Mining (1B1a)', 'Oil & Gas (1B2)', 'Livestock (4B)', 'Solid Waste (6A)', 'Other')
+        sectors = ('Electricity Generation (1A1)', 'Coal Mining (1B1a)',
+                   'Oil & Gas (1B2)', 'Livestock (4B)', 'Solid Waste (6A)', 'Other')
         ipcc_sector = st.selectbox('IPCC sector', sectors, index=sectors.index(params['ipcc_sector']))
 
         # platform for csv output
@@ -412,15 +414,16 @@ with col3:
                 # calculate emissions using the IME method with Ueff
                 gas = params['gas'].lower()
                 wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q, Q_err, \
-                    err_random, err_wind = calc_emiss(gas, plume_nc_filename, pick_plume_name,
-                                                      pixel_res=pixel_res,
-                                                      alpha1=alpha1,
-                                                      alpha2=alpha2,
-                                                      alpha3=alpha3,
-                                                      wind_source=wind_source,
-                                                      wspd=wind_speed,
-                                                      land_only=land_only
-                                                      )
+                    err_random, err_wind, err_calib = calc_emiss(gas, plume_nc_filename, pick_plume_name,
+                                                                 alpha_replace,
+                                                                 pixel_res=pixel_res,
+                                                                 alpha1=alpha1,
+                                                                 alpha2=alpha2,
+                                                                 alpha3=alpha3,
+                                                                 wind_source=wind_source,
+                                                                 wspd=wind_speed,
+                                                                 land_only=land_only
+                                                                 )
 
                 # calculate emissions using the IME-fetch method with U10
                 Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch \
@@ -439,6 +442,7 @@ with col3:
                                IME: {IME:.2f} kg,
                                err_random: {err_random:.2f} kg/h,
                                err_wind: {err_wind:.2f} kg/h,
+                               err_calibration: {err_calib:.2f} kg/h,
                                ]
                            ''', icon="🔥")
                 st.warning(f'''**IME-fetch (U10):**
@@ -461,7 +465,7 @@ with col3:
 
                 # get the location attrs
                 try:
-                    geolocator = Nominatim(user_agent='hyper'+str(random.randint(1,100)))
+                    geolocator = Nominatim(user_agent='hyper'+str(random.randint(1, 100)))
                     location = geolocator.reverse(
                         f'{plume_dict[pick_plume_name][0]}, {plume_dict[pick_plume_name][1]}', exactly_one=True, language='en')
                     address = location.raw['address']
@@ -489,6 +493,7 @@ with col3:
                                'emission_uncertainty': Q_err,
                                'emission_uncertainty_random': err_random,
                                'emission_uncertainty_wind': err_wind,
+                               'emission_uncertainty_calibration': err_calib,
                                'emission_fetch': Q_fetch,
                                'emission_fetch_uncertainty': Q_fetch_err,
                                'emission_fetch_uncertainty_ime': err_ime_fetch,

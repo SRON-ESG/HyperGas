@@ -379,7 +379,8 @@ def select_connect_masks(masks, y_target, x_target, az_max=30, dist_max=180):
     struct = ndimage.generate_binary_structure(2, 2)
     dxy = abs(masks.coords['y'].diff('y')[0])
     niter = int(dist_max/dxy)
-    masks_dilation = masks.copy(deep=True, data=ndimage.binary_dilation(masks.fillna(0), iterations=niter, structure=struct))
+    masks_dilation = masks.copy(deep=True, data=ndimage.binary_dilation(
+        masks.fillna(0), iterations=niter, structure=struct))
 
     # Label connected components in the dilated array
     labeled_array, num_features = ndimage.label(masks_dilation)
@@ -591,7 +592,20 @@ def calc_random_err(gas, da_gas, gas_mask, area, sp):
     return std_value
 
 
-def calc_emiss(gas, f_gas_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha2=0.66, alpha3=0.34,
+def calc_calibration_error(wspd, IME, u_eff, l_eff, alpha_replace):
+    '''
+    Calculate wind calibration error by replacing alphas
+    '''
+    # Calculate Ueff
+    u_eff_replace = alpha_replace['alpha1'] * np.log(wspd) + alpha_replace['alpha2'] + alpha_replace['alpha3'] * wspd
+
+    # Calculate uncertainty
+    error = abs(u_eff_replace - u_eff) * IME / l_eff
+
+    return error
+
+
+def calc_emiss(gas, f_gas_mask, pick_plume_name, alpha_replace, pixel_res=30, alpha1=0.0, alpha2=0.79, alpha3=0.38,
                wind_source='ERA5', wspd=None, land_only=True):
     '''Calculate the emission rate (kg/h) using IME method
 
@@ -599,6 +613,7 @@ def calc_emiss(gas, f_gas_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha
         gas (str): the gas field to be masked
         f_gas_mask: The NetCDF file of mask created by `mask_data` function
         pick_plume_name (str): the plume name (plume0, plume1, ....)
+        alpha_replace (dict): alphas of different source type (Point or Area), {'alpha1': ...}
         pixel_res (float): pixel resolution (meter)
         alpha1--3 (float): The coefficients for effective wind (U_eff)
         wspd (float): overwritten wind speed
@@ -616,7 +631,7 @@ def calc_emiss(gas, f_gas_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha
         Q_err: STD of Q  (kg/h)
         err_random: random error (kg/h)
         err_wind: wind error (kg/h)
-        err_shape: shape error (kg/h)
+        err_calib: calibration error (kg/h)
 
     '''
     # read file and pick valid data
@@ -689,14 +704,18 @@ def calc_emiss(gas, f_gas_mask, pick_plume_name, pixel_res=30, alpha1=0.0, alpha
     LOG.info('Calculating wind error')
     err_wind = calc_wind_error(wspd, IME, l_eff, alpha1, alpha2, alpha3)
 
+    # 3. calibration error
+    LOG.info('Calculating calibration error')
+    err_calib = calc_calibration_error(wspd, IME, u_eff, l_eff, alpha_replace)
+
     # sum error
-    Q_err = np.sqrt(err_random**2 + err_wind**2)
+    Q_err = np.sqrt(err_random**2 + err_wind**2 + err_calib**2)
 
     ds.close()
     ds_original.close()
 
     return wspd, wdir, wspd_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q*3600, Q_err*3600, \
-        err_random*3600, err_wind*3600  # kg/h
+        err_random*3600, err_wind*3600, err_calib*3600  # kg/h
 
 
 def calc_emiss_fetch(gas, f_gas_mask, pixel_res=30, wind_source='ERA5', wspd=None):
