@@ -166,7 +166,7 @@ def plot_data(filename, savename):
             + str(round(df['emission_uncertainty']/df['emission']*100, 2).item()) + '%'
 
     # add name to title if exists
-    if df['name'] is not None:
+    if not df['name'].isnull().item():
         title = df['name'].item() + '\n' + title
 
     ax.set_title('')
@@ -201,7 +201,7 @@ def main(skip_exist=True):
 
 if __name__ == '__main__':
     # root dir of hyper data
-    root_dir = '/data/xinz/Hyper_TROPOMI_plume/'
+    root_dir = '/data/xinz/Hyper_TROPOMI_landfill/'
     lowest_dirs = get_dirs(root_dir)
 
     # whether skip dir which contains exported html

@@ -69,7 +69,7 @@ else:
 
 species_vnames = []
 for species in species_list:
-    species_vnames.extend([species, f'{species}_comb', f'{species}_denoise', f'{species}_comb_denoise'])
+    species_vnames.extend([species, f'{species}_comb', f'{species}_denoise', f'{species}_comb_denoise', f'{species}_mask'])
 
 varnames = ['rgb', 'radiance_2100']
 varnames.extend(species_vnames)
@@ -84,6 +84,7 @@ class L2B_plot():
         self.m = None
         self.filename = filename
         self.df_marker = df_marker
+        self.varnames = varnames
 
     def _load(self):
         """Load the L2B data"""
@@ -92,16 +93,20 @@ class L2B_plot():
 
     def make_map(self):
         """"Make the background folium map"""
-        LOG.debug(f'Create the map for {varnames}')
-        self.m = Map(self.ds, varnames)
+        # only pick available varnames
+        available_varnames = list(self.ds.data_vars)
+        self.varnames = [name for name in self.varnames if name in available_varnames]
+
+        LOG.info(f'Create the map for {self.varnames}')
+        self.m = Map(self.ds, self.varnames)
         self.m.initialize()
 
     def plot(self):
         """Plot data on folium map."""
         LOG.debug('Plot the data on map')
         # the length of `show_layers` and `opacities` should be as same as varnames
-        self.m.plot(show_layers=[False]*(len(varnames)-1)+[True],
-                    opacities=[0.9]+[0.7]*(len(varnames)-1),
+        self.m.plot(show_layers=[False]*(len(self.varnames)-2)+[True, False],
+                    opacities=[0.9]+[0.7]*(len(self.varnames)-1),
                     df_marker=self.df_marker,
                     vmax=vmax,
                     )
@@ -226,7 +231,7 @@ def main(chunk=8, skip_exist=True, plot_markers=False):
 
 if __name__ == '__main__':
     # root dir of hyper data
-    root_dir = '/data/xinz/Hyper_TROPOMI_plume/'
+    root_dir = '/data/xinz/Hyper_TROPOMI_landfill/'
     lowest_dirs = get_dirs(root_dir)
 
     # whether skip dir which contains exported html

@@ -55,12 +55,13 @@ def reprocess_data(filename, prefix, species, land_mask_source, rad_dist):
     l2b_scene.retrieve(plume_mask=mask_resample, land_mask_source=land_mask_source, rad_dist=rad_dist)
     l2b_scene.denoise()
     l2b_scene.ortho()
+    l2b_scene.plume_mask()
     l2b_scene.to_netcdf()
 
 
 def main():
     species = 'ch4'
-    rad_dist = 'normal'
+    rad_dist = 'lognormal'  # 'lognormal' or 'normal'
     land_mask_source = 'GSHHS'  # 'GSHHS' or 'Natural Earth'
 
     # get the filname list
@@ -82,7 +83,7 @@ def main():
 
 if __name__ == '__main__':
     # root dir of hyper data
-    root_dir = '/data/xinz/Hyper_TROPOMI_plume/'
+    root_dir = '/data/xinz/Hyper_TROPOMI_landfill/'
     lowest_dirs = get_dirs(root_dir)
 
     if input("This script will update all L2 NetCDF files with L3 plume masks. Are you sure? (y/n)") != "y":

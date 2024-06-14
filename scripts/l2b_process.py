@@ -236,7 +236,7 @@ class L2B():
         LOG.info(f'Creating {self.species} plume mask')
 
         for species in self.species:
-            self.hyp.scene[f'{species}_plume_mask'] = self.hyp.plume_mask(varname=f'{species}_comb')
+            self.hyp.scene[f'{species}_mask'] = self.hyp.plume_mask(varname=f'{species}_comb_denoise')
 
     def to_netcdf(self):
         """Save scene to netcdf file."""
@@ -252,7 +252,7 @@ class L2B():
         # set saved variables
         species_vnames = []
         for species in self.species:
-            species_vnames.extend([species, f'{species}_comb', f'{species}_denoise', f'{species}_comb_denoise', f'{species}_plume_mask'])
+            species_vnames.extend([species, f'{species}_comb', f'{species}_denoise', f'{species}_comb_denoise', f'{species}_mask'])
         vnames = ['u10', 'v10', 'sp', 'rgb', 'segmentation', 'radiance_2100']
         vnames.extend(species_vnames)
         loaded_names = [x['name'] for x in self.hyp.scene.keys()]
@@ -298,7 +298,7 @@ def main():
     species = 'all'
 
     # root directory of input data
-    data_dir = '/data/xinz/Hyper_TROPOMI/'
+    data_dir = '/data/xinz/Hyper_TROPOMI_landfill/'
     # ---- settings --- #
 
     filelist = list(chain(*[glob(os.path.join(data_dir, '**', pattern), recursive=True) for pattern in PATTERNS]))

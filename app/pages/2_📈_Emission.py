@@ -19,7 +19,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 import xarray as xr
 from geopy.geocoders import Nominatim
-from hypergas.plume_utils import calc_emiss, calc_emiss_fetch, mask_data
+from hypergas.plume_utils import calc_emiss, calc_emiss_fetch, a_priori_mask_data
 
 sys.path.append('..')
 
@@ -109,9 +109,8 @@ col3, col4 = st.columns([6, 3])
 
 # set default params which can be modified from the form
 params = {'gas': 'CH4',
-          'niter': 1, 'size_median': 3, 'sigma_guass': 2, 'quantile': 0.98,
-          'wind_source': None, 'wind_weights': True, 'land_only': True, 'wind_speed': None,
-          'alpha1': 0.0, 'alpha2': 0.66, 'alpha3': 0.34,
+          'wind_source': None, 'land_only': True, 'wind_speed': None,
+          'alpha1': 0.0, 'alpha2': 0.79, 'alpha3': 0.38,
           'name': '', 'ipcc_sector': 'Solid Waste (6A)',
           'platform': None, 'source_tropomi': True, 'source_trace': False
           }
@@ -170,35 +169,6 @@ with col3:
                                                index=plume_names.index(pick_plume_name_default),
                                                )
 
-                niter = st.number_input("Set the number of iteration for dilation",
-                                        min_value=0,
-                                        step=1,
-                                        value=params['niter'],
-                                        format='%d'
-                                        )
-
-                size_median = st.number_input("Set the size for median filter",
-                                              min_value=0,
-                                              step=1,
-                                              value=params['size_median'],
-                                              format='%d'
-                                              )
-
-                sigma_guass = st.number_input("Set the sigma for guassian filter",
-                                              min_value=0,
-                                              step=1,
-                                              value=params['sigma_guass'],
-                                              format='%d'
-                                              )
-
-                quantile = st.number_input("Set quantile for the low limit of plume mask",
-                                           min_value=0.,
-                                           max_value=1.,
-                                           step=0.005,
-                                           value=params['quantile'],
-                                           format='%f'
-                                           )
-
                 wind_source_names = ['ERA5', 'GEOS-FP']
                 if params['wind_source'] is None:
                     wind_source = st.selectbox("Pick wind source:",
@@ -210,15 +180,6 @@ with col3:
                                                wind_source_names,
                                                index=wind_source_names.index(params['wind_source']),
                                                )
-
-                plume_varname = st.selectbox("Pick varname type for creating plume mask:",
-                                             (f'comb_denoise', f'denoise', 'original'),
-                                             index=0,
-                                             )
-
-                wind_weights = st.checkbox('Whether apply the wind weights',
-                                           value=params['wind_weights'],
-                                           )
 
                 only_plume = st.checkbox(f'Whether only plot plume',
                                          value=True,
@@ -270,11 +231,9 @@ with col3:
 
                     with xr.open_dataset(ds_name, decode_coords='all') as ds:
                         # create mask and plume html file
-                        mask, lon_mask, lat_mask, plume_html_filename = mask_data(filename, ds, gas, longitude, latitude,
-                                                                                  pick_plume_name, plume_varname,
-                                                                                  wind_source, wind_weights, land_only, land_mask_source,
-                                                                                  niter, size_median, sigma_guass, quantile,
-                                                                                  only_plume)
+                        mask, lon_mask, lat_mask, plume_html_filename = a_priori_mask_data(filename, ds, gas, longitude, latitude,
+                                                                                           pick_plume_name, wind_source,
+                                                                                           land_only, land_mask_source, only_plume)
 
                         # mask data
                         gas_mask = ds[gas].where(mask)
@@ -336,11 +295,6 @@ with col3:
                 # save mask setting
                 mask_setting = {'gas': gas.upper(),
                                 'wind_source': wind_source,
-                                'niter': niter,
-                                'size_median': size_median,
-                                'sigma_guass': sigma_guass,
-                                'quantile': quantile,
-                                'wind_weights': wind_weights,
                                 'land_only': land_only,
                                 }
 
@@ -374,13 +328,6 @@ with col3:
         # --- Create emission rate --- #
         st.info('Estimating the gas emission rate using IME method', icon="3️⃣")
 
-        # input alphas for calculating U_eff
-        st.success('U_eff = alpha1 * np.log(wind_speed_average) + alpha2 + alpha3 * wind_speed_average', icon='🧮')
-        alpha1 = st.number_input('alpha1 for Ueff', value=params['alpha1'], format='%f')
-        alpha2 = st.number_input('alpha2 for Ueff (area source: 0.66, point source: 0.42)',
-                                 value=params['alpha2'], format='%f')
-        alpha3 = st.number_input('alpha3 for Ueff', value=params['alpha3'], format='%f')
-
         # sitename for csv export
         name = st.text_input('Sitename (any name you like)', value=params['name'])
 
@@ -408,11 +355,33 @@ with col3:
             instrument = 'emi'
             provider = 'NASA-JPL'
             pixel_res = 60  # meter
+            alpha_area = {'alpha1': 0., 'alpha2': 0.71, 'alpha3': 0.45}
+            alpha_point = {'alpha1': 0., 'alpha2': 0.31, 'alpha3': 0.50}
+            if ipcc_sector == 'Solid Waste (6A)':
+                params.update(alpha_area)
+                alpha_replace = alpha_point
+            else:
+                params.update(alpha_point)
+                alpha_replace = alpha_area
 
         elif platform in ['EnMAP', 'PRISMA']:
             instrument = 'hsi'
             provider = 'DLR'
             pixel_res = 30  # meter
+            alpha_area = {'alpha1': 0., 'alpha2': 0.79, 'alpha3': 0.38}
+            alpha_point = {'alpha1': 0., 'alpha2': 0.46, 'alpha3': 0.39}
+            if ipcc_sector == 'Solid Waste (6A)':
+                params.update(alpha_area)
+                alpha_replace = alpha_point
+            else:
+                params.update(alpha_point)
+                alpha_replace = alpha_area
+
+        # input alphas for calculating U_eff
+        st.success('U_eff = alpha1 * np.log(wind_speed_average) + alpha2 + alpha3 * wind_speed_average', icon='🧮')
+        alpha1 = st.number_input('alpha1 for Ueff', value=params['alpha1'], format='%f')
+        alpha2 = st.number_input('alpha2 for Ueff', value=params['alpha2'], format='%f')
+        alpha3 = st.number_input('alpha3 for Ueff', value=params['alpha3'], format='%f')
 
         # source type
         source_tropomi = st.checkbox('Whether TROPOMI captures the source',
@@ -533,11 +502,6 @@ with col3:
                                'alpha1': alpha1,
                                'alpha2': alpha2,
                                'alpha3': alpha3,
-                               'niter': niter,
-                               'size_median': size_median,
-                               'sigma_guass': sigma_guass,
-                               'quantile': quantile,
-                               'wind_weights': wind_weights,
                                'source_tropomi': source_tropomi,
                                'source_trace': source_trace,
                                'wind_speed_all': [wind_speed_all],

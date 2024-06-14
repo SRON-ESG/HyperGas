@@ -7,17 +7,19 @@
 # hypergas is a library to retrieve trace gases from hyperspectral satellite data
 """Recalculate emission rates using L3B NetCDF files."""
 
+import gc
 import logging
 import os
 import re
-import gc
 from glob import glob
 from itertools import chain
 
 import numpy as np
 import pandas as pd
 import xarray as xr
-from hypergas.plume_utils import calc_emiss, calc_emiss_fetch, mask_data
+from hypergas.plume_utils import (a_priori_mask_data, calc_emiss,
+                                  calc_emiss_fetch)
+
 from utils import get_dirs
 
 # calculate IME (kg m-2)
@@ -39,6 +41,7 @@ INSTITUTION = 'SRON Netherlands Institute for Space Research'
 # set filename pattern to load data automatically
 PATTERNS = ['ENMAP01-____L3B*.csv', 'EMIT_L3B*.csv', 'PRS_L3_*.csv']
 
+
 def reprocess_data(species, filename, reprocess_nc, wind_data):
     LOG.info('Reading csv and nc files ...')
     df = pd.read_csv(filename, dtype={'wind_weights': bool})
@@ -53,6 +56,7 @@ def reprocess_data(species, filename, reprocess_nc, wind_data):
 
     # set wind source
     if wind_data == 'auto':
+        # use same wind source
         wind_source = df['wind_source'].item()
     elif wind_data in ['ERA5', 'GEOS-FP']:
         wind_source = wind_data
@@ -77,7 +81,6 @@ def reprocess_data(species, filename, reprocess_nc, wind_data):
         latitude = df['plume_latitude'].item()
 
         # read plume mask settings
-        plume_varname = '{species}_comb_denoise'
         land_only = True
         land_mask_source = 'GSHHS'
 
@@ -87,18 +90,9 @@ def reprocess_data(species, filename, reprocess_nc, wind_data):
                                      os.path.basename(plume_filename).replace(f'_{pick_plume_name}.nc', '.html')
                                      )
 
-        wind_weights = df['wind_weights'].item()
-        niter = df['niter'].item()
-        size_median = df['size_median'].item()
-        sigma_guass = df['sigma_guass'].item()
-        quantile = df['quantile'].item()
-
-        # create new mask
-        mask, lon_mask, lat_mask, plume_html_filename = mask_data(html_filename, ds_l2b, species, longitude, latitude,
-                                                                  pick_plume_name, plume_varname,
-                                                                  wind_source, wind_weights, land_only, land_mask_source,
-                                                                  niter, size_median, sigma_guass, quantile,
-                                                                  only_plume=True)
+        mask, lon_mask, lat_mask, plume_html_filename = a_priori_mask_data(html_filename, ds_l2b, species, longitude, latitude,
+                                                                           pick_plume_name, wind_source,
+                                                                           land_only, land_mask_source, only_plume=True)
 
         # mask data
         species_mask = ds_l2b[species].where(mask)
@@ -148,14 +142,14 @@ def reprocess_data(species, filename, reprocess_nc, wind_data):
 
     LOG.info('Recalculating emission rates ...')
     wspd, wdir, wspd_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q, Q_err, \
-        err_random, err_wind  = calc_emiss(gas=species,
-                                           f_gas_mask=plume_filename,
-                                           pick_plume_name=df['plume_id'].item().split('-')[-1],
-                                           pixel_res=pixel_res,
-                                           alpha1=df['alpha1'].item(), alpha2=df['alpha2'].item(), alpha3=df['alpha3'].item(),
-                                           wind_source=wind_source, wspd=wspd,
-                                           land_only=True,
-                                           )
+        err_random, err_wind = calc_emiss(gas=species,
+                                          f_gas_mask=plume_filename,
+                                          pick_plume_name=df['plume_id'].item().split('-')[-1],
+                                          pixel_res=pixel_res,
+                                          alpha1=df['alpha1'].item(), alpha2=df['alpha2'].item(), alpha3=df['alpha3'].item(),
+                                          wind_source=wind_source, wspd=wspd,
+                                          land_only=True,
+                                          )
 
     LOG.info('Recalculating emission rates (fetch) ...')
     Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch \
@@ -222,7 +216,7 @@ def main():
 
 if __name__ == '__main__':
     # root dir of hyper data
-    root_dir = '/data/xinz/Hyper_TROPOMI_plume/'
+    root_dir = '/data/xinz/Hyper_TROPOMI_landfill/'
     lowest_dirs = get_dirs(root_dir)
 
     if input("This script will update emission data in all csv files. Are you sure? (y/n)") != "y":
