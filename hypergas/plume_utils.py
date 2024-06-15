@@ -378,6 +378,26 @@ def select_connect_masks(masks, y_target, x_target, az_max=30, dist_max=180):
     # dilation mask
     struct = ndimage.generate_binary_structure(2, 2)
     dxy = abs(masks.coords['y'].diff('y')[0])
+    if dxy == 1:
+        # the projection is not UTM but EPSG:4326
+        #   we use the 2d lat and lon array to calculate the distance
+        R = 6371e3  # meters
+        lat_1 = masks.coords['latitude'][0, 0]
+        lat_2 = masks.coords['latitude'][0, 1]
+        lon_1 = masks.coords['longitude'][0, 0]
+        lon_2 = masks.coords['longitude'][0, 1]
+
+        phi_1 = lat_1 * np.pi / 180
+        phi_2 = lat_2 * np.pi / 180
+        delta_phi = (lat_2 - lat_1) * np.pi / 180
+        delta_lambda = (lon_2 - lon_1) * np.pi / 180
+
+        a = np.sin(delta_phi / 2) * np.sin(delta_phi / 2) + np.cos(phi_1) * \
+            np.cos(phi_2) * np.sin(delta_lambda / 2) * np.sin(delta_lambda / 2)
+        c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
+
+        dxy = R * c  # meters
+
     niter = int(dist_max/dxy)
     masks_dilation = masks.copy(deep=True, data=ndimage.binary_dilation(
         masks.fillna(0), iterations=niter, structure=struct))
