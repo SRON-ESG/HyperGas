@@ -18,6 +18,7 @@ import scipy
 import tobac
 import xarray as xr
 from scipy import ndimage
+from scipy.stats.mstats import trimmed_mean, trimmed_std
 from shapely.geometry import Polygon
 from skimage.restoration import denoise_tv_chambolle
 
@@ -61,7 +62,11 @@ def denoise_data(data, weight):
 
 def get_feature_mask(data, sigma_threshold=1, n_min_threshold=5):
     dxy = abs(data.y.diff('y')[0])
-    thresholds = [(data.mean() + 2*data.std()).values, (data.mean() + 3*data.std()).values]
+
+    trim_mean = trimmed_mean(data.stack(z=('y', 'x')).dropna('z'), (1e-3, 1e-3))
+    trim_std = trimmed_std(data.stack(z=('y', 'x')).dropna('z'), (1e-3, 1e-3))
+    thresholds = [trim_mean+2*trim_std, trim_mean+3*trim_std]
+    # thresholds = [(data.mean() + 2*data.std()).values, (data.mean() + 3*data.std()).values]
 
     # detect features
     features = tobac.feature_detection_multithreshold(
@@ -128,13 +133,21 @@ def select_connect_masks(masks, masks_dilation, gdf_polygon, y_target, x_target)
             # calcualte differences of az
             gdf_polygon_connect.loc[:, 'az_diff'] = gdf_polygon_connect['az'].diff().abs().fillna(0)
 
-            # Drop rows where az_diff is higher than 20
-            for i in range(len(gdf_polygon_connect) - 1):
-                if i >= len(gdf_polygon_connect)-1:
-                    break
-                if (gdf_polygon_connect['az_diff'].iloc[i+1] > 20) and (gdf_polygon_connect['distance'].iloc[i+1] > 0):
-                    gdf_polygon_connect = gdf_polygon_connect.drop(gdf_polygon_connect.index[i+1])
+            # Iterate through the DataFrame to drop rows where az_diff is higher than 30
+            index_name = gdf_polygon_connect.index.name
+            gdf_polygon_connect = gdf_polygon_connect.reset_index()
+
+            index = 0
+            while index < len(gdf_polygon_connect) - 1:
+                if (gdf_polygon_connect['az_diff'].iloc[index + 1] > 30) & (gdf_polygon_connect['distance'].iloc[index+1] > 0):
+                    gdf_polygon_connect = gdf_polygon_connect.drop(index + 1)
+                    gdf_polygon_connect = gdf_polygon_connect.reset_index(drop=True)
                     gdf_polygon_connect['az_diff'] = gdf_polygon_connect['az'].diff().abs().fillna(0)
+                else:
+                    index += 1
+
+            # Set the index back to the original index values
+            gdf_polygon_connect = gdf_polygon_connect.set_index(index_name)
 
     return gdf_polygon_connect, masks_in_dilation
 

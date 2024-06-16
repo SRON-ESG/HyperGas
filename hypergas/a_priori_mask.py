@@ -14,12 +14,14 @@ import pandas as pd
 import tobac
 import xarray as xr
 from pyresample.geometry import AreaDefinition
+from scipy.stats.mstats import trimmed_std, trimmed_mean
 
 LOG = logging.getLogger(__name__)
 
 
 class Mask():
     """Create a priori plume mask from trace gas enhancement field."""
+
     def __init__(self, scn, varname, n_min_threshold=5, sigma_threshold=1):
         '''
         Initialize Mask.
@@ -80,7 +82,11 @@ class Mask():
             # loop segmentation (0: ocean, >=1: land)
             seg_mask = self.segmentation == seg
             gas_mask = self.data.where(seg_mask)
-            thresholds = [(gas_mask.mean() + 2*gas_mask.std()).values, (gas_mask.mean() + 3*gas_mask.std()).values]
+
+            # calculate trimmed mean and std values
+            trim_mean = trimmed_mean(gas_mask.stack(z=('y', 'x')).dropna('z'), (1e-3, 1e-3))
+            trim_std = trimmed_std(gas_mask.stack(z=('y', 'x')).dropna('z'), (1e-3, 1e-3))
+            thresholds = [trim_mean+2*trim_std, trim_mean+3*trim_std]
 
             # detect features
             data_mask = self.data.where(seg_mask)
