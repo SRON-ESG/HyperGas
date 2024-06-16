@@ -112,7 +112,7 @@ col3, col4 = st.columns([6, 3])
 # set default params which can be modified from the form
 params = {'gas': 'CH4',
           'wind_source': None, 'land_only': True, 'wind_speed': None,
-          'azimuth_diff_max': 30., 'alpha1': 0.0, 'alpha2': 0.79, 'alpha3': 0.38,
+          'azimuth_diff_max': 30., 'alpha1': 0.0, 'alpha2': 0.80, 'alpha3': 0.40,
           'name': '', 'ipcc_sector': 'Solid Waste (6A)',
           'platform': None, 'source_tropomi': True, 'source_trace': False
           }
@@ -363,8 +363,8 @@ with col3:
             instrument = 'emi'
             provider = 'NASA-JPL'
             pixel_res = 60  # meter
-            alpha_area = {'alpha1': 0., 'alpha2': 0.71, 'alpha3': 0.45}
-            alpha_point = {'alpha1': 0., 'alpha2': 0.31, 'alpha3': 0.50}
+            alpha_area = {'alpha1': 0., 'alpha2': 0.68, 'alpha3': 0.48}
+            alpha_point = {'alpha1': 0., 'alpha2': 0.30, 'alpha3': 0.51}
             if ipcc_sector == 'Solid Waste (6A)':
                 params.update(alpha_area)
                 alpha_replace = alpha_point
@@ -376,8 +376,8 @@ with col3:
             instrument = 'hsi'
             provider = 'DLR'
             pixel_res = 30  # meter
-            alpha_area = {'alpha1': 0., 'alpha2': 0.79, 'alpha3': 0.38}
-            alpha_point = {'alpha1': 0., 'alpha2': 0.46, 'alpha3': 0.39}
+            alpha_area = {'alpha1': 0., 'alpha2': 0.80, 'alpha3': 0.40}
+            alpha_point = {'alpha1': 0., 'alpha2': 0.46, 'alpha3': 0.41}
             if ipcc_sector == 'Solid Waste (6A)':
                 params.update(alpha_area)
                 alpha_replace = alpha_point
