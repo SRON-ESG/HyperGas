@@ -9,8 +9,8 @@
 
 import itertools
 import os
-import sys
 import random
+import sys
 from glob import glob
 
 import geopandas as gpd
@@ -19,7 +19,8 @@ import streamlit as st
 import streamlit.components.v1 as components
 import xarray as xr
 from geopy.geocoders import Nominatim
-from hypergas.plume_utils import calc_emiss, calc_emiss_fetch, a_priori_mask_data
+from hypergas.plume_utils import (a_priori_mask_data, calc_emiss,
+                                  calc_emiss_fetch)
 
 sys.path.append('..')
 
@@ -111,7 +112,7 @@ col3, col4 = st.columns([6, 3])
 # set default params which can be modified from the form
 params = {'gas': 'CH4',
           'wind_source': None, 'land_only': True, 'wind_speed': None,
-          'alpha1': 0.0, 'alpha2': 0.79, 'alpha3': 0.38,
+          'azimuth_diff_max': 30., 'alpha1': 0.0, 'alpha2': 0.79, 'alpha3': 0.38,
           'name': '', 'ipcc_sector': 'Solid Waste (6A)',
           'platform': None, 'source_tropomi': True, 'source_trace': False
           }
@@ -182,7 +183,11 @@ with col3:
                                                index=wind_source_names.index(params['wind_source']),
                                                )
 
-                only_plume = st.checkbox(f'Whether only plot plume',
+                azimuth_diff_max = st.number_input('Maximum value of azimuth difference \
+                        (Please keep the default value, unless there are obvious false plume masks around)',
+                                                   value=params['azimuth_diff_max'], format='%f')
+
+                only_plume = st.checkbox('Whether only plot plume',
                                          value=True,
                                          )
 
@@ -234,7 +239,8 @@ with col3:
                         # create mask and plume html file
                         mask, lon_mask, lat_mask, plume_html_filename = a_priori_mask_data(filename, ds, gas, longitude, latitude,
                                                                                            pick_plume_name, wind_source,
-                                                                                           land_only, land_mask_source, only_plume)
+                                                                                           land_only, land_mask_source, only_plume,
+                                                                                           azimuth_diff_max)
 
                         # mask data
                         gas_mask = ds[gas].where(mask)
@@ -504,6 +510,7 @@ with col3:
                                'ime': IME,
                                'ueff_ime': u_eff,
                                'leff_ime': l_eff,
+                               'azimuth_diff_max': azimuth_diff_max,
                                'alpha1': alpha1,
                                'alpha2': alpha2,
                                'alpha3': alpha3,
