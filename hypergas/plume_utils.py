@@ -447,8 +447,9 @@ def select_connect_masks(masks, y_target, x_target, az_max=30, dist_max=180):
         # Iterate through the DataFrame to drop rows where az_diff is higher than az_max
         index = 0
         while index < len(gdf_polygon_connect) - 1:
-            if gdf_polygon_connect['az_diff'].iloc[index + 1] > az_max:
+            if (gdf_polygon_connect['az_diff'].iloc[index + 1] > az_max) and (gdf_polygon_connect['distance'].iloc[index+1] > 0):
                 gdf_polygon_connect = gdf_polygon_connect.drop(index + 1)
+                # drop the next row and recheck
                 gdf_polygon_connect = gdf_polygon_connect.reset_index(drop=True)
                 gdf_polygon_connect['az_diff'] = gdf_polygon_connect['az'].diff().abs().fillna(0)
             else:
@@ -464,17 +465,28 @@ def select_connect_masks(masks, y_target, x_target, az_max=30, dist_max=180):
 
 
 def a_priori_mask_data(filename, ds, gas, lon_target, lat_target, pick_plume_name,
-                       wind_source, land_only, land_mask_source, only_plume):
+                       wind_source, land_only, land_mask_source, only_plume, az_max=30, dist_max=180):
     '''Read a priori plume masks and connect them by conditions
 
     Args:
-        filename (str): input filename
-        ds (Dataset): L2 data
-        gas (str): the gas field to be masked
-        lon_target (float): The longitude of plume source
-        lat_target (float): The latitude of plume source
-        pick_plume_name (str): the plume name (plume0, plume1, ....)
-        wind_source (str): 'ERA5' or 'GEOS-FP'
+        filename (str):
+            Input filename
+        ds (Dataset):
+            L2 data
+        gas (str):
+            The gas field to be masked
+        lon_target (float):
+            The longitude of plume source
+        lat_target (float):
+            The latitude of plume source
+        pick_plume_name (str):
+            The plume name (plume0, plume1, ....)
+        wind_source (str):
+            'ERA5' or 'GEOS-FP'
+        az_max (float):
+            Maximum of azimuth of minimum rotated rectangle. (Default: 30)
+        dist_max (float):
+            Maximum of dilation distance (meter)
 
     Return:
         mask (DataArray): Boolean mask (pixel)
@@ -486,7 +498,7 @@ def a_priori_mask_data(filename, ds, gas, lon_target, lat_target, pick_plume_nam
     y_target, x_target = get_index_nearest(ds['longitude'], ds['latitude'], lon_target, lat_target)
 
     # select connected masks
-    mask = select_connect_masks(ds[f'{gas}_mask'], y_target, x_target)
+    mask = select_connect_masks(ds[f'{gas}_mask'], y_target, x_target, az_max, dist_max)
 
     # get the masked lon and lat
     lon_mask = xr.DataArray(ds['longitude'], dims=['y', 'x']).where(mask).rename('longitude')
