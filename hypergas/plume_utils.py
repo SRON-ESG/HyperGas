@@ -441,13 +441,21 @@ def select_connect_masks(masks, y_target, x_target, az_max=30, dist_max=180):
         # calcualte differences of az
         gdf_polygon_connect.loc[:, 'az_diff'] = gdf_polygon_connect['az'].diff().abs().fillna(0)
 
-        # Drop rows where az_diff is larger than az_max
-        for i in range(len(gdf_polygon_connect) - 1):
-            if i >= len(gdf_polygon_connect)-1:
-                break
-            if (gdf_polygon_connect['az_diff'].iloc[i+1] > az_max) and (gdf_polygon_connect['distance'].iloc[i+1] > 0):
-                gdf_polygon_connect = gdf_polygon_connect.drop(gdf_polygon_connect.index[i+1])
+        index_name = gdf_polygon_connect.index.name
+        gdf_polygon_connect = gdf_polygon_connect.reset_index()
+
+        # Iterate through the DataFrame to drop rows where az_diff is higher than az_max
+        index = 0
+        while index < len(gdf_polygon_connect) - 1:
+            if gdf_polygon_connect['az_diff'].iloc[index + 1] > az_max:
+                gdf_polygon_connect = gdf_polygon_connect.drop(index + 1)
+                gdf_polygon_connect = gdf_polygon_connect.reset_index(drop=True)
                 gdf_polygon_connect['az_diff'] = gdf_polygon_connect['az'].diff().abs().fillna(0)
+            else:
+                index += 1
+
+        # Set the index back to the original index values
+        gdf_polygon_connect = gdf_polygon_connect.set_index(index_name)
 
     # get final mask
     mask = masks_in_dilation.isin(gdf_polygon_connect.index)
