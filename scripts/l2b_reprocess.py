@@ -52,6 +52,7 @@ def reprocess_data(filename, prefix, species, land_mask_source, rad_dist):
     mask_resample = xr.DataArray(mask_resample, dims=['y', 'x']).rename('plume_mask')
 
     # run retrieval and save L2 NetCDF file
+    LOG.info('Retrieving with background where plume pixels are excluded.')
     l2b_scene.retrieve(plume_mask=mask_resample, land_mask_source=land_mask_source, rad_dist=rad_dist)
     l2b_scene.denoise()
     l2b_scene.ortho()
@@ -85,9 +86,6 @@ if __name__ == '__main__':
     # root dir of hyper data
     root_dir = '/data/xinz/Hyper_TROPOMI_landfill/'
     lowest_dirs = get_dirs(root_dir)
-
-    if input("This script will update all L2 NetCDF files with L3 plume masks. Are you sure? (y/n)") != "y":
-        exit()
 
     for data_dir in lowest_dirs:
         LOG.info(f'Reprocessing data under {data_dir}')

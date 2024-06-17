@@ -295,7 +295,7 @@ def main():
     #   'all': retrieve all supported gases
     #   single gas name str, e.g. 'ch4'
     #   list of gas names, e.g. ['ch4', 'co2']
-    species = 'all'
+    species = 'ch4'
 
     # root directory of input data
     data_dir = '/data/xinz/Hyper_TROPOMI_landfill/'
