@@ -494,6 +494,7 @@ def a_priori_mask_data(filename, ds, gas, lon_target, lat_target, pick_plume_nam
         lat_mask (DataArray): plume latitude
         plume_html_filename (str): exported plume html filename
         '''
+    LOG.info('Selecting connected plume masks')
     # get the y/x index of the source location
     y_target, x_target = get_index_nearest(ds['longitude'], ds['latitude'], lon_target, lat_target)
 
@@ -545,9 +546,7 @@ def ime_radius(gas, da_gas, mask, sp, area):
     return IME
 
 
-def calc_wind_error(wspd, IME, l_eff,
-                    alpha1, alpha2, alpha3,
-                    ):
+def calc_wind_error(wspd, IME, l_eff, alpha):
     """Calculate wind error with random distribution"""
     # Generate U10 distribution
     #   uncertainty = 50%, if wspd <= 3 m/s
@@ -560,7 +559,7 @@ def calc_wind_error(wspd, IME, l_eff,
     wspd_distribution = np.random.normal(wspd, sigma, size=1000)
 
     # Calculate Ueff distribution
-    u_eff_distribution = alpha1 * np.log(wspd_distribution) + alpha2 + alpha3 * wspd_distribution
+    u_eff_distribution = alpha['alpha1'] * np.log(wspd_distribution) + alpha['alpha2'] + alpha['alpha3'] * wspd_distribution
 
     # Calculate Q distribution
     Q_distribution = u_eff_distribution * IME / l_eff
@@ -645,8 +644,9 @@ def calc_calibration_error(wspd, IME, u_eff, l_eff, alpha_replace):
     return error
 
 
-def calc_emiss(gas, f_gas_mask, pick_plume_name, alpha_replace, pixel_res=30, alpha1=0.0, alpha2=0.79, alpha3=0.38,
-               wind_source='ERA5', wspd=None, land_only=True):
+def calc_emiss(gas, f_gas_mask, pick_plume_name, alpha_replace, pixel_res=30,
+               alpha={'alpha1': 0., 'alpha2': 0.81, 'alpha3': 0.38},
+               wind_source='ERA5', wspd=None, land_only=True, land_mask_source='GSHHS'):
     '''Calculate the emission rate (kg/h) using IME method
 
     Args:
@@ -655,7 +655,7 @@ def calc_emiss(gas, f_gas_mask, pick_plume_name, alpha_replace, pixel_res=30, al
         pick_plume_name (str): the plume name (plume0, plume1, ....)
         alpha_replace (dict): alphas of different source type (Point or Area), {'alpha1': ...}
         pixel_res (float): pixel resolution (meter)
-        alpha1--3 (float): The coefficients for effective wind (U_eff)
+        alpha (dict): The coefficients for effective wind (U_eff)
         wspd (float): overwritten wind speed
         land_only (boolean): whether calculate random error only over land
 
@@ -721,7 +721,7 @@ def calc_emiss(gas, f_gas_mask, pick_plume_name, alpha_replace, pixel_res=30, al
     wdir_all = list(wdir_all.to_numpy())
 
     # effective wind speed
-    u_eff = alpha1 * np.log(wspd) + alpha2 + alpha3 * wspd
+    u_eff = alpha['alpha1'] * np.log(wspd) + alpha['alpha2'] + alpha['alpha3'] * wspd
 
     # calculate the emission rate (kg/s)
     Q = (u_eff / l_eff * IME)
@@ -733,7 +733,7 @@ def calc_emiss(gas, f_gas_mask, pick_plume_name, alpha_replace, pixel_res=30, al
         # get lon and lat
         lon = ds_original['longitude']
         lat = ds_original['latitude']
-        segmentation = Land_mask(lon.data, lat.data)
+        segmentation = Land_mask(lon.data, lat.data, source=land_mask_source)
         ds_original[gas] = ds_original[gas].where(segmentation)
         ds[gas] = ds[gas].where(segmentation)
 
@@ -742,7 +742,7 @@ def calc_emiss(gas, f_gas_mask, pick_plume_name, alpha_replace, pixel_res=30, al
 
     # 2. wind error
     LOG.info('Calculating wind error')
-    err_wind = calc_wind_error(wspd, IME, l_eff, alpha1, alpha2, alpha3)
+    err_wind = calc_wind_error(wspd, IME, l_eff, alpha)
 
     # 3. calibration error
     LOG.info('Calculating calibration error')

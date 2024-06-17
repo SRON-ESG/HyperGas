@@ -112,7 +112,7 @@ col3, col4 = st.columns([6, 3])
 # set default params which can be modified from the form
 params = {'gas': 'CH4',
           'wind_source': None, 'land_only': True, 'wind_speed': None,
-          'azimuth_diff_max': 30., 'alpha1': 0.0, 'alpha2': 0.80, 'alpha3': 0.40,
+          'azimuth_diff_max': 30., 'alpha1': 0.0, 'alpha2': 0.81, 'alpha3': 0.38,
           'name': '', 'ipcc_sector': 'Solid Waste (6A)',
           'platform': None, 'source_tropomi': True, 'source_trace': False
           }
@@ -363,27 +363,28 @@ with col3:
             instrument = 'emi'
             provider = 'NASA-JPL'
             pixel_res = 60  # meter
-            alpha_area = {'alpha1': 0., 'alpha2': 0.68, 'alpha3': 0.48}
-            alpha_point = {'alpha1': 0., 'alpha2': 0.30, 'alpha3': 0.51}
-            if ipcc_sector == 'Solid Waste (6A)':
-                params.update(alpha_area)
-                alpha_replace = alpha_point
-            else:
-                params.update(alpha_point)
-                alpha_replace = alpha_area
+            alpha_area = {'alpha1': 0., 'alpha2': 0.71, 'alpha3': 0.45}
+            alpha_point = {'alpha1': 0., 'alpha2': 0.31, 'alpha3': 0.50}
 
-        elif platform in ['EnMAP', 'PRISMA']:
+        elif platform == 'EnMAP':
             instrument = 'hsi'
             provider = 'DLR'
             pixel_res = 30  # meter
-            alpha_area = {'alpha1': 0., 'alpha2': 0.80, 'alpha3': 0.40}
-            alpha_point = {'alpha1': 0., 'alpha2': 0.46, 'alpha3': 0.41}
-            if ipcc_sector == 'Solid Waste (6A)':
-                params.update(alpha_area)
-                alpha_replace = alpha_point
-            else:
-                params.update(alpha_point)
-                alpha_replace = alpha_area
+            alpha_area = {'alpha1': 0., 'alpha2': 0.81, 'alpha3': 0.38}
+            alpha_point = {'alpha1': 0., 'alpha2': 0.44, 'alpha3': 0.40}
+        elif platform == 'PRISMA':
+            instrument = 'hsi'
+            provider = 'ASI'
+            pixel_res = 30  # meter
+            alpha_area = {'alpha1': 0., 'alpha2': 0.82, 'alpha3': 0.38}
+            alpha_point = {'alpha1': 0., 'alpha2': 0.44, 'alpha3': 0.40}
+
+        if ipcc_sector == 'Solid Waste (6A)':
+            params.update(alpha_area)
+            alpha_replace = alpha_point
+        else:
+            params.update(alpha_point)
+            alpha_replace = alpha_area
 
         # input alphas for calculating U_eff
         st.success('U_eff = alpha1 * np.log(wind_speed_average) + alpha2 + alpha3 * wind_speed_average', icon='🧮')
@@ -391,19 +392,15 @@ with col3:
         alpha2 = st.number_input('alpha2 for Ueff', value=params['alpha2'], format='%f')
         alpha3 = st.number_input('alpha3 for Ueff', value=params['alpha3'], format='%f')
 
-        # source type
-        source_tropomi = st.checkbox('Whether TROPOMI captures the source',
-                                     value=params['source_tropomi'],
-                                     )
-
-        source_trace = st.checkbox('Whether ClimateTrace dataset contains the source',
-                                   value=params['source_trace'],
-                                   )
-
         # whether only move mask around land pixels
         land_only = st.checkbox('Whether only considering land pixels',
                                 value=params['land_only'],
                                 )
+
+        land_mask_source = st.selectbox("Pick data source for creating land mask:",
+                                        ('GSHHS', 'Natural Earth'),
+                                        index=0,
+                                        )
 
         # manual wind speed
         wind_speed = st.number_input(
@@ -423,12 +420,13 @@ with col3:
                     err_random, err_wind, err_calib = calc_emiss(gas, plume_nc_filename, pick_plume_name,
                                                                  alpha_replace,
                                                                  pixel_res=pixel_res,
-                                                                 alpha1=alpha1,
-                                                                 alpha2=alpha2,
-                                                                 alpha3=alpha3,
+                                                                 alpha={'alpha1': alpha1,
+                                                                        'alpha2': alpha2,
+                                                                        'alpha3': alpha3},
                                                                  wind_source=wind_source,
                                                                  wspd=wind_speed,
-                                                                 land_only=land_only
+                                                                 land_only=land_only,
+                                                                 land_mask_source=land_mask_source,
                                                                  )
 
                 # calculate emissions using the IME-fetch method with U10
@@ -514,8 +512,6 @@ with col3:
                                'alpha1': alpha1,
                                'alpha2': alpha2,
                                'alpha3': alpha3,
-                               'source_tropomi': source_tropomi,
-                               'source_trace': source_trace,
                                'wind_speed_all': [wind_speed_all],
                                'wind_direction_all': [wdir_all],
                                'wind_source_all': [wind_source_all],
