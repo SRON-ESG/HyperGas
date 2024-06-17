@@ -758,12 +758,14 @@ def calc_emiss(gas, f_gas_mask, pick_plume_name, alpha_replace, pixel_res=30,
         err_random*3600, err_wind*3600, err_calib*3600  # kg/h
 
 
-def calc_emiss_fetch(gas, f_gas_mask, pixel_res=30, wind_source='ERA5', wspd=None):
+def calc_emiss_fetch(gas, f_gas_mask, longitude, latitude, pixel_res=30, wind_source='ERA5', wspd=None):
     """Calculate the emission rate (kg/h) using IME-fetch method
 
     Args:
         gas (str): the gas field to be masked
         f_gas_mask: The NetCDF file of mask created by `mask_data` function
+        longitude (float): longitude of source
+        latitude (float): latitude of source
         pixel_res (float): pixel resolution (meter)
 
     Return:
@@ -776,10 +778,6 @@ def calc_emiss_fetch(gas, f_gas_mask, pixel_res=30, wind_source='ERA5', wspd=Non
     LOG.info('Reading data')
     ds = xr.open_dataset(f_gas_mask)
     sp = ds['sp'].mean().item()  # use the mean surface pressure (Pa)
-
-    df = pd.read_csv(f_gas_mask.replace('.nc', '.csv'))
-    lon_target = df['plume_longitude']
-    lat_target = df['plume_latitude']
 
     # get the masked plume data
     gas_mask = ds.dropna(dim='y', how='all').dropna(dim='x', how='all')[gas]
@@ -797,7 +795,7 @@ def calc_emiss_fetch(gas, f_gas_mask, pixel_res=30, wind_source='ERA5', wspd=Non
     # create mask centered on source point
     LOG.info('Calculating the index of source loc')
     mask = np.zeros(gas_mask.shape)
-    y_target, x_target = get_index_nearest(gas_mask['longitude'], gas_mask['latitude'], lon_target, lat_target)
+    y_target, x_target = get_index_nearest(gas_mask['longitude'], gas_mask['latitude'], longitude, latitude)
     mask[y_target, x_target] = 1
 
     # calculate plume height, width, and diagonal

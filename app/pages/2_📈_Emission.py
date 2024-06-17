@@ -432,6 +432,8 @@ with col3:
                 # calculate emissions using the IME-fetch method with U10
                 Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch \
                     = calc_emiss_fetch(gas, plume_nc_filename,
+                                       plume_dict[pick_plume_name][1],
+                                       plume_dict[pick_plume_name][0],
                                        pixel_res=pixel_res,
                                        wind_source=wind_source,
                                        wspd=wind_speed
