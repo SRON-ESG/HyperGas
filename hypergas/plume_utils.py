@@ -23,7 +23,7 @@ from branca.element import MacroElement
 from jinja2 import Template
 from pyresample.geometry import SwathDefinition
 from scipy import ndimage
-from shapely.geometry import Polygon
+from shapely.geometry import Point, Polygon
 
 from hypergas.folium_map import Map
 from hypergas.landmask import Land_mask
@@ -498,8 +498,21 @@ def a_priori_mask_data(filename, ds, gas, lon_target, lat_target, pick_plume_nam
     # get the y/x index of the source location
     y_target, x_target = get_index_nearest(ds['longitude'], ds['latitude'], lon_target, lat_target)
 
+    # target is not inside the masks
+    if ds[f'{gas}_mask'][y_target, x_target] == 0:
+        LOG.info('Picking the nearest mask pixel because the target is in the background.')
+        lon_mask = ds['longitude'].where(ds[f'{gas}_mask']>0).data.flatten()
+        lat_mask = ds['latitude'].where(ds[f'{gas}_mask']>0).data.flatten()
+        lon_mask = lon_mask[~np.isnan(lon_mask)]
+        lat_mask = lat_mask[~np.isnan(lat_mask)]
+
+        # Get the closest mask pixel location
+        min_index = gpd.points_from_xy(lon_mask, lat_mask).distance(Point(lon_target, lat_target)).argmin()
+        y_target, x_target = get_index_nearest(ds['longitude'], ds['latitude'], lon_mask[min_index], lat_mask[min_index])
+
     # select connected masks
     mask = select_connect_masks(ds[f'{gas}_mask'], y_target, x_target, az_max, dist_max)
+
 
     # get the masked lon and lat
     lon_mask = xr.DataArray(ds['longitude'], dims=['y', 'x']).where(mask).rename('longitude')
