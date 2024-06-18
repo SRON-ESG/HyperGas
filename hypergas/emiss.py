@@ -102,11 +102,12 @@ class Emiss():
         self.azimuth_diff_max = azimuth_diff_max
 
         # select connected plume masks
-        self.mask, lon_mask, lat_mask, self.plume_html_filename = a_priori_mask_data(l2b_html_filename, self.ds, self.gas,
-                                                                                     self.longitude, self.latitude,
-                                                                                     self.plume_name, self.wind_source,
-                                                                                     self.land_only, self.land_mask_source,
-                                                                                     only_plume, self.azimuth_diff_max)
+        self.mask, lon_mask, lat_mask, \
+            self.longitude, self.latitude, self.plume_html_filename = a_priori_mask_data(l2b_html_filename, self.ds, self.gas,
+                                                                                         self.longitude, self.latitude,
+                                                                                         self.plume_name, self.wind_source,
+                                                                                         self.land_only, self.land_mask_source,
+                                                                                         only_plume, self.azimuth_diff_max)
 
     def export_plume_nc(self,):
         """

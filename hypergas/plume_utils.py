@@ -16,7 +16,6 @@ import warnings
 
 import geopandas as gpd
 import numpy as np
-import pandas as pd
 import pyresample
 import xarray as xr
 from branca.element import MacroElement
@@ -173,6 +172,23 @@ def get_index_nearest(lons, lats, lon_target, lat_target):
 
     # get_neighbour_info() returns indices in the flattened lat/lon grid. Compute the 2D grid indices:
     y_target, x_target = np.unravel_index(index_array, area_source.shape)
+
+    return y_target, x_target
+
+
+def target_inside_mask(ds, gas_mask_varname, y_target, x_target, lon_target, lat_target):
+    '''Make sure target is not inside the masks'''
+    if ds[gas_mask_varname][y_target, x_target] == 0:
+        LOG.info('Picking the nearest mask pixel because the target is in the background.')
+        lon_mask = ds['longitude'].where(ds[gas_mask_varname] > 0).data.flatten()
+        lat_mask = ds['latitude'].where(ds[gas_mask_varname] > 0).data.flatten()
+        lon_mask = lon_mask[~np.isnan(lon_mask)]
+        lat_mask = lat_mask[~np.isnan(lat_mask)]
+
+        # Get the closest mask pixel location
+        min_index = gpd.points_from_xy(lon_mask, lat_mask).distance(Point(lon_target, lat_target)).argmin()
+        y_target, x_target = get_index_nearest(ds['longitude'], ds['latitude'],
+                                               lon_mask[min_index], lat_mask[min_index])
 
     return y_target, x_target
 
@@ -492,27 +508,23 @@ def a_priori_mask_data(filename, ds, gas, lon_target, lat_target, pick_plume_nam
         mask (DataArray): Boolean mask (pixel)
         lon_mask (DataArray): plume longitude
         lat_mask (DataArray): plume latitude
+        lon_target (float): longitude of target
+        lat_target (float): latitude of target
         plume_html_filename (str): exported plume html filename
         '''
     LOG.info('Selecting connected plume masks')
     # get the y/x index of the source location
     y_target, x_target = get_index_nearest(ds['longitude'], ds['latitude'], lon_target, lat_target)
 
-    # target is not inside the masks
-    if ds[f'{gas}_mask'][y_target, x_target] == 0:
-        LOG.info('Picking the nearest mask pixel because the target is in the background.')
-        lon_mask = ds['longitude'].where(ds[f'{gas}_mask']>0).data.flatten()
-        lat_mask = ds['latitude'].where(ds[f'{gas}_mask']>0).data.flatten()
-        lon_mask = lon_mask[~np.isnan(lon_mask)]
-        lat_mask = lat_mask[~np.isnan(lat_mask)]
+    # check if target is inside the masks
+    y_target, x_target = target_inside_mask(ds, f'{gas}_mask', y_target, x_target, lon_target, lat_target)
 
-        # Get the closest mask pixel location
-        min_index = gpd.points_from_xy(lon_mask, lat_mask).distance(Point(lon_target, lat_target)).argmin()
-        y_target, x_target = get_index_nearest(ds['longitude'], ds['latitude'], lon_mask[min_index], lat_mask[min_index])
+    # update target
+    lon_target = ds['longitude'].isel(y=y_target, x=x_target).item()
+    lat_target = ds['latitude'].isel(y=y_target, x=x_target).item()
 
     # select connected masks
     mask = select_connect_masks(ds[f'{gas}_mask'], y_target, x_target, az_max, dist_max)
-
 
     # get the masked lon and lat
     lon_mask = xr.DataArray(ds['longitude'], dims=['y', 'x']).where(mask).rename('longitude')
@@ -522,7 +534,7 @@ def a_priori_mask_data(filename, ds, gas, lon_target, lat_target, pick_plume_nam
     plume_html_filename = plot_mask(filename, ds, gas, mask, lon_target, lat_target,
                                     pick_plume_name, only_plume=only_plume)
 
-    return mask, lon_mask, lat_mask, plume_html_filename
+    return mask, lon_mask, lat_mask, lon_target, lat_target, plume_html_filename
 
 
 def create_circular_mask(h, w, center=None, radius=None):
@@ -572,7 +584,8 @@ def calc_wind_error(wspd, IME, l_eff, alpha):
     wspd_distribution = np.random.normal(wspd, sigma, size=1000)
 
     # Calculate Ueff distribution
-    u_eff_distribution = alpha['alpha1'] * np.log(wspd_distribution) + alpha['alpha2'] + alpha['alpha3'] * wspd_distribution
+    u_eff_distribution = alpha['alpha1'] * np.log(wspd_distribution) + \
+        alpha['alpha2'] + alpha['alpha3'] * wspd_distribution
 
     # Calculate Q distribution
     Q_distribution = u_eff_distribution * IME / l_eff
@@ -807,8 +820,9 @@ def calc_emiss_fetch(gas, f_gas_mask, longitude, latitude, pixel_res=30, wind_so
 
     # create mask centered on source point
     LOG.info('Calculating the index of source loc')
-    mask = np.zeros(gas_mask.shape)
     y_target, x_target = get_index_nearest(gas_mask['longitude'], gas_mask['latitude'], longitude, latitude)
+
+    mask = np.zeros(gas_mask.shape)
     mask[y_target, x_target] = 1
 
     # calculate plume height, width, and diagonal
