@@ -65,6 +65,9 @@ def plot_data(filename, savename):
     ds = xr.open_dataset(filename)
     df = pd.read_csv(filename.replace('.nc', '.csv'), converters={'plume_bounds': literal_eval})
 
+    # copy for plotting
+    ds_all = ds.copy()
+
     # subset data to plume
     gas = df['gas'].item().lower()
     ds = ds.where(~ds[gas].isnull(), drop=True)
@@ -104,7 +107,7 @@ def plot_data(filename, savename):
         raise ValueError("Please set cmap limit for {gas} here.")
 
     # plot rgb and gas data
-    m = ds[gas].plot(x='longitude', y='latitude', vmin=0, vmax=vmax, cmap='plasma', add_colorbar=False,
+    m = ds_all[gas].plot(x='longitude', y='latitude', vmin=0, vmax=vmax, cmap='plasma', add_colorbar=False,
                        # cbar_kwargs={'label': 'CH$_4$ Enhancement (ppb)', 'orientation': 'horizontal', 'shrink': 0.7}
                        )
 
