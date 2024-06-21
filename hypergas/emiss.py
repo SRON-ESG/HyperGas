@@ -35,19 +35,19 @@ instrument data
 '''
 emit_info = {
     'platform': 'EMIT', 'instrument': 'emi', 'provider': 'NASA-JPL', 'pixel_res': 60,
-    'alpha_area': {'alpha1': 0., 'alpha2': 0.71, 'alpha3': 0.45},
-    'alpha_point': {'alpha1': 0., 'alpha2': 0.31, 'alpha3': 0.50},
+    'alpha_area': {'alpha1': 0., 'alpha2': 0.67, 'alpha3': 0.45},
+    'alpha_point': {'alpha1': 0., 'alpha2': 0.28, 'alpha3': 0.49},
 }
 
 enmap_info = {
     'platform': 'EnMAP', 'instrument': 'hsi', 'provider': 'DLR', 'pixel_res': 30,
-    'alpha_area': {'alpha1': 0., 'alpha2': 0.81, 'alpha3': 0.38},
-    'alpha_point': {'alpha1': 0., 'alpha2': 0.44, 'alpha3': 0.40},
+    'alpha_area': {'alpha1': 0., 'alpha2': 0.69, 'alpha3': 0.37},
+    'alpha_point': {'alpha1': 0., 'alpha2': 0.43, 'alpha3': 0.38},
 }
 prisma_info = {
     'platform': 'PRISMA', 'instrument': 'hsi', 'provider': 'ASI', 'pixel_res': 30,
-    'alpha_area': {'alpha1': 0., 'alpha2': 0.82, 'alpha3': 0.38},
-    'alpha_point': {'alpha1': 0., 'alpha2': 0.44, 'alpha3': 0.40},
+    'alpha_area': {'alpha1': 0., 'alpha2': 0.70, 'alpha3': 0.37},
+    'alpha_point': {'alpha1': 0., 'alpha2': 0.42, 'alpha3': 0.39},
 }
 sensor_info = {'EMIT': emit_info, 'EnMAP': enmap_info, 'PRISMA': prisma_info}
 
@@ -164,7 +164,7 @@ class Emiss():
         LOG.info(f'Exported to {self.plume_nc_filename}')
         ds_merge.to_netcdf(self.plume_nc_filename)
 
-    def estimate(self, ipcc_sector, wspd_manual=None, land_only=True):
+    def estimate(self, ipcc_sector, wspd_manual=None, land_only=True, name=None):
         """
         Calculate the gas emission rate
         """
@@ -218,8 +218,11 @@ class Emiss():
             LOG.info('Can not access openstreetmap. Leave location info to empty.')
             address = {}
 
+        # set name by folder name if it is not specified
+        if name is None:
+            name = os.path.basename(os.path.dirname(self.filename)).replace('_', ' ')
+
         # save ime results
-        name = os.path.basename(os.path.dirname(self.filename)).replace('_', ' ')
         ime_results = {'plume_id': f"{info['instrument']}-{t_overpass.strftime('%Y%m%dt%H%M%S')}-{self.plume_name}",
                        'plume_latitude': self.latitude,
                        'plume_longitude': self.longitude,

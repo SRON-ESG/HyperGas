@@ -363,21 +363,20 @@ with col3:
             instrument = 'emi'
             provider = 'NASA-JPL'
             pixel_res = 60  # meter
-            alpha_area = {'alpha1': 0., 'alpha2': 0.71, 'alpha3': 0.45}
-            alpha_point = {'alpha1': 0., 'alpha2': 0.31, 'alpha3': 0.50}
-
+            alpha_area = {'alpha1': 0., 'alpha2': 0.67, 'alpha3': 0.45}
+            alpha_point = {'alpha1': 0., 'alpha2': 0.28, 'alpha3': 0.49}
         elif platform == 'EnMAP':
             instrument = 'hsi'
             provider = 'DLR'
             pixel_res = 30  # meter
-            alpha_area = {'alpha1': 0., 'alpha2': 0.81, 'alpha3': 0.38}
-            alpha_point = {'alpha1': 0., 'alpha2': 0.44, 'alpha3': 0.40}
+            alpha_area = {'alpha1': 0., 'alpha2': 0.69, 'alpha3': 0.37}
+            alpha_point = {'alpha1': 0., 'alpha2': 0.43, 'alpha3': 0.38}
         elif platform == 'PRISMA':
             instrument = 'hsi'
             provider = 'ASI'
             pixel_res = 30  # meter
-            alpha_area = {'alpha1': 0., 'alpha2': 0.82, 'alpha3': 0.38}
-            alpha_point = {'alpha1': 0., 'alpha2': 0.44, 'alpha3': 0.40}
+            alpha_area = {'alpha1': 0., 'alpha2': 0.70, 'alpha3': 0.37}
+            alpha_point = {'alpha1': 0., 'alpha2': 0.42, 'alpha3': 0.39}
 
         if ipcc_sector == 'Solid Waste (6A)':
             params.update(alpha_area)
@@ -494,7 +493,7 @@ with col3:
                                'plume_bounds': [bounds],
                                'instrument': instrument,
                                'platform': platform,
-                               # 'provider': provider,
+                               'provider': provider,
                                'emission': Q,
                                'emission_uncertainty': Q_err,
                                'emission_uncertainty_random': err_random,
@@ -510,13 +509,15 @@ with col3:
                                'ime': IME,
                                'ueff_ime': u_eff,
                                'leff_ime': l_eff,
-                               'azimuth_diff_max': azimuth_diff_max,
                                'alpha1': alpha1,
                                'alpha2': alpha2,
                                'alpha3': alpha3,
                                'wind_speed_all': [wind_speed_all],
                                'wind_direction_all': [wdir_all],
                                'wind_source_all': [wind_source_all],
+                               'azimuth_diff_max': azimuth_diff_max,
+                               'land_only': land_only,
+                               'land_mask_source': land_mask_source,
                                }
 
                 # convert to DataFrame and export data as csv file
