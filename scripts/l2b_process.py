@@ -321,8 +321,8 @@ def main():
 
         if not l2b_scene.skip:
             # rad_dist: 'normal', 'lognormal'
-            # land_mask_source: 'GSHHS', 'Natural Earth'
-            l2b_scene.retrieve(rad_dist='normal', cluster=False, land_mask_source='GSHHS')
+            # land_mask_source: 'OSM', 'GSHHS', 'Natural Earth'
+            l2b_scene.retrieve(rad_dist='normal', cluster=False, land_mask_source='OSM')
             l2b_scene.denoise()
             l2b_scene.ortho()
             l2b_scene.plume_mask()

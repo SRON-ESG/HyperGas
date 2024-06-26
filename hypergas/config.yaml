@@ -8,6 +8,11 @@ data:
     resources/modtran_full
   rgb_dir:
     resources/rgb
+  osm_dir:
+    # dir of water mask rasters generated from the OSM and WorldCover datasets 
+    # https://hyp3-docs.asf.alaska.edu/water_masking/
+    # aws s3 cp --recursive --no-sign-request s3://asf-dem-west/WATER_MASK/TILES/ resources/OSM_WorldCover/
+    resources/OSM_WorldCover
   era5_dir:
     # data structure should be: yyyy/sl*grib
     # if you leave this empty, the package will try to load cloud data (not supported yet)
@@ -22,8 +27,10 @@ data:
     #   the `l2b_plot.py` will add CircleMarkers on Map and click it to see correcponding DataFrame info
     resources/markers/markers.csv
   spacetrack_usename:
+    # only useful for PRISMA
     <username>
   spacetrack_password:
+    # only useful for PRISMA
     <password>
 
 species:
@@ -43,12 +50,18 @@ species:
     concentrations: [0, 2.5, 5.0, 10.0, 20.0, 40.0, 80.0, 160.0]  # for rad_source=="model", units: ppm
     # concentrations: [0.0e+4, 2.0e+4, 4.0e+4, 8.0e+4, 1.6e+5, 3.2e+5, 6.4e+5, 1.28e+6] # for rad_source=="lut", units: ppm m
     units: ppm
+  co:
+    name: carbon monoxide
+    wavelength: [2305, 2385]
+    full_wavelength: [1300,2500]
+    rad_source: model
+    concentrations: [0, 0.1, 0.2, 0.4, 0.8, 1.6, 3.2, 6.4]
+    units: ppb
   no2:
     name: nitrogen dioxide
     wavelength: [400, 500]
     full_wavelength: [400, 700]
     rad_source: model
-    concentrations: [0.0e-5, 2.900e-5, 5.800e-5, 1.160e-4, 2.320e-4, 4.640e-4, 9.280e-4, 1.856e-3]
-    # np.array([0, 10.0, 20.0, 40.0, 80.0, 160.0, 320.0, 640.0])*2.9*1e-6  # umol m-2 --> ppm
-    units: umol m-2
+    concentrations: [0.0e-3, 1.0e-3, 2.0e-3, 4.0e-3, 8.0e-3, 1.6e-2, 3.2e-2, 6.4e-2]
+    units: ppb  #umol m-2
 

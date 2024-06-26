@@ -196,7 +196,7 @@ with col3:
                                         )
 
                 land_mask_source = st.selectbox("Pick data source for creating land mask:",
-                                                ('GSHHS', 'Natural Earth'),
+                                                ('OSM', 'GSHHS', 'Natural Earth'),
                                                 index=0,
                                                 )
 
@@ -397,7 +397,7 @@ with col3:
                                 )
 
         land_mask_source = st.selectbox("Pick data source for creating land mask:",
-                                        ('GSHHS', 'Natural Earth'),
+                                        ('OSM', 'GSHHS', 'Natural Earth'),
                                         index=0,
                                         )
 

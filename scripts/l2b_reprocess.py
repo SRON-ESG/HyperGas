@@ -63,7 +63,7 @@ def reprocess_data(filename, prefix, species, land_mask_source, rad_dist):
 def main():
     species = 'ch4'
     rad_dist = 'lognormal'  # 'lognormal' or 'normal'
-    land_mask_source = 'GSHHS'  # 'GSHHS' or 'Natural Earth'
+    land_mask_source = 'OSM'  # 'OSM', 'GSHHS' or 'Natural Earth'
 
     # get the filname list
     filelist = list(chain(*[glob(os.path.join(data_dir, pattern), recursive=True) for pattern in PATTERNS]))

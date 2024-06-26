@@ -7,45 +7,104 @@
 # hypergas is a library to retrieve trace gases from hyperspectral satellite data
 """Create 2D landmask for hyperspectral satellite data."""
 
-import xarray as xr
-import geopandas as gpd
+import logging
+import os
+
 import cartopy.feature as cfeature
+import geopandas as gpd
+import numpy as np
+import xarray as xr
+import yaml
+from pyresample import kd_tree
+from pyresample.geometry import GridDefinition, SwathDefinition
+
+LOG = logging.getLogger(__name__)
 
 
-def Land_mask(lon, lat, source='GSHHS'):
+def find_tiles(lat_min, lat_max, lon_min, lon_max):
+    """
+    Generate the list of filenames for the tiles that cover the given bounding box.
+    """
+    lat_range = range(int(lat_min // 5 * 5), int((lat_max // 5 + 1) * 5), 5)
+    lon_range = range(int(lon_min // 5 * 5), int((lon_max // 5 + 1) * 5), 5)
+
+    tiles = []
+    for lat in lat_range:
+        for lon in lon_range:
+            lat_prefix = 'n' if lat >= 0 else 's'
+            lon_prefix = 'e' if lon >= 0 else 'w'
+            tile_filename = f"{lat_prefix}{abs(lat):02d}{lon_prefix}{abs(lon):03d}.tif"
+            tiles.append(tile_filename)
+
+    return tiles
+
+
+def Land_mask(lons, lats, source='OSM'):
     """Create the segmentation for land and ocean/lake types
 
         Args:
-            lon (2d array): longitude of pixels
-            lat (2d array): latitude of pixels
+            lons (2d array): longitude of pixels
+            lats (2d array): latitude of pixels
         Return:
             Land_mask (2D DataArray): 0: ocean/lake, 1: land
     """
     # load land data
-    if source == 'Natural Earth':
-        land_data = cfeature.NaturalEarthFeature('physical', 'land', '10m')
-    elif source == 'GSHHS':
-        land_data = cfeature.GSHHSFeature(scale='full')
+    LOG.info(f'Creating land mask using {source} data')
+    if source == 'OSM':
+        # get the OSM data path
+        _dirname = os.path.dirname(__file__)
+        with open(os.path.join(_dirname, 'config.yaml')) as f:
+            settings = yaml.safe_load(f)
+        osm_dir = os.path.join(_dirname, settings['data']['osm_dir'])
+
+        # read OSM+ESA_WorldCover Watermask
+        lat_min, lat_max = lats.min(), lats.max()
+        lon_min, lon_max = lons.min(), lons.max()
+        osm_filenames = find_tiles(lat_min, lat_max, lon_min, lon_max)
+        osm_paths = [os.path.join(osm_dir, fname) for fname in osm_filenames]
+        da_osm = xr.open_mfdataset(osm_paths)['band_data'].isel(band=0)
+
+        # crop the mask to scene
+        osm_crop = da_osm.sel(y=slice(lat_max, lat_min), x=slice(lon_min, lon_max))
+        osm_crop.load()
+
+        # set the resample grids
+        lon_grid, lat_grid = np.meshgrid(osm_crop.x, osm_crop.y)
+        swath_def = SwathDefinition(lons=lons, lats=lats)
+
+        # resample data by nearest (10 m)
+        grid_def = GridDefinition(lons=lon_grid, lats=lat_grid)
+        landmask = kd_tree.resample_nearest(grid_def, osm_crop.data, swath_def, radius_of_influence=10).astype('int')
+        # landmask: 0->1, 1->0
+        landmask = np.where((landmask == 0) | (landmask == 1), landmask ^ 1, landmask).astype(float)
+
+    elif source in ['Natural Earth', 'GSHHS']:
+        if source == 'Natural Earth':
+            land_data = cfeature.NaturalEarthFeature('physical', 'land', '10m')
+        elif source == 'GSHHS':
+            land_data = cfeature.GSHHSFeature(scale='full')
+
+        # load data into GeoDataFrame
+        land_polygons = list(land_data.geometries())
+        land_gdf = gpd.GeoDataFrame(crs='epsg:4326', geometry=land_polygons)
+
+        # create Point GeoDataFrame
+        points = gpd.GeoSeries(gpd.points_from_xy(lons.ravel(), lats.ravel()))
+        points_gdf = gpd.GeoDataFrame(geometry=points, crs="EPSG:4326")
+
+        # Spatially join the points with the land polygons
+        joined = gpd.sjoin(points_gdf, land_gdf, how='left', predicate='within')
+
+        # Check if each point is within a land polygon
+        is_within_land = joined['index_right'].notnull()
+
+        # create the mask
+        landmask = is_within_land.values.reshape(lons.shape).astype(float)
+
     else:
-        raise ValueError("Please input the correct land data source ('GSHHS' or 'Natural Earth'). {land_data} is not supported")
+        raise ValueError(
+            "Please input the correct land data source ('GSHHS' or 'Natural Earth'). {land_data} is not supported")
 
-    # load data into GeoDataFrame
-    land_polygons = list(land_data.geometries())
-    land_gdf = gpd.GeoDataFrame(crs='epsg:4326', geometry=land_polygons)
-    
-    # create Point GeoDataFrame
-    points = gpd.GeoSeries(gpd.points_from_xy(lon.ravel(), lat.ravel()))
-    points_gdf = gpd.GeoDataFrame(geometry=points, crs="EPSG:4326")
-    
-    # Spatially join the points with the land polygons
-    joined = gpd.sjoin(points_gdf, land_gdf, how='left', predicate='within')
-
-    # Check if each point is within a land polygon
-    is_within_land = joined['index_right'].notnull()
-    
-    # create the mask
-    landmask = is_within_land.values.reshape(lon.shape).astype(float)
-    
     # save to DataArray
     segmentation = xr.DataArray(landmask, dims=['y', 'x'])
     segmentation.attrs['description'] = f'{source} land mask (0: ocean/lake, 1: land)'

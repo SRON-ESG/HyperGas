@@ -116,8 +116,8 @@ if __name__ == '__main__':
     # replace reanalysis wind speed (m/s)
     wspd_manual = None
 
-    # land mask source: 'GSHHS' or 'Natural Earth'
-    land_mask_source = 'GSHHS'
+    # land mask source: 'OSM', 'GSHHS' or 'Natural Earth'
+    land_mask_source = 'OSM'
 
     # maximum of azimuth of minimum rotated rectangle
     # keep this default unless you find obvious wrong plume pixels
