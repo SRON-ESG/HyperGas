@@ -86,16 +86,13 @@ def pseudo_plume(ds, type='area'):
     '''
     # random emission rate from 1 to 30 t/h
     print('Generate random emission rates')
-    emiss_rate = np.random.uniform(low=1, high=30, size=(ds['ch4'].sizes['name'], ds['ch4'].sizes['time']))  # t/h
+    emiss_rate_2d = np.random.uniform(low=1, high=30, size=(ds['ch4'].sizes['name'], ds['ch4'].sizes['time']))  # t/h
 
     # expand dim
-    emiss_rate = np.repeat(np.repeat(emiss_rate[:, :, np.newaxis, np.newaxis], ds['ch4'].sizes['y'], axis=2), ds['ch4'].sizes['x'], axis=3)
+    emiss_rate = np.repeat(np.repeat(emiss_rate_2d[:, :, np.newaxis, np.newaxis], ds['ch4'].sizes['y'], axis=2), ds['ch4'].sizes['x'], axis=3)
 
     # save as DataArray
     emiss_rate = ds['ch4'].copy(deep=True, data=emiss_rate)
-    emiss_rate = emiss_rate.rename('emission_rate')
-    emiss_rate.attrs['units'] = 't h-1'
-    emiss_rate.attrs['description'] = 'methane emission rate'
 
     # convert to mol/s
     emiss_unit = emiss_rate*1e6/(16.04*3600)  # mol/s
@@ -126,8 +123,18 @@ def pseudo_plume(ds, type='area'):
     wspd.attrs['units'] = 'm s-1'
     wspd.attrs['description'] = '10 m wind speed'
 
-    ds_merge = xr.merge([emiss_rate, delta_xch4, wspd])
-    del emiss_rate, delta_xch4, wspd, ch4_column, delta_xch4_noise
+    emiss_rate_2d = xr.DataArray(emiss_rate_2d,
+                                 dims=['name', 'time'],
+                                 coords={'name': emiss_rate.coords['name'],
+                                         'time': emiss_rate.coords['time']
+                                        }
+                                 )
+    emiss_rate_2d = emiss_rate_2d.rename('emission_rate')
+    emiss_rate_2d.attrs['units'] = 't h-1'
+    emiss_rate_2d.attrs['description'] = 'methane emission rate'
+
+    ds_merge = xr.merge([emiss_rate_2d, delta_xch4, wspd])
+    del emiss_rate, emiss_rate_2d, delta_xch4, wspd, ch4_column, delta_xch4_noise
     gc.collect()
 
     return ds_merge
@@ -135,6 +142,7 @@ def pseudo_plume(ds, type='area'):
 
 np.random.seed(100)
 
+print('Processing area-source data')
 filenames_area = glob('../hypergas/resources/landfill_ensemble/**/*column.nc', recursive=True)
 ds_area = xr.open_mfdataset(filenames_area, preprocess=preprocess, concat_dim='name', combine='nested', parallel=True)
 ds_merge_area = pseudo_plume(ds_area, type='area')
@@ -142,6 +150,7 @@ savename = '../hypergas/resources/landfill_ensemble/delta_xch4_area.nc'
 print(f'Exporting to {savename}')
 ds_merge_area.to_netcdf(savename)
 
+print('Processing point-source data')
 filenames_point = glob('../hypergas/resources/point_ensemble/**/*column.nc', recursive=True)
 ds_point = xr.open_mfdataset(filenames_point, preprocess=preprocess, concat_dim='name', combine='nested', parallel=True)
 ds_merge_point = pseudo_plume(ds_point, type='point')

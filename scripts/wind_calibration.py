@@ -118,36 +118,36 @@ def select_connect_masks(masks, masks_dilation, gdf_polygon, y_target, x_target)
     # get the polygons inside the dilation mask which includes the target mask
     gdf_polygon_connect = gdf_polygon[gdf_polygon.index.isin(connect_labels)]
 
-    if len(gdf_polygon_connect) > 1:
-        # more thane one masks inside the dilation mask
-        # calculate polygon distance
-        distance = gdf_polygon_connect.geometry.apply(
-            lambda g: gdf_polygon_connect[gdf_polygon_connect.index == mask_target]['geometry'].distance(g, align=False))
-        if distance.empty:
-            return gdf_polygon_connect, masks_in_dilation
-        else:
-            gdf_polygon_connect['distance'] = distance
-            # sort masks by distance
-            gdf_polygon_connect.sort_values('distance', inplace=True)
+    #if len(gdf_polygon_connect) > 1:
+    #    # more thane one masks inside the dilation mask
+    #    # calculate polygon distance
+    #    distance = gdf_polygon_connect.geometry.apply(
+    #        lambda g: gdf_polygon_connect[gdf_polygon_connect.index == mask_target]['geometry'].distance(g, align=False))
+    #    if distance.empty:
+    #        return gdf_polygon_connect, masks_in_dilation
+    #    else:
+    #        gdf_polygon_connect['distance'] = distance
+    #        # sort masks by distance
+    #        gdf_polygon_connect.sort_values('distance', inplace=True)
 
-            # calcualte differences of az
-            gdf_polygon_connect.loc[:, 'az_diff'] = gdf_polygon_connect['az'].diff().abs().fillna(0)
+    #        # calcualte differences of az
+    #        gdf_polygon_connect.loc[:, 'az_diff'] = gdf_polygon_connect['az'].diff().abs().fillna(0)
 
-            # Iterate through the DataFrame to drop rows where az_diff is higher than 30
-            index_name = gdf_polygon_connect.index.name
-            gdf_polygon_connect = gdf_polygon_connect.reset_index()
+    #        # Iterate through the DataFrame to drop rows where az_diff is higher than 30
+    #        index_name = gdf_polygon_connect.index.name
+    #        gdf_polygon_connect = gdf_polygon_connect.reset_index()
 
-            index = 0
-            while index < len(gdf_polygon_connect) - 1:
-                if (gdf_polygon_connect['az_diff'].iloc[index + 1] > 30) & (gdf_polygon_connect['distance'].iloc[index+1] > 0):
-                    gdf_polygon_connect = gdf_polygon_connect.drop(index + 1)
-                    gdf_polygon_connect = gdf_polygon_connect.reset_index(drop=True)
-                    gdf_polygon_connect['az_diff'] = gdf_polygon_connect['az'].diff().abs().fillna(0)
-                else:
-                    index += 1
+    #        index = 0
+    #        while index < len(gdf_polygon_connect) - 1:
+    #            if (gdf_polygon_connect['az_diff'].iloc[index + 1] > 30) & (gdf_polygon_connect['distance'].iloc[index+1] > 0):
+    #                gdf_polygon_connect = gdf_polygon_connect.drop(index + 1)
+    #                gdf_polygon_connect = gdf_polygon_connect.reset_index(drop=True)
+    #                gdf_polygon_connect['az_diff'] = gdf_polygon_connect['az'].diff().abs().fillna(0)
+    #            else:
+    #                index += 1
 
-            # Set the index back to the original index values
-            gdf_polygon_connect = gdf_polygon_connect.set_index(index_name)
+    #        # Set the index back to the original index values
+    #        gdf_polygon_connect = gdf_polygon_connect.set_index(index_name)
 
     return gdf_polygon_connect, masks_in_dilation
 
