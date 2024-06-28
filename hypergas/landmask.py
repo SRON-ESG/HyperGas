@@ -9,6 +9,7 @@
 
 import logging
 import os
+import gc
 
 import cartopy.feature as cfeature
 import geopandas as gpd
@@ -77,6 +78,9 @@ def Land_mask(lons, lats, source='OSM'):
         landmask = kd_tree.resample_nearest(grid_def, osm_crop.data, swath_def, radius_of_influence=10).astype('int')
         # landmask: 0->1, 1->0
         landmask = np.where((landmask == 0) | (landmask == 1), landmask ^ 1, landmask).astype(float)
+
+        del osm_crop
+        gc.collect()
 
     elif source in ['Natural Earth', 'GSHHS']:
         if source == 'Natural Earth':
