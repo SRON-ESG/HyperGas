@@ -415,8 +415,11 @@ def select_connect_masks(masks, y_target, x_target, az_max=30, dist_max=180):
         dxy = R * c  # meters
 
     niter = int(dist_max/dxy)
-    masks_dilation = masks.copy(deep=True, data=ndimage.binary_dilation(
-        masks.fillna(0), iterations=niter, structure=struct))
+    if niter > 0:
+        masks_dilation = masks.copy(deep=True, data=ndimage.binary_dilation(
+            masks.fillna(0), iterations=niter, structure=struct))
+    else:
+        masks_dilation = masks.copy(deep=True, data=masks.fillna(0))
 
     # Label connected components in the dilated array
     labeled_array, num_features = ndimage.label(masks_dilation)

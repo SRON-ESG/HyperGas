@@ -111,8 +111,9 @@ col3, col4 = st.columns([6, 3])
 
 # set default params which can be modified from the form
 params = {'gas': 'CH4',
-          'wind_source': None, 'land_only': True, 'wind_speed': None,
-          'azimuth_diff_max': 30., 'alpha1': 0.0, 'alpha2': 0.81, 'alpha3': 0.38,
+          'wind_source': None, 'land_mask_source': 'GSHHS', 'land_only': True, 'wind_speed': None,
+          'azimuth_diff_max': 30., 'dist_max': 180.,
+          'alpha1': 0.0, 'alpha2': 0.81, 'alpha3': 0.38,
           'name': '', 'ipcc_sector': 'Solid Waste (6A)',
           'platform': None, 'source_tropomi': True, 'source_trace': False
           }
@@ -184,8 +185,12 @@ with col3:
                                                )
 
                 azimuth_diff_max = st.number_input('Maximum value of azimuth difference \
-                        (Please keep the default value, unless there are obvious false plume masks around)',
+                        \n (Please keep the default value, unless there are obvious false plume masks around)',
                                                    value=params['azimuth_diff_max'], format='%f')
+
+                dist_max = st.number_input('Maximum value of dilation distance (meter) \
+                        \n (Please keep the default value, unless there are obvious false plume masks around)',
+                                                   value=params['dist_max'], format='%f')
 
                 only_plume = st.checkbox('Whether only plot plume',
                                          value=True,
@@ -195,9 +200,10 @@ with col3:
                                         value=params['land_only'],
                                         )
 
+                land_mask_source_list = ['GSHHS', 'OSM', 'Natural Earth']
                 land_mask_source = st.selectbox("Pick data source for creating land mask:",
-                                                ('OSM', 'GSHHS', 'Natural Earth'),
-                                                index=0,
+                                                land_mask_source_list,
+                                                index=land_mask_source_list.index(params['land_mask_source']),
                                                 )
 
             submitted = st.form_submit_button("Submit")
@@ -240,7 +246,7 @@ with col3:
                         mask, lon_mask, lat_mask, longitude, latitude, plume_html_filename = a_priori_mask_data(filename, ds, gas, longitude, latitude,
                                                                                                                 pick_plume_name, wind_source,
                                                                                                                 land_only, land_mask_source, only_plume,
-                                                                                                                azimuth_diff_max)
+                                                                                                                azimuth_diff_max, dist_max)
 
                         # mask data
                         gas_mask = ds[gas].where(mask)
@@ -396,9 +402,10 @@ with col3:
                                 value=params['land_only'],
                                 )
 
+        land_mask_source_list = ['GSHHS', 'OSM', 'Natural Earth']
         land_mask_source = st.selectbox("Pick data source for creating land mask:",
-                                        ('OSM', 'GSHHS', 'Natural Earth'),
-                                        index=0,
+                                        land_mask_source_list,
+                                        index=land_mask_source_list.index(params['land_mask_source']),
                                         )
 
         # manual wind speed
@@ -516,6 +523,7 @@ with col3:
                                'wind_direction_all': [wdir_all],
                                'wind_source_all': [wind_source_all],
                                'azimuth_diff_max': azimuth_diff_max,
+                               'dist_max': dist_max,
                                'land_only': land_only,
                                'land_mask_source': land_mask_source,
                                }
