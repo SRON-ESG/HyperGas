@@ -107,6 +107,7 @@ class MatchedFilter():
                                                  self.radiance.sizes['x'])),
                                         dims=['y', 'x'],
                                         )
+            segmentation.attrs['description'] = ''
 
         # save to class
         self.segmentation = segmentation

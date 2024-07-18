@@ -79,7 +79,8 @@ def Land_mask(lons, lats, source='OSM'):
         # landmask: 0->1, 1->0
         landmask = np.where((landmask == 0) | (landmask == 1), landmask ^ 1, landmask).astype(float)
 
-        del osm_crop
+        da_osm.close()
+        del osm_crop, lon_grid, lat_grid
         gc.collect()
 
     elif source in ['Natural Earth', 'GSHHS']:

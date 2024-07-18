@@ -375,7 +375,7 @@ class Hyper():
         segmentation_attrs = {'standard_name': 'segmentation',
                               'long_name': 'pixel segmentation',
                               'units': 1,
-                              'description': 'Natural Earth land mask (0: ocean/lake, 1: land). If 1+ values are available, this is pixel classifications',
+                              'description': segmentation.attrs['description'],
                               }
 
         enhancement_attrs = {'standard_name': f"{self.species_setting[species]['name']}_enhancement",
