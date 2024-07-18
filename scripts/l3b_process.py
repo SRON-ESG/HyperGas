@@ -62,6 +62,7 @@ def process_data(gas, filename):
                             land_mask_source=land_mask_source,
                             only_plume=True,
                             azimuth_diff_max=azimuth_diff_max,
+                            dist_max=dist_max
                             )
 
             # export to NetCDF file
@@ -119,9 +120,9 @@ if __name__ == '__main__':
     # land mask source: 'OSM', 'GSHHS' or 'Natural Earth'
     land_mask_source = 'OSM'
 
-    # maximum of azimuth of minimum rotated rectangle
-    # keep this default unless you find obvious wrong plume pixels
-    azimuth_diff_max = 30
+    # keep these default unless you find obvious wrong plume pixels
+    azimuth_diff_max = 30  # maximum of azimuth of minimum rotated rectangle
+    dist_max = 180 # Maximum of dilation distance (meter)
 
     for data_dir in lowest_dirs:
         LOG.info(f'Processing data under {data_dir}')

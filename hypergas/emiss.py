@@ -89,7 +89,9 @@ class Emiss():
     def mask_data(self, longitude, latitude,
                   wind_source='ERA5', land_only=True,
                   land_mask_source='GSHHS', only_plume=True,
-                  azimuth_diff_max=30):
+                  azimuth_diff_max=30,
+                  dist_max=180,
+                  ):
         """
         Create plume mask
         """
@@ -100,6 +102,7 @@ class Emiss():
         self.land_only = land_only
         self.land_mask_source = land_mask_source
         self.azimuth_diff_max = azimuth_diff_max
+        self.dist_max = dist_max
 
         # select connected plume masks
         self.mask, lon_mask, lat_mask, \
@@ -107,7 +110,8 @@ class Emiss():
                                                                                          self.longitude, self.latitude,
                                                                                          self.plume_name, self.wind_source,
                                                                                          self.land_only, self.land_mask_source,
-                                                                                         only_plume, self.azimuth_diff_max)
+                                                                                         only_plume,
+                                                                                         self.azimuth_diff_max, self.dist_max)
 
     def export_plume_nc(self,):
         """
@@ -259,9 +263,9 @@ class Emiss():
                        'wind_direction_all': [wdir_all],
                        'wind_source_all': [wind_source_all],
                        'azimuth_diff_max': self.azimuth_diff_max,
+                       'dist_max': self.dist_max,
                        'land_only': self.land_only,
                        'land_mask_source': self.land_mask_source,
-
                        }
 
         # convert to DataFrame and export data as csv file
