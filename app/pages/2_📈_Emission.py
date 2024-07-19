@@ -19,8 +19,8 @@ import streamlit as st
 import streamlit.components.v1 as components
 import xarray as xr
 from geopy.geocoders import Nominatim
-from hypergas.plume_utils import (a_priori_mask_data, calc_emiss,
-                                  calc_emiss_fetch)
+from hypergas.plume_utils import a_priori_mask_data
+from hypergas.ime_csf import IME_CSF
 
 sys.path.append('..')
 
@@ -111,7 +111,7 @@ col3, col4 = st.columns([6, 3])
 
 # set default params which can be modified from the form
 params = {'gas': 'CH4',
-          'wind_source': None, 'land_mask_source': 'GSHHS', 'land_only': True, 'wind_speed': None,
+          'wind_source': None, 'land_mask_source': 'OSM', 'land_only': True, 'wind_speed': None,
           'azimuth_diff_max': 30., 'dist_max': 180.,
           'alpha1': 0.0, 'alpha2': 0.81, 'alpha3': 0.38,
           'name': '', 'ipcc_sector': 'Solid Waste (6A)',
@@ -384,13 +384,6 @@ with col3:
             alpha_area = {'alpha1': 0., 'alpha2': 0.70, 'alpha3': 0.37}
             alpha_point = {'alpha1': 0., 'alpha2': 0.42, 'alpha3': 0.39}
 
-        if ipcc_sector == 'Solid Waste (6A)':
-            params.update(alpha_area)
-            alpha_replace = alpha_point
-        else:
-            params.update(alpha_point)
-            alpha_replace = alpha_area
-
         # input alphas for calculating U_eff
         st.success('U_eff = alpha1 * np.log(wind_speed_average) + alpha2 + alpha3 * wind_speed_average', icon='🧮')
         alpha1 = st.number_input('alpha1 for Ueff', value=params['alpha1'], format='%f')
@@ -422,28 +415,23 @@ with col3:
 
                 # calculate emissions using the IME method with Ueff
                 gas = params['gas'].lower()
-                wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q, Q_err, \
-                    err_random, err_wind, err_calib = calc_emiss(gas, plume_nc_filename, pick_plume_name,
-                                                                 alpha_replace,
-                                                                 pixel_res=pixel_res,
-                                                                 alpha={'alpha1': alpha1,
-                                                                        'alpha2': alpha2,
-                                                                        'alpha3': alpha3},
-                                                                 wind_source=wind_source,
-                                                                 wspd=wind_speed,
-                                                                 land_only=land_only,
-                                                                 land_mask_source=land_mask_source,
-                                                                 )
 
-                # calculate emissions using the IME-fetch method with U10
-                Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch \
-                    = calc_emiss_fetch(gas, plume_nc_filename,
-                                       plume_dict[pick_plume_name][1],
-                                       plume_dict[pick_plume_name][0],
-                                       pixel_res=pixel_res,
-                                       wind_source=wind_source,
-                                       wspd=wind_speed
-                                       )
+                # init IME_CSF class
+                ime_csf = IME_CSF(sensor=platform,
+                                  longitude_source=plume_dict[pick_plume_name][1],
+                                  latitude_source=plume_dict[pick_plume_name][0],
+                                  plume_nc_filename=plume_nc_filename,
+                                  plume_name=pick_plume_name,
+                                  ipcc_sector=ipcc_sector,
+                                  gas=gas,
+                                  wind_source=wind_source,
+                                  wspd_manual=wind_speed,
+                                  land_only=land_only,
+                                  land_mask_source=land_mask_source)
+
+                # calculate emission rates
+                wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q, Q_err,\
+                       err_random, err_wind, err_calib, Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch = ime_csf.calc_emiss()
 
                 # print the emission data
                 st.warning(f'''**IME (Ueff):**
