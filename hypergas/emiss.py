@@ -14,8 +14,9 @@ import random
 import pandas as pd
 import xarray as xr
 from geopy.geocoders import Nominatim
-from hypergas.plume_utils import (a_priori_mask_data, calc_emiss,
-                                  calc_emiss_fetch)
+
+from hypergas.ime_csf import IME_CSF
+from hypergas.plume_utils import a_priori_mask_data
 
 # set the logger level
 logging.basicConfig(level=logging.INFO,
@@ -172,35 +173,19 @@ class Emiss():
         """
         Calculate the gas emission rate
         """
-        info = sensor_info[self.sensor]
-        pixel_res = info['pixel_res']
+        # init IME_CSF class
+        ime_csf = IME_CSF(sensor=self.sensor, longitude_source=self.longitude, latitude_source=self.latitude,
+                          plume_nc_filename=self.plume_nc_filename, plume_name=self.plume_name,
+                          ipcc_sector=ipcc_sector, gas=self.gas, wind_source=self.wind_source, wspd_manual=wspd_manual,
+                          land_only=self.land_only, land_mask_source=self.land_mask_source)
 
-        if ipcc_sector == 'Solid Waste (6A)':
-            alpha = info['alpha_area']
-            alpha_replace = info['alpha_point']
-        else:
-            alpha = info['alpha_point']
-            alpha_replace = info['alpha_area']
-
+        # calculate emission rates
         wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q, Q_err, \
-            err_random, err_wind, err_calib = calc_emiss(self.gas, self.plume_nc_filename, self.plume_name,
-                                                         alpha_replace,
-                                                         pixel_res=pixel_res,
-                                                         alpha=alpha,
-                                                         wind_source=self.wind_source,
-                                                         wspd=wspd_manual,
-                                                         land_only=self.land_only,
-                                                         land_mask_source=self.land_mask_source,
-                                                         )
+            err_random, err_wind, err_calib, Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch = ime_csf.calc_emiss()
 
-        # calculate emissions using the IME-fetch method with U10
-        Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch \
-            = calc_emiss_fetch(self.gas, self.plume_nc_filename,
-                               longitude=self.longitude, latitude=self.latitude,
-                               pixel_res=pixel_res,
-                               wind_source=self.wind_source,
-                               wspd=wind_speed
-                               )
+        # get info
+        info = ime_csf.info
+        alpha = ime_csf.alpha
 
         # calculate plume bounds
         with xr.open_dataset(self.plume_nc_filename) as ds:
