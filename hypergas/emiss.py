@@ -24,34 +24,6 @@ logging.basicConfig(level=logging.INFO,
                     datefmt='%Y/%m/%d %H:%M:%S')
 LOG = logging.getLogger(__name__)
 
-# constants
-mass = {'ch4': 16.04e-3, 'co2': 44.01e-3}  # molar mass [kg/mol]
-mass_dry_air = 28.964e-3  # molas mass dry air [kg/mol]
-grav = 9.8  # gravity (m s-2)
-
-'''
-instrument data
-    pixel_res: meters
-    alpha: IME alphas
-'''
-emit_info = {
-    'platform': 'EMIT', 'instrument': 'emi', 'provider': 'NASA-JPL', 'pixel_res': 60,
-    'alpha_area': {'alpha1': 0., 'alpha2': 0.67, 'alpha3': 0.45},
-    'alpha_point': {'alpha1': 0., 'alpha2': 0.28, 'alpha3': 0.49},
-}
-
-enmap_info = {
-    'platform': 'EnMAP', 'instrument': 'hsi', 'provider': 'DLR', 'pixel_res': 30,
-    'alpha_area': {'alpha1': 0., 'alpha2': 0.69, 'alpha3': 0.37},
-    'alpha_point': {'alpha1': 0., 'alpha2': 0.43, 'alpha3': 0.38},
-}
-prisma_info = {
-    'platform': 'PRISMA', 'instrument': 'hsi', 'provider': 'ASI', 'pixel_res': 30,
-    'alpha_area': {'alpha1': 0., 'alpha2': 0.70, 'alpha3': 0.37},
-    'alpha_point': {'alpha1': 0., 'alpha2': 0.42, 'alpha3': 0.39},
-}
-sensor_info = {'EMIT': emit_info, 'EnMAP': enmap_info, 'PRISMA': prisma_info}
-
 # set global attrs for exported NetCDF file
 AUTHOR = 'Xin Zhang'
 EMAIL = 'xin.zhang@sron.nl; xinzhang1215@gmail.com'
