@@ -247,7 +247,6 @@ with col3:
                                                                                                                 pick_plume_name, wind_source,
                                                                                                                 land_only, land_mask_source, only_plume,
                                                                                                                 azimuth_diff_max, dist_max)
-
                         # mask data
                         gas_mask = ds[gas].where(mask)
 
@@ -412,14 +411,17 @@ with col3:
                 # set output name
                 plume_nc_filename = filename.replace('.html', '.nc')
                 pick_plume_name = filename.split('_')[-1][:-5]
+                df = pd.read_csv(plume_nc_filename.replace('.nc', '.csv'))
+                longitude_source = df['plume_longitude']
+                latitude_source = df['plume_latitude']
 
                 # calculate emissions using the IME method with Ueff
                 gas = params['gas'].lower()
 
                 # init IME_CSF class
                 ime_csf = IME_CSF(sensor=platform,
-                                  longitude_source=plume_dict[pick_plume_name][1],
-                                  latitude_source=plume_dict[pick_plume_name][0],
+                                  longitude_source=longitude_source,
+                                  latitude_source=latitude_source,
                                   plume_nc_filename=plume_nc_filename,
                                   plume_name=pick_plume_name,
                                   ipcc_sector=ipcc_sector,
@@ -466,8 +468,7 @@ with col3:
                 # get the location attrs
                 try:
                     geolocator = Nominatim(user_agent='hyper'+str(random.randint(1, 100)))
-                    location = geolocator.reverse(
-                        f'{plume_dict[pick_plume_name][0]}, {plume_dict[pick_plume_name][1]}', exactly_one=True, language='en')
+                    location = geolocator.reverse(f'{latitude_source}, {longitude_source}', exactly_one=True, language='en')
                     address = location.raw['address']
                 except Exception as e:
                     st.warning('Can not access openstreetmap. Leave location info to empty.')
@@ -475,8 +476,8 @@ with col3:
 
                 # save ime results
                 ime_results = {'plume_id': f"{instrument}-{t_overpass.strftime('%Y%m%dt%H%M%S')}-{pick_plume_name}",
-                               'plume_latitude': plume_dict[pick_plume_name][0],
-                               'plume_longitude': plume_dict[pick_plume_name][1],
+                               'plume_latitude': latitude_source,
+                               'plume_longitude': longitude_source,
                                'datetime': t_overpass.strftime('%Y-%m-%dT%H:%M:%S%z'),
                                'country': address.get('country', ''),
                                'state': address.get('state', ''),
