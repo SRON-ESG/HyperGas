@@ -46,9 +46,27 @@ class Emiss():
         """
         self.ds = ds
         self.gas = gas
+        self.plume_name = plume_name
         self.filename = ds.encoding['source']
         self.l1_filename = ds.attrs['filename']
+
+        # get the crs
+        if self.ds.rio.crs:
+            self.crs = self.ds.rio.crs
+        else:
+            self.crs = None
+
+        # get the L3 plume NetCDF filename
         basename = os.path.basename(self.filename)
+        if 'L2' in basename:
+            self.plume_nc_filename = self.filename.replace('.nc', f'_{self.plume_name}.nc').replace('L2', 'L3')
+        elif 'L3' in basename:
+            self.plume_nc_filename = self.filename
+            # we need to close the file because it will be read again in IME_CSF class
+            self.ds.close()
+        else:
+            raise ValueError(f'{self.filename} is not supported. Please input the L2 or L3 nc filename.')
+
         if 'EMIT' in basename:
             self.sensor = 'EMIT'
         elif 'ENMAP' in basename:
@@ -57,7 +75,6 @@ class Emiss():
             self.sensor = 'PRISMA'
         else:
             raise ValueError(f'{self.filename} is not supported.')
-        self.plume_name = plume_name
 
     def mask_data(self, longitude, latitude,
                   wind_source='ERA5', land_only=True,
@@ -113,14 +130,12 @@ class Emiss():
         start_time = self.ds[self.gas].attrs['start_time']
 
         # export masked data (plume)
-        self.plume_nc_filename = self.filename.replace('.nc', f'_{self.plume_name}.nc').replace('L2', 'L3')
-
         # merge data
         ds_merge = xr.merge(array_list)
 
         # add crs info
-        if self.ds.rio.crs:
-            ds_merge.rio.write_crs(self.ds.rio.crs, inplace=True)
+        if self.crs is not None:
+            ds_merge.rio.write_crs(self.crs, inplace=True)
 
         # clear attrs
         ds_merge.attrs = ''
@@ -153,7 +168,13 @@ class Emiss():
 
         # calculate emission rates
         wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q, Q_err, \
-            err_random, err_wind, err_calib, Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch = ime_csf.calc_emiss()
+            err_random, err_wind, err_calib, Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch, \
+            ds_csf, Q_csf, Q_csf_err = ime_csf.calc_emiss()
+
+        # export csf data
+        csf_filename = self.plume_nc_filename.replace('.nc', '_csf.nc')
+        LOG.info(f'Exported CSF lines to {csf_filename}')
+        ds_csf.to_netcdf(csf_filename)
 
         # get info
         info = ime_csf.info
@@ -183,50 +204,52 @@ class Emiss():
         if name is None:
             name = os.path.basename(os.path.dirname(self.filename)).replace('_', ' ')
 
-        # save ime results
-        ime_results = {'plume_id': f"{info['instrument']}-{t_overpass.strftime('%Y%m%dt%H%M%S')}-{self.plume_name}",
-                       'plume_latitude': self.latitude,
-                       'plume_longitude': self.longitude,
-                       'datetime': t_overpass.strftime('%Y-%m-%dT%H:%M:%S%z'),
-                       'country': address.get('country', ''),
-                       'state': address.get('state', ''),
-                       'city': address.get('city', ''),
-                       'name': name,
-                       'ipcc_sector': ipcc_sector,
-                       'gas': self.gas.upper(),
-                       'plume_bounds': [bounds],
-                       'instrument': info['instrument'],
-                       'platform': info['platform'],
-                       'provider': info['provider'],
-                       'emission': Q,
-                       'emission_uncertainty': Q_err,
-                       'emission_uncertainty_random': err_random,
-                       'emission_uncertainty_wind': err_wind,
-                       'emission_uncertainty_calibration': err_calib,
-                       'emission_fetch': Q_fetch,
-                       'emission_fetch_uncertainty': Q_fetch_err,
-                       'emission_fetch_uncertainty_ime': err_ime_fetch,
-                       'emission_fetch_uncertainty_wind': err_wind_fetch,
-                       'wind_speed': wind_speed,
-                       'wind_direction': wdir,
-                       'wind_source': self.wind_source,
-                       'ime': IME,
-                       'ueff_ime': u_eff,
-                       'leff_ime': l_eff,
-                       'alpha1': alpha['alpha1'],
-                       'alpha2': alpha['alpha2'],
-                       'alpha3': alpha['alpha3'],
-                       'wind_speed_all': [wind_speed_all],
-                       'wind_direction_all': [wdir_all],
-                       'wind_source_all': [wind_source_all],
-                       'azimuth_diff_max': self.azimuth_diff_max,
-                       'dist_max': self.dist_max,
-                       'land_only': self.land_only,
-                       'land_mask_source': self.land_mask_source,
-                       }
+        # save results
+        results = {'plume_id': f"{info['instrument']}-{t_overpass.strftime('%Y%m%dt%H%M%S')}-{self.plume_name}",
+                   'plume_latitude': self.latitude,
+                   'plume_longitude': self.longitude,
+                   'datetime': t_overpass.strftime('%Y-%m-%dT%H:%M:%S%z'),
+                   'country': address.get('country', ''),
+                   'state': address.get('state', ''),
+                   'city': address.get('city', ''),
+                   'name': name,
+                   'ipcc_sector': ipcc_sector,
+                   'gas': self.gas.upper(),
+                   'plume_bounds': [bounds],
+                   'instrument': info['instrument'],
+                   'platform': info['platform'],
+                   'provider': info['provider'],
+                   'emission': Q,
+                   'emission_uncertainty': Q_err,
+                   'emission_uncertainty_random': err_random,
+                   'emission_uncertainty_wind': err_wind,
+                   'emission_uncertainty_calibration': err_calib,
+                   'emission_fetch': Q_fetch,
+                   'emission_fetch_uncertainty': Q_fetch_err,
+                   'emission_fetch_uncertainty_ime': err_ime_fetch,
+                   'emission_fetch_uncertainty_wind': err_wind_fetch,
+                   'emission_csf': Q_csf,
+                   'emission_csf_uncertainty': Q_csf_err,
+                   'wind_speed': wind_speed,
+                   'wind_direction': wdir,
+                   'wind_source': self.wind_source,
+                   'ime': IME,
+                   'ueff_ime': u_eff,
+                   'leff_ime': l_eff,
+                   'alpha1': alpha['alpha1'],
+                   'alpha2': alpha['alpha2'],
+                   'alpha3': alpha['alpha3'],
+                   'wind_speed_all': [wind_speed_all],
+                   'wind_direction_all': [wdir_all],
+                   'wind_source_all': [wind_source_all],
+                   'azimuth_diff_max': self.azimuth_diff_max,
+                   'dist_max': self.dist_max,
+                   'land_only': self.land_only,
+                   'land_mask_source': self.land_mask_source,
+                   }
 
         # convert to DataFrame and export data as csv file
-        df = pd.DataFrame(data=ime_results, index=[0])
+        df = pd.DataFrame(data=results, index=[0])
         savename = self.plume_nc_filename.replace('.nc', '.csv')
         LOG.info(f'Exported estimates to {savename}')
         df.to_csv(savename, index=False)

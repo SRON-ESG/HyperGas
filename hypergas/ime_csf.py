@@ -10,11 +10,16 @@
 import gc
 import logging
 
+import geopandas as gpd
 import numpy as np
 import pyresample
 import xarray as xr
+from pyproj import Transformer
 from pyresample.geometry import SwathDefinition
+from shapely.geometry import LineString, Point
+from shapely.strtree import STRtree
 
+from hypergas.ddeq_plumeline import Poly2D, compute_plume_coordinates
 from hypergas.landmask import Land_mask
 
 # set the logger level
@@ -40,17 +45,23 @@ emit_info = {
     'platform': 'EMIT', 'instrument': 'emi', 'provider': 'NASA-JPL', 'pixel_res': 60,
     'alpha_area': {'alpha1': 0., 'alpha2': 0.67, 'alpha3': 0.45},
     'alpha_point': {'alpha1': 0., 'alpha2': 0.28, 'alpha3': 0.49},
+    'beta_area': {'beta1': 1.14, 'beta2': 0},
+    'beta_point': {'beta1': 1.17, 'beta2': 0},
 }
 
 enmap_info = {
     'platform': 'EnMAP', 'instrument': 'hsi', 'provider': 'DLR', 'pixel_res': 30,
     'alpha_area': {'alpha1': 0., 'alpha2': 0.69, 'alpha3': 0.37},
     'alpha_point': {'alpha1': 0., 'alpha2': 0.43, 'alpha3': 0.38},
+    'beta_area': {'beta1': 1.23, 'beta2': 0},
+    'beta_point': {'beta1': 1.18, 'beta2': 0},
 }
 prisma_info = {
     'platform': 'PRISMA', 'instrument': 'hsi', 'provider': 'ASI', 'pixel_res': 30,
     'alpha_area': {'alpha1': 0., 'alpha2': 0.70, 'alpha3': 0.37},
     'alpha_point': {'alpha1': 0., 'alpha2': 0.42, 'alpha3': 0.39},
+    'beta_area': {'beta1': 1.23, 'beta2': 0},
+    'beta_point': {'beta1': 1.18, 'beta2': 0},
 }
 sensor_info = {'EMIT': emit_info, 'EnMAP': enmap_info, 'PRISMA': prisma_info}
 
@@ -102,21 +113,35 @@ class IME_CSF():
         self.info = sensor_info[sensor]
         self.pixel_res = self.info['pixel_res']
 
+        self.ds = xr.open_dataset(self.plume_nc_filename, decode_coords='all')
+
+        # get the crs
+        if self.ds.rio.crs:
+            self.crs = self.ds.rio.crs
+        else:
+            self.crs = None
+
+        # get the masked plume data
+        self.gas_mask = self.ds.dropna(dim='y', how='all').dropna(dim='x', how='all')[self.gas]
+
         if ipcc_sector == 'Solid Waste (6A)':
             self.alpha = self.info['alpha_area']
             self.alpha_replace = self.info['alpha_point']
+            self.beta = self.info['beta_area']
         else:
             self.alpha = self.info['alpha_point']
             self.alpha_replace = self.info['alpha_area']
+            self.beta = self.info['beta_point']
 
     def calc_emiss(self):
         """Calculate emission rate (kg/h)"""
         wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q, Q_err, \
             err_random, err_wind, err_calib = self.ime()
         Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch = self.ime_fetch()
+        ds_csf, Q_csf, Q_csf_err = self.csf()
 
         return wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q, Q_err, \
-            err_random, err_wind, err_calib, Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch
+            err_random, err_wind, err_calib, Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch, ds_csf, Q_csf, Q_csf_err
 
     def _create_circular_mask(self, h, w, center=None, radius=None):
         """Create circle mask by radius and center"""
@@ -259,6 +284,209 @@ class IME_CSF():
 
         return error
 
+    def _def_csf_lines(self, npixel_interval):
+        """Define CSF lines for quantification
+
+        Args:
+            npixel_interval: interval of CSF lines (unit: n*pixel_size)
+
+        Return:
+            center_curve
+            csf_lines
+            ds_csf (xarray Dataset):
+                yp (y, x): y coord of the plume coords
+                xp (y, x): x coord of the plume coords
+                center_line_y (plume_center): y coord (UTM) of the centerline
+                center_line_x (plume_center): x coord (UTM) of the centerline
+                csf_line (plume_center): the csf line (UTM)
+        """
+        def create_perpendiculars(curve, interval, line_width):
+            line_length_shap = curve.length
+            start, end, stepsize, sign = 0, line_length_shap, interval, 1
+
+            transect_lines = []
+            initial_slope = None
+            for dist_along_line in np.arange(start, end, stepsize):
+                point = curve.interpolate(dist_along_line)
+                close_point = curve.interpolate(dist_along_line + sign * 0.2 * interval)
+                dx = close_point.x - point.x
+                if abs(dx) < 1.0e-8:  # Avoid rare cases of division by 0
+                    dx = 1.0e-8
+                dy = close_point.y - point.y
+                slope = dy / dx  # Slope of the spline
+
+                # dy and dx are perpendicular to the spline (hence the minus-slope)
+                dy = np.sign(slope) * np.sqrt((0.5 * line_width)**2 / (1 + slope**2))
+                dx = -slope * dy
+                if initial_slope is None:
+                    initial_slope = slope
+                perp_line = LineString([[point.x - dx, point.y - dy], [point.x + dx, point.y + dy]])
+                transect_lines.append(perp_line)
+            return transect_lines
+
+        ds = self.ds
+
+        # get 1d array of plume data
+        self.gas_valid = ds[self.gas].stack(z=('x', 'y')).dropna(dim='z')
+
+        # get plume source location in UTM projection
+        transformer = Transformer.from_crs("EPSG:4326", ds.rio.crs, always_xy=True)
+        x_source, y_source = transformer.transform(ds.attrs['plume_longitude'],  ds.attrs['plume_latitude'])
+
+        # create the centerline through the plume
+        curve = Poly2D(
+            x=self.gas_valid.x,
+            y=self.gas_valid.y,
+            w=xr.full_like(self.gas_valid, 1),  # all pixels are inside plume
+            degree=2,
+            x_o=x_source,
+            y_o=y_source,
+            force_source=True
+        )
+
+        # calculate x and y in the plume coordinate
+        xp, yp, t_min, t_max = compute_plume_coordinates(ds[self.gas], curve, which="centers")
+
+        # mask data
+        xp = xp.where(ds[self.gas].notnull())
+        yp = yp.where(ds[self.gas].notnull())
+
+        # calculate plume length and set orientation for centerline
+        positive_num = xp.where(xp > 0).count()
+        negative_num = xp.where(xp < 0).count()
+        interval = self.pixel_res*npixel_interval
+
+        if positive_num >= negative_num:
+            t = np.arange(curve.t_o, t_max, interval)
+        else:
+            t = np.arange(curve.t_o, t_min, -interval)
+
+        t = t.astype('float')
+
+        # get the centerline
+        center_curve = np.vstack((curve(t=t)[0], curve(t=t)[1])).T
+
+        # get the csf line
+        length = yp.max() - yp.min()
+        csf_lines = create_perpendiculars(LineString(center_curve), interval=interval, line_width=length)
+
+        ds.close()
+        del ds
+        gc.collect()
+
+        return center_curve, csf_lines
+
+    def _emiss_csf_lines(self, csf_lines):
+        """Calculate gas emission rate at each CSF line"""
+        # create gdf of center points of plume pixel
+        gdf = gpd.GeoDataFrame({'x': self.gas_valid.coords['x'], 'y': self.gas_valid.coords['y']})
+        gdf['center'] = gdf.apply(lambda x: Point(x['x'], x['y']), axis=1)
+
+        # create square around the pixel center
+        gdf['polygon'] = gdf['center'].buffer(self.pixel_res/2, cap_style=3)
+
+        # Query the spatial index for potential intersections
+        # https://stackoverflow.com/a/43105613/7347925
+        spatial_index = STRtree(gdf['polygon'])
+
+        def check_intersections(spatial_index, polygon, line):
+            potential_matches = spatial_index.query(line)
+
+            # Check if there is any intersection with the potential matches
+            match_list = potential_matches[[line.intersects(poly) for poly in polygon.iloc[potential_matches]]]
+
+            return match_list
+
+        # calculate emission rate using intersected pixels
+        Q_lines = []
+        unit = self.gas_valid.attrs['units']
+        u_eff = self.beta['beta1'] * self.wspd + self.beta['beta2']
+
+        for line in csf_lines:
+            match_list = check_intersections(spatial_index, gdf['polygon'], line)
+
+            if len(match_list) > 0:
+                total_gas = self.gas_valid.isel(z=match_list).sum().values
+
+                if unit == 'ppb':
+                    C = total_gas * 1.0e-9 * (mass[self.gas] / mass_dry_air) * self.sp / grav * self.pixel_res
+                elif unit == 'ppm':
+                    C = total_gas * 1.0e-6 * (mass[self.gas] / mass_dry_air) * self.sp / grav * self.pixel_res
+                elif unit == 'ppm m':
+                    C = total_gas * (1/1e6) * (1000) * (1/molar_volume) * mass[self.gas] * self.pixel_res
+                else:
+                    raise ValueError(f"Unit '{unit}' is not supported yet. Please add it here.")
+                Q_lines.append(C * u_eff)
+            else:
+                Q_lines.append(np.nan)
+
+        return np.array(Q_lines)*3600
+
+    def _csf_dataset(self, center_curve, csf_lines, Q_lines):
+        """Combine CSF info into one xarray Dataset"""
+        x_center = center_curve[:, 0]
+        y_center = center_curve[:, 1]
+
+        x_start = [line.xy[0][0] for line in csf_lines]
+        x_end = [line.xy[0][1] for line in csf_lines]
+        y_start = [line.xy[1][0] for line in csf_lines]
+        y_end = [line.xy[1][1] for line in csf_lines]
+
+        ds_csf = xr.Dataset(
+            data_vars=dict(emission_rate=(['csf_line'], Q_lines),
+                           x_start=(['csf_line'], x_start),
+                           x_end=(['csf_line'], x_end),
+                           y_start=(['csf_line'], y_start),
+                           y_end=(['csf_line'], y_end),
+                           x_center=('ceter_line', x_center),
+                           y_center=('ceter_line', y_center),
+                           ),
+        )
+
+        ds_csf['emission_rate'].attrs['description'] = 'emission rate at each csf line'
+        ds_csf['emission_rate'].attrs['units'] = 'kg h-1'
+
+        ds_csf['x_start'].attrs['description'] = 'start coord (x) of csf line'
+        ds_csf['x_start'].attrs['units'] = 'm'
+        ds_csf['x_end'].attrs['description'] = 'end coord (x) of csf line'
+        ds_csf['x_end'].attrs['units'] = 'm'
+
+        ds_csf['y_start'].attrs['description'] = 'start coord (y) of csf line'
+        ds_csf['y_start'].attrs['units'] = 'm'
+        ds_csf['y_end'].attrs['description'] = 'end coord (y) of csf line'
+        ds_csf['y_end'].attrs['units'] = 'm'
+
+        ds_csf['x_center'].attrs['description'] = 'x coord of center line'
+        ds_csf['x_center'].attrs['units'] = 'm'
+        ds_csf['y_center'].attrs['description'] = 'y coord of center line'
+        ds_csf['y_center'].attrs['units'] = 'm'
+
+        if self.crs is not None:
+            ds_csf.rio.write_crs(self.crs, inplace=True)
+
+        return ds_csf
+
+    def csf(self, npixel_interval=2.5):
+        """Calculate the emission rate (kg/h) using CSF method
+        Args:
+            npixel_interval: interval of CSF lines (unit: n*pixel_res)
+        """
+        LOG.info('Calculating CSF')
+        # set the plume centerline and CSF lines
+        center_curve, csf_lines = self._def_csf_lines(npixel_interval)
+
+        # calculate the emission rate at each CSF line
+        Q_lines = self._emiss_csf_lines(csf_lines)
+        ds_csf = self._csf_dataset(center_curve, csf_lines, Q_lines)
+
+        # calculate the mean emission rate
+        Q = np.nanmean(Q_lines)
+
+        # calculate the uncertainty
+        Q_err = np.nanstd(Q_lines)
+
+        return ds_csf, Q, Q_err
+
     def ime(self):
         """Calculate the emission rate (kg/h) using IME method
 
@@ -279,29 +507,26 @@ class IME_CSF():
         # read file and pick valid data
         file_original = self.plume_nc_filename.replace('L3', 'L2').replace(f'_{self.plume_name}.nc', '.nc')
         ds_original = xr.open_dataset(file_original)
-        ds = xr.open_dataset(self.plume_nc_filename)
-
-        # get the masked plume data
-        gas_mask = ds.dropna(dim='y', how='all').dropna(dim='x', how='all')[self.gas]
+        ds = self.ds
 
         # area of pixel in m2
         self.area = self.pixel_res*self.pixel_res
 
         # calculate Leff using the root method in meter
-        plume_pixel_num = (~gas_mask.isnull()).sum()
+        plume_pixel_num = (~self.gas_mask.isnull()).sum()
         l_eff = np.sqrt(plume_pixel_num * self.area).item()
 
         # calculate IME (kg)
         LOG.info('Calculating IME')
         self.sp = ds['sp'].mean().item()  # use the mean surface pressure (Pa)
-        unit = gas_mask.attrs['units']
+        unit = self.gas_mask.attrs['units']
 
         if unit == 'ppb':
-            delta_omega = gas_mask * 1.0e-9 * (mass[self.gas] / mass_dry_air) * self.sp / grav
+            delta_omega = self.gas_mask * 1.0e-9 * (mass[self.gas] / mass_dry_air) * self.sp / grav
         elif unit == 'ppm':
-            delta_omega = gas_mask * 1.0e-6 * (mass[self.gas] / mass_dry_air) * self.sp / grav
+            delta_omega = self.gas_mask * 1.0e-6 * (mass[self.gas] / mass_dry_air) * self.sp / grav
         elif unit == 'ppm m':
-            delta_omega = gas_mask * (1/1e6) * (1000) * (1/molar_volume) * mass[self.gas]
+            delta_omega = self.gas_mask * (1/1e6) * (1000) * (1/molar_volume) * mass[self.gas]
         else:
             raise ValueError(f"Unit '{unit}' is not supported yet. Please add it here.")
 
@@ -358,6 +583,8 @@ class IME_CSF():
 
         ds.close()
         ds_original.close()
+        del ds, ds_original
+        gc.collect()
 
         return self.wspd, wdir, wspd_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q*3600, Q_err*3600, \
             err_random*3600, err_wind*3600, err_calib*3600  # kg/h
@@ -371,19 +598,12 @@ class IME_CSF():
             err_ime: ime/r error (kg/h)
             err_wind: wind error (kg/h)
         """
-        # read file and pick valid data
-        LOG.info('Reading data')
-        ds = xr.open_dataset(self.plume_nc_filename)
-
-        # get the masked plume data
-        gas_mask = ds.dropna(dim='y', how='all').dropna(dim='x', how='all')[self.gas]
-
         # create mask centered on source point
         LOG.info('Calculating the index of source loc')
         y_target, x_target = self._get_index_nearest(
-            gas_mask['longitude'], gas_mask['latitude'], self.longitude_source, self.latitude_source)
+            self.gas_mask['longitude'], self.gas_mask['latitude'], self.longitude_source, self.latitude_source)
 
-        mask = np.zeros(gas_mask.shape)
+        mask = np.zeros(self.gas_mask.shape)
         mask[y_target, x_target] = 1
 
         # calculate plume height, width, and diagonal
@@ -402,7 +622,7 @@ class IME_CSF():
                                               center=(x_target, y_target),
                                               radius=r)
 
-            IME = self._ime_radius(gas_mask, mask)
+            IME = self._ime_radius(self.gas_mask, mask)
             ime.append(IME)
 
             # no new plume pixels anymore
@@ -427,7 +647,5 @@ class IME_CSF():
 
         # sum error
         Q_err = np.sqrt(err_ime**2 + err_wind**2)
-
-        ds.close()
 
         return Q*3600, Q_err*3600, err_ime*3600, err_wind*3600  # kg/h
