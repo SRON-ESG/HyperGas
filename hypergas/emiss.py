@@ -169,7 +169,7 @@ class Emiss():
         # calculate emission rates
         wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q, Q_err, \
             err_random, err_wind, err_calib, Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch, \
-            ds_csf, Q_csf, Q_csf_err = ime_csf.calc_emiss()
+            ds_csf, Q_csf, Q_csf_err, l_csf = ime_csf.calc_emiss()
 
         # export csf data
         csf_filename = self.plume_nc_filename.replace('.nc', '_csf.nc')
@@ -230,6 +230,7 @@ class Emiss():
                    'emission_fetch_uncertainty_wind': err_wind_fetch,
                    'emission_csf': Q_csf,
                    'emission_csf_uncertainty': Q_csf_err,
+                   'l_csf': l_csf,
                    'wind_speed': wind_speed,
                    'wind_direction': wdir,
                    'wind_source': self.wind_source,

@@ -138,10 +138,10 @@ class IME_CSF():
         wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q, Q_err, \
             err_random, err_wind, err_calib = self.ime()
         Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch = self.ime_fetch()
-        ds_csf, Q_csf, Q_csf_err = self.csf()
+        ds_csf, Q_csf, Q_csf_err, l_csf = self.csf()
 
         return wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q, Q_err, \
-            err_random, err_wind, err_calib, Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch, ds_csf, Q_csf, Q_csf_err
+            err_random, err_wind, err_calib, Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch, ds_csf, Q_csf, Q_csf_err, l_csf
 
     def _create_circular_mask(self, h, w, center=None, radius=None):
         """Create circle mask by radius and center"""
@@ -474,6 +474,7 @@ class IME_CSF():
         LOG.info('Calculating CSF')
         # set the plume centerline and CSF lines
         center_curve, csf_lines = self._def_csf_lines(npixel_interval)
+        l_csf = LineString(center_curve).length
 
         # calculate the emission rate at each CSF line
         Q_lines = self._emiss_csf_lines(csf_lines)
@@ -485,7 +486,7 @@ class IME_CSF():
         # calculate the uncertainty
         Q_err = np.nanstd(Q_lines)
 
-        return ds_csf, Q, Q_err
+        return ds_csf, Q, Q_err, l_csf
 
     def ime(self):
         """Calculate the emission rate (kg/h) using IME method
