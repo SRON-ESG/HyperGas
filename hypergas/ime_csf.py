@@ -43,8 +43,8 @@ instrument data
 '''
 emit_info = {
     'platform': 'EMIT', 'instrument': 'emi', 'provider': 'NASA-JPL', 'pixel_res': 60,
-    'alpha_area': {'alpha1': 0., 'alpha2': 0.67, 'alpha3': 0.45},
-    'alpha_point': {'alpha1': 0., 'alpha2': 0.28, 'alpha3': 0.49},
+    'alpha_area': {'alpha1': 0., 'alpha2': 0.63, 'alpha3': 0.47},
+    'alpha_point': {'alpha1': 0., 'alpha2': 0.28, 'alpha3': 0.48},
     'beta_area': {'beta1': 1.14, 'beta2': 0},
     'beta_point': {'beta1': 1.17, 'beta2': 0},
 }
@@ -364,7 +364,7 @@ class IME_CSF():
         t = t.astype('float')
 
         # get the centerline
-        center_curve = np.vstack((curve(t=t)[0], curve(t=t)[1])).T
+        center_curve = np.vstack((curve(t=t)[0], curve(t=t)[1])).T.astype('float')
 
         # get the csf line
         length = yp.max() - yp.min()
