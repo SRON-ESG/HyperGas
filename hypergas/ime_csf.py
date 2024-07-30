@@ -43,25 +43,25 @@ instrument data
 '''
 emit_info = {
     'platform': 'EMIT', 'instrument': 'emi', 'provider': 'NASA-JPL', 'pixel_res': 60,
-    'alpha_area': {'alpha1': 0., 'alpha2': 0.63, 'alpha3': 0.47},
-    'alpha_point': {'alpha1': 0., 'alpha2': 0.28, 'alpha3': 0.48},
-    'beta_area': {'beta1': 1.14, 'beta2': 0},
-    'beta_point': {'beta1': 1.17, 'beta2': 0},
+    'alpha_area': {'alpha1': 0., 'alpha2': 0.67, 'alpha3': 0.45},
+    'alpha_point': {'alpha1': 0., 'alpha2': 0.28, 'alpha3': 0.49},
+    'beta_area': {'beta1': 1.13, 'beta2': 0},
+    'beta_point': {'beta1': 1.13, 'beta2': 0},
 }
 
 enmap_info = {
     'platform': 'EnMAP', 'instrument': 'hsi', 'provider': 'DLR', 'pixel_res': 30,
     'alpha_area': {'alpha1': 0., 'alpha2': 0.69, 'alpha3': 0.37},
     'alpha_point': {'alpha1': 0., 'alpha2': 0.43, 'alpha3': 0.38},
-    'beta_area': {'beta1': 1.23, 'beta2': 0},
-    'beta_point': {'beta1': 1.18, 'beta2': 0},
+    'beta_area': {'beta1': 1.22, 'beta2': 0},
+    'beta_point': {'beta1': 1.14, 'beta2': 0},
 }
 prisma_info = {
     'platform': 'PRISMA', 'instrument': 'hsi', 'provider': 'ASI', 'pixel_res': 30,
     'alpha_area': {'alpha1': 0., 'alpha2': 0.70, 'alpha3': 0.37},
     'alpha_point': {'alpha1': 0., 'alpha2': 0.42, 'alpha3': 0.39},
-    'beta_area': {'beta1': 1.23, 'beta2': 0},
-    'beta_point': {'beta1': 1.18, 'beta2': 0},
+    'beta_area': {'beta1': 1.22, 'beta2': 0},
+    'beta_point': {'beta1': 1.14, 'beta2': 0},
 }
 sensor_info = {'EMIT': emit_info, 'EnMAP': enmap_info, 'PRISMA': prisma_info}
 
