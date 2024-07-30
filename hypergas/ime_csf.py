@@ -43,25 +43,25 @@ instrument data
 '''
 emit_info = {
     'platform': 'EMIT', 'instrument': 'emi', 'provider': 'NASA-JPL', 'pixel_res': 60,
-    'alpha_area': {'alpha1': 0., 'alpha2': 0.67, 'alpha3': 0.45},
-    'alpha_point': {'alpha1': 0., 'alpha2': 0.28, 'alpha3': 0.49},
-    'beta_area': {'beta1': 1.13, 'beta2': 0},
-    'beta_point': {'beta1': 1.13, 'beta2': 0},
+    'alpha_area': {'alpha1': 0., 'alpha2': 0.67, 'alpha3': 0.45, 'resid': 0.053},
+    'alpha_point': {'alpha1': 0., 'alpha2': 0.28, 'alpha3': 0.49, 'resid': 0.033},
+    'beta_area': {'beta1': 1.13, 'beta2': 0, 'resid': -0.017},
+    'beta_point': {'beta1': 1.13, 'beta2': 0, 'resid': -0.042},
 }
 
 enmap_info = {
     'platform': 'EnMAP', 'instrument': 'hsi', 'provider': 'DLR', 'pixel_res': 30,
-    'alpha_area': {'alpha1': 0., 'alpha2': 0.69, 'alpha3': 0.37},
-    'alpha_point': {'alpha1': 0., 'alpha2': 0.43, 'alpha3': 0.38},
-    'beta_area': {'beta1': 1.22, 'beta2': 0},
-    'beta_point': {'beta1': 1.14, 'beta2': 0},
+    'alpha_area': {'alpha1': 0., 'alpha2': 0.69, 'alpha3': 0.37, 'resid': 0.034},
+    'alpha_point': {'alpha1': 0., 'alpha2': 0.43, 'alpha3': 0.38, 'resid': 0.014},
+    'beta_area': {'beta1': 1.22, 'beta2': 0, 'resid': -0.004},
+    'beta_point': {'beta1': 1.14, 'beta2': 0, 'resid': -0.025},
 }
 prisma_info = {
     'platform': 'PRISMA', 'instrument': 'hsi', 'provider': 'ASI', 'pixel_res': 30,
-    'alpha_area': {'alpha1': 0., 'alpha2': 0.70, 'alpha3': 0.37},
-    'alpha_point': {'alpha1': 0., 'alpha2': 0.42, 'alpha3': 0.39},
-    'beta_area': {'beta1': 1.22, 'beta2': 0},
-    'beta_point': {'beta1': 1.14, 'beta2': 0},
+    'alpha_area': {'alpha1': 0., 'alpha2': 0.70, 'alpha3': 0.37, 'resid': 0.035},
+    'alpha_point': {'alpha1': 0., 'alpha2': 0.42, 'alpha3': 0.39, 'resid': 0.014},
+    'beta_area': {'beta1': 1.22, 'beta2': 0, 'resid': -0.007},
+    'beta_point': {'beta1': 1.14, 'beta2': 0, 'resid': -0.022},
 }
 sensor_info = {'EMIT': emit_info, 'EnMAP': enmap_info, 'PRISMA': prisma_info}
 
@@ -126,12 +126,18 @@ class IME_CSF():
 
         if ipcc_sector == 'Solid Waste (6A)':
             self.alpha = self.info['alpha_area']
-            self.alpha_replace = self.info['alpha_point']
             self.beta = self.info['beta_area']
+            self.alpha_replace = self.info['alpha_point']
+            self.beta_replace = self.info['beta_point']
+            # set residual as zero as we will use the point-source calibration
+            self.alpha_replace['resid'] = 0
+            self.beta_replace['resid'] = 0
         else:
             self.alpha = self.info['alpha_point']
-            self.alpha_replace = self.info['alpha_area']
             self.beta = self.info['beta_point']
+            # use residual as uncertainty
+            self.alpha_replace = self.info['alpha_point']
+            self.beta_replace = self.info['beta_point']
 
     def calc_emiss(self):
         """Calculate emission rate (kg/h)"""
@@ -277,7 +283,7 @@ class IME_CSF():
         """Calculate wind calibration error by replacing alphas"""
         # Calculate Ueff
         u_eff_replace = self.alpha_replace['alpha1'] * \
-            np.log(self.wspd) + self.alpha_replace['alpha2'] + self.alpha_replace['alpha3'] * self.wspd
+            np.log(self.wspd) + self.alpha_replace['alpha2'] + self.alpha_replace['alpha3'] * self.wspd + self.alpha_replace['resid']
 
         # Calculate uncertainty
         error = abs(u_eff_replace - u_eff) * IME / l_eff
