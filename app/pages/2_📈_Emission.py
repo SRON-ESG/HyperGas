@@ -9,7 +9,6 @@
 
 import itertools
 import os
-import random
 import sys
 from glob import glob
 
@@ -18,9 +17,8 @@ import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 import xarray as xr
-from geopy.geocoders import Nominatim
 from hypergas.plume_utils import a_priori_mask_data
-from hypergas.ime_csf import IME_CSF
+from hypergas.emiss import Emiss
 
 sys.path.append('..')
 
@@ -125,6 +123,12 @@ with col3:
     if filename is not None:
         # --- print existed mask info --- #
         if 'plume' in os.path.basename(filename):
+            # show plume scientific image if it exists
+            filename_l3_png = filename.replace('.html', '.png')
+            if os.path.exists(filename_l3_png):
+                st.image(filename_l3_png, caption='IME and CSF results', width=800)
+
+            # show DataFrame
             file_mask_exist = glob(filename.replace('.html', '.csv'))
             csv_file = filename.replace('.html', '.csv')
             df = pd.read_csv(csv_file)
@@ -190,7 +194,7 @@ with col3:
 
                 dist_max = st.number_input('Maximum value of dilation distance (meter) \
                         \n (Please keep the default value, unless there are obvious false plume masks around)',
-                                                   value=params['dist_max'], format='%f')
+                                           value=params['dist_max'], format='%f')
 
                 only_plume = st.checkbox('Whether only plot plume',
                                          value=True,
@@ -348,47 +352,6 @@ with col3:
                    'Oil & Gas (1B2)', 'Livestock (4B)', 'Solid Waste (6A)', 'Other')
         ipcc_sector = st.selectbox('IPCC sector', sectors, index=sectors.index(params['ipcc_sector']))
 
-        # platform for csv output
-        platform_names = ('EnMAP', 'EMIT', 'PRISMA')
-
-        # check the platform by filename automatically
-        platform_default = 'EnMAP'
-        if filename is not None:
-            if 'ENMAP' in filename:
-                platform_default = 'EnMAP'
-            elif 'EMIT' in filename:
-                platform_default = 'EMIT'
-            elif 'PRS' in filename:
-                platform_default = 'PRISMA'
-
-        platform = st.selectbox('Platform', platform_names, index=platform_names.index(platform_default))
-
-        # set pixel resolution
-        if platform == 'EMIT':
-            instrument = 'emi'
-            provider = 'NASA-JPL'
-            pixel_res = 60  # meter
-            alpha_area = {'alpha1': 0., 'alpha2': 0.67, 'alpha3': 0.45}
-            alpha_point = {'alpha1': 0., 'alpha2': 0.28, 'alpha3': 0.49}
-        elif platform == 'EnMAP':
-            instrument = 'hsi'
-            provider = 'DLR'
-            pixel_res = 30  # meter
-            alpha_area = {'alpha1': 0., 'alpha2': 0.69, 'alpha3': 0.37}
-            alpha_point = {'alpha1': 0., 'alpha2': 0.43, 'alpha3': 0.38}
-        elif platform == 'PRISMA':
-            instrument = 'hsi'
-            provider = 'ASI'
-            pixel_res = 30  # meter
-            alpha_area = {'alpha1': 0., 'alpha2': 0.70, 'alpha3': 0.37}
-            alpha_point = {'alpha1': 0., 'alpha2': 0.42, 'alpha3': 0.39}
-
-        # input alphas for calculating U_eff
-        st.success('U_eff = alpha1 * np.log(wind_speed_average) + alpha2 + alpha3 * wind_speed_average', icon='🧮')
-        alpha1 = st.number_input('alpha1 for Ueff', value=params['alpha1'], format='%f')
-        alpha2 = st.number_input('alpha2 for Ueff', value=params['alpha2'], format='%f')
-        alpha3 = st.number_input('alpha3 for Ueff', value=params['alpha3'], format='%f')
-
         # whether only move mask around land pixels
         land_only = st.checkbox('Whether only considering land pixels',
                                 value=params['land_only'],
@@ -411,29 +374,59 @@ with col3:
                 # set output name
                 plume_nc_filename = filename.replace('.html', '.nc')
                 pick_plume_name = filename.split('_')[-1][:-5]
-                df = pd.read_csv(plume_nc_filename.replace('.nc', '.csv'))
+                filename_l3 = plume_nc_filename.replace('.nc', '.csv')
+                df = pd.read_csv(filename_l3)
                 longitude_source = df['plume_longitude']
                 latitude_source = df['plume_latitude']
 
                 # calculate emissions using the IME method with Ueff
                 gas = params['gas'].lower()
+                filename_l2b = ('_'.join(filename.split('_')[:-1])+'.nc').replace('L3', 'L2')
+                ds_l2b = xr.open_dataset(filename_l2b, decode_coords='all')
 
-                # init IME_CSF class
-                ime_csf = IME_CSF(sensor=platform,
-                                  longitude_source=longitude_source,
-                                  latitude_source=latitude_source,
-                                  plume_nc_filename=plume_nc_filename,
-                                  plume_name=pick_plume_name,
-                                  ipcc_sector=ipcc_sector,
-                                  gas=gas,
-                                  wind_source=wind_source,
-                                  wspd_manual=wind_speed,
-                                  land_only=land_only,
-                                  land_mask_source=land_mask_source)
+                # although it would be faster to run only estimation, using Emiss class is safe to ensure steps are as same as l3_process.py
+                # create Emiss class
+                emiss = Emiss(ds=ds_l2b, gas=gas, plume_name=pick_plume_name)
 
-                # calculate emission rates
-                wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q, Q_err,\
-                       err_random, err_wind, err_calib, Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch = ime_csf.calc_emiss()
+                # select connected mask data
+                emiss.mask_data(longitude_source, latitude_source,
+                                wind_source=wind_source,
+                                land_only=land_only,
+                                land_mask_source=land_mask_source,
+                                only_plume=True,
+                                azimuth_diff_max=azimuth_diff_max,
+                                dist_max=dist_max
+                                )
+
+                # calculate emission rate and export csv file
+                emiss.estimate(ipcc_sector, wspd_manual=wind_speed, land_only=land_only)
+                ds_l2b.close()
+
+                # read the new csv file and print key results
+                st.success(f'Results are exported to \n \n {filename_l3}')
+                df = pd.read_csv(filename_l3)
+
+                Q = df['emission'].item()
+                Q_err = df['emission_uncertainty'].item()
+                u_eff = df['ueff_ime'].item()
+                l_eff = df['leff_ime'].item()
+                IME = df['ime'].item()
+                err_random = df['emission_uncertainty_random'].item()
+                err_wind = df['emission_uncertainty_wind'].item()
+                err_calib = df['emission_uncertainty_calibration'].item()
+
+                Q_fetch = df['emission_fetch'].item()
+                Q_fetch_err = df['emission_fetch_uncertainty'].item()
+                err_wind_fetch = df['emission_fetch_uncertainty_wind'].item()
+                err_ime_fetch = df['emission_fetch_uncertainty_ime'].item()
+
+                Q_csf = df['emission_csf'].item()
+                Q_csf_err = df['emission_csf_uncertainty'].item()
+                u_eff_csf = df['ueff_csf'].item()
+                l_csf = df['l_csf'].item()
+                err_random_csf = df['emission_csf_uncertainty_random'].item()
+                err_wind_csf = df['emission_csf_uncertainty_wind'].item()
+                err_calib_csf = df['emission_csf_uncertainty_calibration'].item()
 
                 # print the emission data
                 st.warning(f'''**IME (Ueff):**
@@ -454,71 +447,13 @@ with col3:
                                err_ime: {err_ime_fetch:.2f} kg/h,
                                ]
                            ''', icon="🔥")
-
-                # calculate plume bounds
-                with xr.open_dataset(plume_nc_filename) as ds:
-                    plume_mask = ~ds[gas].isnull()
-                    lon_mask = ds['longitude'].where(plume_mask, drop=True)
-                    lat_mask = ds['latitude'].where(plume_mask, drop=True)
-                    t_overpass = pd.to_datetime(ds[gas].attrs['start_time'])
-
-                bounds = [lon_mask.min().item(), lat_mask.min().item(),
-                          lon_mask.max().item(), lat_mask.max().item()]
-
-                # get the location attrs
-                try:
-                    geolocator = Nominatim(user_agent='hyper'+str(random.randint(1, 100)))
-                    location = geolocator.reverse(f'{latitude_source}, {longitude_source}', exactly_one=True, language='en')
-                    address = location.raw['address']
-                except Exception as e:
-                    st.warning('Can not access openstreetmap. Leave location info to empty.')
-                    address = {}
-
-                # save ime results
-                ime_results = {'plume_id': f"{instrument}-{t_overpass.strftime('%Y%m%dt%H%M%S')}-{pick_plume_name}",
-                               'plume_latitude': latitude_source,
-                               'plume_longitude': longitude_source,
-                               'datetime': t_overpass.strftime('%Y-%m-%dT%H:%M:%S%z'),
-                               'country': address.get('country', ''),
-                               'state': address.get('state', ''),
-                               'city': address.get('city', ''),
-                               'name': name,
-                               'ipcc_sector': ipcc_sector,
-                               'gas': gas.upper(),
-                               'cmf_type': 'mf',
-                               'plume_bounds': [bounds],
-                               'instrument': instrument,
-                               'platform': platform,
-                               'provider': provider,
-                               'emission': Q,
-                               'emission_uncertainty': Q_err,
-                               'emission_uncertainty_random': err_random,
-                               'emission_uncertainty_wind': err_wind,
-                               'emission_uncertainty_calibration': err_calib,
-                               'emission_fetch': Q_fetch,
-                               'emission_fetch_uncertainty': Q_fetch_err,
-                               'emission_fetch_uncertainty_ime': err_ime_fetch,
-                               'emission_fetch_uncertainty_wind': err_wind_fetch,
-                               'wind_speed': wind_speed,
-                               'wind_direction': wdir,
-                               'wind_source': wind_source,
-                               'ime': IME,
-                               'ueff_ime': u_eff,
-                               'leff_ime': l_eff,
-                               'alpha1': alpha1,
-                               'alpha2': alpha2,
-                               'alpha3': alpha3,
-                               'wind_speed_all': [wind_speed_all],
-                               'wind_direction_all': [wdir_all],
-                               'wind_source_all': [wind_source_all],
-                               'azimuth_diff_max': azimuth_diff_max,
-                               'dist_max': dist_max,
-                               'land_only': land_only,
-                               'land_mask_source': land_mask_source,
-                               }
-
-                # convert to DataFrame and export data as csv file
-                df = pd.DataFrame(data=ime_results, index=[0])
-                savename = plume_nc_filename.replace('.nc', '.csv')
-                df.to_csv(savename, index=False)
-                st.success(f'Results are exported to \n \n {savename}')
+                st.warning(f'''**CSF (Ueff):**
+                               The {gas.upper()} emission rate is {Q_csf:.2f} kg/h $\pm$ {Q_csf_err/Q_csf*100:.2f}% ({Q_csf_err:.2f} kg/h).
+                               [
+                               U$_{{eff}}$: {u_eff_csf:.2f} m/s,
+                               L: {l_csf:.2f} m,
+                               err_random: {err_random_csf:.2f} kg/h,
+                               err_wind: {err_wind_csf:.2f} kg/h,
+                               err_calibration: {err_calib_csf:.2f} kg/h,
+                               ]
+                           ''', icon="🔥")
