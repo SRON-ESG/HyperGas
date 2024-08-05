@@ -318,7 +318,7 @@ class Hyper():
 
     def retrieve(self, wvl_intervals=None, species='ch4',
                  algo='smf', mode='column', rad_dist='normal',
-                 land_mask=True, land_mask_source='GSHHS',
+                 land_mask=True, land_mask_source='OSM',
                  cluster=False, plume_mask=None):
         """Retrieve trace gas enhancements
 
