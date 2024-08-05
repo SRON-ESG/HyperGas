@@ -110,6 +110,7 @@ def Land_mask(lons, lats, source='OSM'):
         raise ValueError(
             "Please input the correct land data source ('GSHHS' or 'Natural Earth'). {land_data} is not supported")
 
+    LOG.info(f'Creating land mask using {source} data (Done)')
     # save to DataArray
     segmentation = xr.DataArray(landmask, dims=['y', 'x'])
     segmentation.attrs['description'] = f'{source} land mask (0: ocean/lake, 1: land)'
