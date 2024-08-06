@@ -127,6 +127,13 @@ with col3:
             filename_l3_png = filename.replace('.html', '.png')
             if os.path.exists(filename_l3_png):
                 st.image(filename_l3_png, caption='IME and CSF results', width=800)
+                basename_l3_png = os.path.basename(filename_l3_png)
+                st.download_button(
+                    label=f'Download {basename_l3_png}',
+                    data=open(filename_l3_png, 'rb').read(),
+                    file_name=basename_l3_png,
+                    mime='image/png',
+                )
 
             # show DataFrame
             file_mask_exist = glob(filename.replace('.html', '.csv'))
