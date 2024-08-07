@@ -295,9 +295,15 @@ def plume_mask(ds, gas, lon_target, lat_target, plume_varname='comb_denoise',
 
 def plot_mask(filename, ds, gas, mask, lon_target, lat_target, pick_plume_name, only_plume=True):
     """Plot masked data"""
-    # get masked plume data
+    # read gas data
     da_gas = ds[gas]
-    da_gas_mask = da_gas.where(xr.DataArray(mask, dims=list(da_gas.dims)))
+
+    # get masked plume data
+    if mask.all():
+        da_gas_mask = da_gas
+    else:
+        da_gas_mask = da_gas.where(xr.DataArray(mask, dims=list(da_gas.dims)))
+
     ds[f'{gas}_plume'] = da_gas_mask
 
     if only_plume:
