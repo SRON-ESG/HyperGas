@@ -273,11 +273,11 @@ def main(skip_exist=True):
 
 if __name__ == '__main__':
     # root dir of hyper data
-    root_dir = '/data/xinz/EMIT_Protocol/case4_newcalib/'  # /home/xinz/Documents/githab/HyperCH4/test_data/test_coast/'#/data/xinz/EMIT_Protocol/case1_newcalib/'#/data/xinz/For_Jelte/Kazakhstan/'#/data/xinz/del_test/'#/data/xinz/For_Jelte/Kazakhstan/'#/data/xinz/Hyper_IMEO/Azerbaijan/EMIT/'#/data/xinz/Hyper_IMEO/Ukraine/4840_3639/'#/data/xinz/Hyper_IMEO/Azerbaijan/'#/data/xinz/control_release/'
+    root_dir = '/data/xinz/Hyper_TROPOMI_landfill/'
     lowest_dirs = get_dirs(root_dir)
 
     # whether skip dir which contains exported png file
-    skip_exist = False
+    skip_exist = True
 
     # whether plot CSF and IME-fetch results
     plot_csf = True
