@@ -167,9 +167,10 @@ class Emiss():
                           land_only=self.land_only, land_mask_source=self.land_mask_source)
 
         # calculate emission rates
-        wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q, Q_err, \
-            err_random, err_wind, err_calib, Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch, \
-            ds_csf, Q_csf, Q_csf_err, l_csf = ime_csf.calc_emiss()
+        wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, \
+            l_eff, u_eff, IME, Q, Q_err, err_random, err_wind, err_calib, \
+            Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch, \
+            ds_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf = ime_csf.calc_emiss()
 
         # export csf data
         csf_filename = self.plume_nc_filename.replace('.nc', '_csf.nc')
@@ -179,6 +180,7 @@ class Emiss():
         # get info
         info = ime_csf.info
         alpha = ime_csf.alpha
+        beta = ime_csf.beta
 
         # calculate plume bounds
         with xr.open_dataset(self.plume_nc_filename) as ds:
@@ -230,16 +232,22 @@ class Emiss():
                    'emission_fetch_uncertainty_wind': err_wind_fetch,
                    'emission_csf': Q_csf,
                    'emission_csf_uncertainty': Q_csf_err,
-                   'l_csf': l_csf,
+                   'emission_csf_uncertainty_random': err_random_csf,
+                   'emission_csf_uncertainty_wind': err_wind_csf,
+                   'emission_csf_uncertainty_calibration': err_calib_csf,
+                   'wind_source': self.wind_source,
                    'wind_speed': wind_speed,
                    'wind_direction': wdir,
-                   'wind_source': self.wind_source,
                    'ime': IME,
                    'ueff_ime': u_eff,
                    'leff_ime': l_eff,
+                   'ueff_csf': u_eff_csf,
+                   'l_csf': l_csf,
                    'alpha1': alpha['alpha1'],
                    'alpha2': alpha['alpha2'],
                    'alpha3': alpha['alpha3'],
+                   'beta1': beta['beta1'],
+                   'beta2': beta['beta2'],
                    'wind_speed_all': [wind_speed_all],
                    'wind_direction_all': [wdir_all],
                    'wind_source_all': [wind_source_all],

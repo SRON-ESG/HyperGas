@@ -16,6 +16,7 @@ import pyresample
 import xarray as xr
 from pyproj import Transformer
 from pyresample.geometry import SwathDefinition
+from scipy.stats.mstats import trimmed_std
 from shapely.geometry import LineString, Point
 from shapely.strtree import STRtree
 
@@ -114,6 +115,7 @@ class IME_CSF():
         self.pixel_res = self.info['pixel_res']
 
         self.ds = xr.open_dataset(self.plume_nc_filename, decode_coords='all')
+        self.unit = self.ds[self.gas].attrs['units']
 
         # get the crs
         if self.ds.rio.crs:
@@ -144,10 +146,11 @@ class IME_CSF():
         wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q, Q_err, \
             err_random, err_wind, err_calib = self.ime()
         Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch = self.ime_fetch()
-        ds_csf, Q_csf, Q_csf_err, l_csf = self.csf()
+        ds_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf = self.csf()
 
         return wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q, Q_err, \
-            err_random, err_wind, err_calib, Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch, ds_csf, Q_csf, Q_csf_err, l_csf
+            err_random, err_wind, err_calib, Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch, \
+            ds_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf
 
     def _create_circular_mask(self, h, w, center=None, radius=None):
         """Create circle mask by radius and center"""
@@ -165,23 +168,31 @@ class IME_CSF():
 
         return mask
 
-    def _ime_radius(self, da_gas, mask):
-        """Calculate IME (kg) inside the radius mask"""
-        gas_mask = da_gas.where(mask)
-        unit = gas_mask.attrs['units']
-
-        if unit == 'ppb':
-            delta_omega = gas_mask * 1.0e-9 * (mass[self.gas] / mass_dry_air) * self.sp / grav
-        elif unit == 'ppm':
-            delta_omega = gas_mask * 1.0e-6 * (mass[self.gas] / mass_dry_air) * self.sp / grav
-        elif unit == 'ppm m':
-            delta_omega = gas_mask * (1/1e6) * (1000) * (1/molar_volume) * mass[self.gas]
+    def _ime_sum(self, gas_mask):
+        """Calculate the total gas mass (kg) in plume mask"""
+        if self.unit == 'ppb':
+            delta_omega = gas_mask.sum().values * 1.0e-9 * (mass[self.gas] / mass_dry_air) * self.sp / grav
+        elif self.unit == 'ppm':
+            delta_omega = gas_mask.sum().values * 1.0e-6 * (mass[self.gas] / mass_dry_air) * self.sp / grav
+        elif self.unit == 'ppm m':
+            delta_omega = gas_mask.sum().values * (1/1e6) * (1000) * (1/molar_volume) * mass[self.gas]
         else:
-            raise ValueError(f"Unit '{unit}' is not supported yet. Please add it here.")
+            raise ValueError(f"Unit '{self.unit}' is not supported yet. Please add it here.")
 
-        IME = np.nansum(delta_omega * self.area)
+        return delta_omega * self.area
 
-        return IME
+    def _csf_sum(self, gas_mask):
+        """Cailculate the total gas mass (kg) along one CSF line"""
+        if self.unit == 'ppb':
+            delta_omega = gas_mask.sum().values * 1.0e-9 * (mass[self.gas] / mass_dry_air) * self.sp / grav
+        elif self.unit == 'ppm':
+            delta_omega = gas_mask.sum().values * 1.0e-6 * (mass[self.gas] / mass_dry_air) * self.sp / grav
+        elif self.unit == 'ppm m':
+            delta_omega = gas_mask.sum().values * (1/1e6) * (1000) * (1/molar_volume) * mass[self.gas]
+        else:
+            raise ValueError(f"Unit '{self.unit}' is not supported yet. Please add it here.")
+
+        return delta_omega * self.pixel_res
 
     def _get_index_nearest(self, lons, lats, lon_target, lat_target):
         # define the areas for data and source point
@@ -239,6 +250,29 @@ class IME_CSF():
 
         return wind_error
 
+    def _calc_wind_error_csf(self, C):
+        """Calculate wind error with random distribution"""
+        # Generate U10 distribution
+        #   uncertainty = 50%, if wspd <= 3 m/s
+        #   uncertainty = 1.5 m/s, if wspd > 3 m/s
+        if self.wspd <= 3:
+            sigma = self.wspd * 0.5
+        else:
+            sigma = 1.5
+
+        wspd_distribution = np.random.normal(self.wspd, sigma, size=1000)
+
+        # Calculate Ueff distribution
+        u_eff_distribution = self.beta['beta1'] * wspd_distribution + self.beta['beta2']
+
+        # Calculate Q distribution
+        Q_distribution = u_eff_distribution * C
+
+        # Calculate standard deviation of Q distribution
+        wind_error = np.nanstd(Q_distribution)
+
+        return wind_error
+
     def _calc_random_err(self, da_gas, gas_mask):
         """Calculate random error by moving plume around the whole scene"""
         # crop gas field to valid region
@@ -250,31 +284,54 @@ class IME_CSF():
 
         # Insert plume mask data at a random position
         IME_noplume = []
+        self.ch4_bkgds = []
 
-        while len(IME_noplume) <= 500:
+        LOG.info('Moving plume around the scene for valid background masks')
+        while len(IME_noplume) <= 100:
             # Generate random row and column index to place b inside a
-            row_idx = np.random.randint(0, bkgd_rows - mask_rows)
-            col_idx = np.random.randint(0, bkgd_cols - mask_cols)
+            y_move_pixel = bkgd_rows - mask_rows
+            x_move_pixel = bkgd_cols - mask_cols
+            y_shift = np.random.randint(-y_move_pixel, y_move_pixel)
+            x_shift = np.random.randint(-x_move_pixel, x_move_pixel)
 
-            if not np.any(da_gas[row_idx:row_idx+mask_rows, col_idx:col_idx+mask_cols].isnull()):
-                gas_bkgd_mask = xr.zeros_like(da_gas)
-                gas_bkgd_mask[row_idx:row_idx+mask_rows, col_idx:col_idx+mask_cols] = gas_mask_crop.values
-                gas_bkgd_mask = gas_bkgd_mask.fillna(0)
-                unit = da_gas.attrs['units']
-                if unit == 'ppb':
-                    IME_noplume.append(da_gas.where(gas_bkgd_mask, drop=True).sum().values *
-                                       1.0e-9 * (mass[self.gas] / mass_dry_air) * self.sp / grav * self.area)
-                elif unit == 'ppm':
-                    IME_noplume.append(da_gas.where(gas_bkgd_mask, drop=True).sum().values *
-                                       1.0e-6 * (mass[self.gas] / mass_dry_air) * self.sp / grav * self.area)
-                elif unit == 'ppm m':
-                    IME_noplume.append(da_gas.where(gas_bkgd_mask, drop=True).sum().values *
-                                       (1/1e6) * (1000) * (1/molar_volume) * mass[self.gas] * self.area)
-                else:
-                    raise ValueError(f"Unit '{unit}' is not supported yet. Please add it here.")
+            ch4_shift = gas_mask.shift(y=y_shift, x=x_shift)
+            ch4_shift_notnull = ch4_shift.notnull().values
 
-        std_value = np.array(IME_noplume).std()
-        del IME_noplume
+            # check if 1) the plume shape is not outside of scene 2) plume pixels are not included
+            n_valid_pixel = gas_mask.notnull().sum()
+            no_outside = ch4_shift.notnull().sum() == n_valid_pixel
+            no_plume = gas_mask.where(ch4_shift_notnull).isnull().all()
+
+            if no_outside and no_plume:
+                ch4_bkgd = da_gas.where(ch4_shift_notnull)
+                # 3) all valid value
+                if da_gas.notnull().where(ch4_shift_notnull, False).sum() == n_valid_pixel:
+                    self.ch4_bkgds.append(ch4_bkgd)
+                    IME_noplume.append(self._ime_sum(ch4_bkgd))
+
+        LOG.info('Moving plume around the scene for valid background masks (Done)')
+
+        std_value = trimmed_std(np.array(IME_noplume), (1e-3, 1e-3))
+        del IME_noplume, ch4_bkgd
+        gc.collect()
+
+        return std_value
+
+    def _calc_random_err_csf(self, C, u_eff, match_lists):
+        """Calculate random error by moving plume around the whole scene"""
+        C_noplume = []
+
+        for ch4_bkgd in self.ch4_bkgds:
+            ch4_bkgd_valid = ch4_bkgd.stack(z=("x", "y")).dropna(dim='z')
+            C_lines = []
+            for match_list in match_lists:
+                gas_match = ch4_bkgd_valid.isel(z=match_list)
+                C = self._csf_sum(gas_match)
+                C_lines.append(C)
+            C_noplume.append(np.array(C_lines).mean())
+
+        std_value = trimmed_std(np.array(C_noplume), (1e-3, 1e-3))
+        del C_noplume
         gc.collect()
 
         return std_value
@@ -283,10 +340,24 @@ class IME_CSF():
         """Calculate wind calibration error by replacing alphas"""
         # Calculate Ueff
         u_eff_replace = self.alpha_replace['alpha1'] * \
-            np.log(self.wspd) + self.alpha_replace['alpha2'] + self.alpha_replace['alpha3'] * self.wspd + self.alpha_replace['resid']
+            np.log(self.wspd) + self.alpha_replace['alpha2'] + \
+            self.alpha_replace['alpha3'] * self.wspd + self.alpha_replace['resid']
 
         # Calculate uncertainty
         error = abs(u_eff_replace - u_eff) * IME / l_eff
+
+        return error
+
+    def _calc_calibration_error_csf(self, C, u_eff):
+        """Calculate wind calibration error by replacing betas"""
+        # Calculate Ueff
+        u_eff_replace = self.beta_replace['beta1'] * self.wspd + self.beta_replace['beta2'] + self.beta_replace['resid']
+        if u_eff_replace == u_eff:
+            # In case betas are same for area and point sources
+            u_eff_replace = self.beta_replace['beta1'] * self.wspd + self.beta_replace['beta2'] + self.beta['resid']
+
+        # Calculate uncertainty
+        error = abs(u_eff_replace - u_eff) * C
 
         return error
 
@@ -373,7 +444,7 @@ class IME_CSF():
         center_curve = np.vstack((curve(t=t)[0], curve(t=t)[1])).T.astype('float')
 
         # get the csf line
-        length = yp.max() - yp.min()
+        length = (yp.max() - yp.min())*1.5  # make the CSF lines longer
         csf_lines = create_perpendiculars(LineString(center_curve), interval=interval, line_width=length)
 
         ds.close()
@@ -405,28 +476,21 @@ class IME_CSF():
 
         # calculate emission rate using intersected pixels
         Q_lines = []
-        unit = self.gas_valid.attrs['units']
+        match_lists = []
         u_eff = self.beta['beta1'] * self.wspd + self.beta['beta2']
 
         for line in csf_lines:
             match_list = check_intersections(spatial_index, gdf['polygon'], line)
 
             if len(match_list) > 0:
-                total_gas = self.gas_valid.isel(z=match_list).sum().values
-
-                if unit == 'ppb':
-                    C = total_gas * 1.0e-9 * (mass[self.gas] / mass_dry_air) * self.sp / grav * self.pixel_res
-                elif unit == 'ppm':
-                    C = total_gas * 1.0e-6 * (mass[self.gas] / mass_dry_air) * self.sp / grav * self.pixel_res
-                elif unit == 'ppm m':
-                    C = total_gas * (1/1e6) * (1000) * (1/molar_volume) * mass[self.gas] * self.pixel_res
-                else:
-                    raise ValueError(f"Unit '{unit}' is not supported yet. Please add it here.")
+                gas_match = self.gas_valid.isel(z=match_list)
+                C = self._csf_sum(gas_match)
                 Q_lines.append(C * u_eff)
+                match_lists.append(match_list)
             else:
                 Q_lines.append(np.nan)
 
-        return np.array(Q_lines)*3600
+        return C, u_eff, np.array(Q_lines), match_lists
 
     def _csf_dataset(self, center_curve, csf_lines, Q_lines):
         """Combine CSF info into one xarray Dataset"""
@@ -439,7 +503,7 @@ class IME_CSF():
         y_end = [line.xy[1][1] for line in csf_lines]
 
         ds_csf = xr.Dataset(
-            data_vars=dict(emission_rate=(['csf_line'], Q_lines),
+            data_vars=dict(emission_rate=(['csf_line'], Q_lines*3600),
                            x_start=(['csf_line'], x_start),
                            x_end=(['csf_line'], x_end),
                            y_start=(['csf_line'], y_start),
@@ -483,16 +547,31 @@ class IME_CSF():
         l_csf = LineString(center_curve).length
 
         # calculate the emission rate at each CSF line
-        Q_lines = self._emiss_csf_lines(csf_lines)
+        C, u_eff, Q_lines, match_lists = self._emiss_csf_lines(csf_lines)
         ds_csf = self._csf_dataset(center_curve, csf_lines, Q_lines)
 
         # calculate the mean emission rate
         Q = np.nanmean(Q_lines)
 
-        # calculate the uncertainty
-        Q_err = np.nanstd(Q_lines)
+        # ---- uncertainty ----
+        # 1. random
+        LOG.info('Calculating random error')
+        C_std = self._calc_random_err_csf(C, u_eff, match_lists)
+        err_random = u_eff * C_std
 
-        return ds_csf, Q, Q_err, l_csf
+        # 2. wind error
+        LOG.info('Calculating wind error')
+        err_wind = self._calc_wind_error_csf(C)
+
+        # 3. calibration error
+        LOG.info('Calculating calibration error')
+        err_calib = self._calc_calibration_error_csf(C, u_eff)
+
+        # sum error
+        Q_err = np.sqrt(err_random**2 + err_wind**2 + err_calib**2)
+
+        return ds_csf, l_csf, u_eff, Q*3600, Q_err*3600, \
+            err_random*3600, err_wind*3600, err_calib*3600  # kg/h
 
     def ime(self):
         """Calculate the emission rate (kg/h) using IME method
@@ -526,18 +605,8 @@ class IME_CSF():
         # calculate IME (kg)
         LOG.info('Calculating IME')
         self.sp = ds['sp'].mean().item()  # use the mean surface pressure (Pa)
-        unit = self.gas_mask.attrs['units']
 
-        if unit == 'ppb':
-            delta_omega = self.gas_mask * 1.0e-9 * (mass[self.gas] / mass_dry_air) * self.sp / grav
-        elif unit == 'ppm':
-            delta_omega = self.gas_mask * 1.0e-6 * (mass[self.gas] / mass_dry_air) * self.sp / grav
-        elif unit == 'ppm m':
-            delta_omega = self.gas_mask * (1/1e6) * (1000) * (1/molar_volume) * mass[self.gas]
-        else:
-            raise ValueError(f"Unit '{unit}' is not supported yet. Please add it here.")
-
-        IME = np.nansum(delta_omega * self.area)
+        IME = self._ime_sum(self.gas_mask)
 
         # get wind info
         LOG.info('Calculating wind info')
@@ -629,7 +698,9 @@ class IME_CSF():
                                               center=(x_target, y_target),
                                               radius=r)
 
-            IME = self._ime_radius(self.gas_mask, mask)
+            # Calculate IME (kg) inside the radius mask
+            gas_mask = self.gas_mask.where(mask)
+            IME = self._ime_sum(gas_mask)
             ime.append(IME)
 
             # no new plume pixels anymore
