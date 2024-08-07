@@ -15,6 +15,8 @@ git clone git@gitlab.sron.nl:esg/tropomi-l4/hsi/HyperGas.git
 Install all packages from the `environment.yml` file:
 
 ```bash
+conda config --add channels conda-forge
+conda config --set channel_priority strict
 conda env create -f environment.yml
 ```
 
