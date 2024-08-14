@@ -127,19 +127,13 @@ class IME_CSF():
         self.gas_mask = self.ds.dropna(dim='y', how='all').dropna(dim='x', how='all')[self.gas]
 
         if ipcc_sector == 'Solid Waste (6A)':
+            # area source
             self.alpha = self.info['alpha_area']
             self.beta = self.info['beta_area']
-            self.alpha_replace = self.info['alpha_point']
-            self.beta_replace = self.info['beta_point']
-            # set residual as zero as we will use the point-source calibration
-            self.alpha_replace['resid'] = 0
-            self.beta_replace['resid'] = 0
         else:
+            # point source
             self.alpha = self.info['alpha_point']
             self.beta = self.info['beta_point']
-            # use residual as uncertainty
-            self.alpha_replace = self.info['alpha_point']
-            self.beta_replace = self.info['beta_point']
 
     def calc_emiss(self):
         """Calculate emission rate (kg/h)"""
@@ -339,9 +333,9 @@ class IME_CSF():
     def _calc_calibration_error(self, IME, u_eff, l_eff):
         """Calculate wind calibration error by replacing alphas"""
         # Calculate Ueff
-        u_eff_replace = self.alpha_replace['alpha1'] * \
-            np.log(self.wspd) + self.alpha_replace['alpha2'] + \
-            self.alpha_replace['alpha3'] * self.wspd + self.alpha_replace['resid']
+        u_eff_replace = self.alpha['alpha1'] * \
+            np.log(self.wspd) + self.alpha['alpha2'] + \
+            self.alpha['alpha3'] * self.wspd + self.alpha['resid']
 
         # Calculate uncertainty
         error = abs(u_eff_replace - u_eff) * IME / l_eff
@@ -351,10 +345,7 @@ class IME_CSF():
     def _calc_calibration_error_csf(self, C, u_eff):
         """Calculate wind calibration error by replacing betas"""
         # Calculate Ueff
-        u_eff_replace = self.beta_replace['beta1'] * self.wspd + self.beta_replace['beta2'] + self.beta_replace['resid']
-        if u_eff_replace == u_eff:
-            # In case betas are same for area and point sources
-            u_eff_replace = self.beta_replace['beta1'] * self.wspd + self.beta_replace['beta2'] + self.beta['resid']
+        u_eff_replace = self.beta['beta1'] * self.wspd + self.beta['beta2'] + self.beta['resid']
 
         # Calculate uncertainty
         error = abs(u_eff_replace - u_eff) * C
