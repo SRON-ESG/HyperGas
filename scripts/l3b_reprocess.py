@@ -92,7 +92,7 @@ def reprocess_data(filename, wind_data):
         emiss.export_plume_nc()
 
         # calculate emission rate and export csv file
-        emiss.estimate(ipcc_sector, wspd_manual=None, land_only=land_only, name=name)
+        emiss.estimate(ipcc_sector, wspd_manual=wspd_manual, land_only=land_only, name=name)
 
         ds_l2b.close()
         del emiss, ds_l2b
@@ -157,7 +157,7 @@ if __name__ == '__main__':
     wind_data = 'auto'  # 'auto', 'ERA5', or 'GEOS-FP'
 
     # whether reprocess the NetCDF file
-    #   True: update the L3 NetCDF file and calculate emission rates
+    #   True: update the L3 NetCDF file, regenerate the html file, and calculate emission rates
     #   False: read the existed L3 NetCDF file to calculate emission rates
     reprocess_nc = True
 
