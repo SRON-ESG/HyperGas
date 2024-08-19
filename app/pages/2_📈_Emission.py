@@ -406,7 +406,7 @@ with col3:
                                 )
 
                 # calculate emission rate and export csv file
-                emiss.estimate(ipcc_sector, wspd_manual=wind_speed, land_only=land_only)
+                emiss.estimate(ipcc_sector, wspd_manual=wind_speed, land_only=land_only, name=name)
                 ds_l2b.close()
 
                 # read the new csv file and print key results
