@@ -64,7 +64,7 @@ with col2:
                                   for filepath in html_filepath_list]
 
         # join sublists into one list
-        html_filepath_list = list(itertools.chain(*html_filepath_list))
+        html_filepath_list = sorted(list(itertools.chain(*html_filepath_list)))
 
         # show basename in the selectbox
         filelist = [os.path.basename(file) for file in html_filepath_list]
