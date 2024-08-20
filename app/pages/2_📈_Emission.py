@@ -354,6 +354,10 @@ with col3:
         # sitename for csv export
         name = st.text_input('Sitename (any name you like)', value=params['name'])
 
+        # remove space at the end
+        if len(name) > 0:
+            name = name.strip()
+
         # ipcc sector name
         sectors = ('Electricity Generation (1A1)', 'Coal Mining (1B1a)',
                    'Oil & Gas (1B2)', 'Livestock (4B)', 'Solid Waste (6A)', 'Other')
