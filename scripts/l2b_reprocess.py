@@ -7,6 +7,7 @@
 # hypergas is a library to retrieve trace gases from hyperspectral satellite data
 """Regenerate L2B NetCDF products with L3 plume masks."""
 
+import re
 import logging
 import os
 from glob import glob
@@ -34,6 +35,7 @@ def reprocess_data(filename, prefix, species, land_mask_source, rad_dist):
     """Reprocess L2 by L3 plume masks"""
     # read all L3 nc data with same prefix
     l3_filelist = glob(prefix+'*nc')
+    l3_filelist = [file for file in l3_filelist if re.search(r'_plume\d+\.nc$', file)]
     ds = xr.open_mfdataset(l3_filelist,
                            concat_dim=[pd.Index(np.arange(len(l3_filelist)), name='plume_id')],
                            combine='nested',
@@ -62,11 +64,16 @@ def reprocess_data(filename, prefix, species, land_mask_source, rad_dist):
 
 def main():
     species = 'ch4'
-    rad_dist = 'lognormal'  # 'lognormal' or 'normal'
+    rad_dist = 'normal'  # 'lognormal' or 'normal'
     land_mask_source = 'OSM'  # 'OSM', 'GSHHS' or 'Natural Earth'
 
     # get the filname list
     filelist = list(chain(*[glob(os.path.join(data_dir, pattern), recursive=True) for pattern in PATTERNS]))
+
+    # only read plume NetCDF file
+    filelist = [file for file in filelist if re.search(r'_plume\d+\.nc$', file)]
+
+    # sort list
     filelist = list(sorted(filelist))
 
     if len(filelist) == 0:
