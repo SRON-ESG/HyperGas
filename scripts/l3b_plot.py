@@ -75,7 +75,7 @@ def get_cartopy_crs_from_epsg(epsg_code):
         raise ValueError(f'Expected a valid EPSG code. Got {epsg_code}.')
 
 
-def plot_data(filename, savename):
+def plot_data(filename, savename, plot_csf, plot_minimal):
     """Plot L3 data"""
     LOG.info(f'Plotting {filename}')
 
@@ -107,6 +107,14 @@ def plot_data(filename, savename):
     proj = ccrs.PlateCarree()
 
     fig = plt.figure(layout='compressed')
+
+    # only plot csf if CSF data is available
+    if plot_minimal:
+        plot_csf = False
+    elif (plot_csf) & ('emission_csf' in df.columns) & (df['emission_csf'].notnull().item()):
+        plot_csf = True
+    else:
+        plot_csf = False
 
     if plot_csf:
         ax = fig.add_subplot(121, projection=ccrs.PlateCarree())
@@ -177,33 +185,31 @@ def plot_data(filename, savename):
     wspd_era5 = np.sqrt(u_era5**2+v_era5**2).item()
     wspd_geosfp = np.sqrt(u_geosfp**2+v_geosfp**2).item()
 
-    # plot wind quivers
-    q_era5 = ax.quiver(lon_min+pad/10, lat_min+pad/3,
-                       u_era5, v_era5, transform=proj, color='w',
-                       )
-    q_geosfp = ax.quiver(lon_min+pad/10, lat_min+pad/10,
-                         u_geosfp, v_geosfp, transform=proj, color='w',
-                         )
+    if plot_minimal:
+        title = df['datetime'].item().replace('T', ' ') + '\n' \
+            + str(round(df['emission'].item()/1e3, 2)) + ' t/h $\pm$ ' \
+            + str(round(df['emission_uncertainty']/df['emission']*100, 2).item()) + '%'
+    else:
+        # plot wind quivers
+        q_era5 = ax.quiver(lon_min+pad/10, lat_min+pad/3,
+                           u_era5, v_era5, transform=proj, color='w',
+                           )
+        q_geosfp = ax.quiver(lon_min+pad/10, lat_min+pad/10,
+                             u_geosfp, v_geosfp, transform=proj, color='w',
+                             )
+        ax.text(lon_min+pad/4, lat_min+pad/4, f'{np.round(wspd_era5, 2)} m/s (ERA5)',
+                transform=proj, color='w', fontsize=10, weight='bold')
+        ax.text(lon_min+pad/4, lat_min+pad/9, f'{np.round(wspd_geosfp, 2)} m/s (GEOS-FP)',
+                transform=proj, color='w', fontsize=10, weight='bold')
 
-    ax.text(lon_min+pad/4, lat_min+pad/4, f'{np.round(wspd_era5, 2)} m/s (ERA5)',
-            transform=proj, color='w', fontsize=10, weight='bold')
-    ax.text(lon_min+pad/4, lat_min+pad/9, f'{np.round(wspd_geosfp, 2)} m/s (GEOS-FP)',
-            transform=proj, color='w', fontsize=10, weight='bold')
-
-    # # calculate wind max for wind arrow legend
-    # wspd_max = int(max(wspd_era5, wspd_geosfp))
-    # ax.quiverkey(q_era5, 0.8, 0.1, wspd_max, f'{wspd_max} m/s (ERA5)', fontproperties={'size': 8}, labelcolor='w')
-    # ax.quiverkey(q_geosfp, 0.8, 0, wspd_max, f'{wspd_max} m/s (GEOS-FP)', fontproperties={'size': 8}, labelcolor='w')
-
-    title = df['datetime'].item().replace('T', ' ') + '\n' \
-        + 'Lat: ' + str(df['plume_latitude'].round(4).item()) + ' Lon: ' + str(df['plume_longitude'].round(4).item()) + '\n' \
-        + str(round(df['emission'].item()/1e3, 2)) + ' t/h $\pm$ ' \
-        + str(round(df['emission_uncertainty']/df['emission']*100, 2).item()) + '%'
+        title = df['datetime'].item().replace('T', ' ') + '\n' \
+            + 'Lat: ' + str(df['plume_latitude'].round(4).item()) + ' Lon: ' + str(df['plume_longitude'].round(4).item()) + '\n' \
+            + str(round(df['emission'].item()/1e3, 2)) + ' t/h $\pm$ ' \
+            + str(round(df['emission_uncertainty']/df['emission']*100, 2).item()) + '%'
 
     # add name to title if exists
-    # if not df['name'].isnull().item():
-    #    title = df['name'].item() + '\n' + title
-    title = title
+    if not df['name'].isnull().item():
+        title = str(df['name'].item()) + '\n' + title
     ax.set_title(title, fontweight='bold')
 
     if plot_csf:
@@ -247,7 +253,7 @@ def plot_data(filename, savename):
     gc.collect()
 
 
-def main(skip_exist=True):
+def main(skip_exist=True, plot_csf=True, plot_minimal=False):
     # get the filname list
     filelist = list(chain(*[glob(os.path.join(data_dir, pattern), recursive=True) for pattern in PATTERNS]))
 
@@ -266,9 +272,9 @@ def main(skip_exist=True):
             if os.path.isfile(savename):
                 LOG.info(f'{savename} exists, skip ...')
             else:
-                plot_data(filename, savename)
+                plot_data(filename, savename, plot_csf, plot_minimal)
         else:
-            plot_data(filename, savename)
+            plot_data(filename, savename, plot_csf, plot_minimal)
 
 
 if __name__ == '__main__':
@@ -282,6 +288,9 @@ if __name__ == '__main__':
     # whether plot CSF and IME-fetch results
     plot_csf = True
 
+    # whether plot minimal image (only title (sitename+datetime+emission_rate) and plume)
+    plot_minimal = False
+
     for data_dir in lowest_dirs:
         LOG.info(f'Plotting data under {data_dir}')
-        main(skip_exist)
+        main(skip_exist, plot_csf, plot_minimal)
