@@ -147,8 +147,16 @@ class IME_CSF():
         """Calculate emission rate (kg/h)"""
         wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q, Q_err, \
             err_random, err_wind, err_calib = self.ime()
+
         Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch = self.ime_fetch()
-        ds_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf = self.csf()
+
+        if self.info['platform'] == 'PRISMA':
+            # not yet support CSF for PRISMA data
+            LOG.warning('Skip CSF as we do not support PRISMA data with 4326 projection yet.')
+            ds_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf = \
+                    None, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
+        else:
+            ds_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf = self.csf()
 
         return wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q, Q_err, \
             err_random, err_wind, err_calib, Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch, \
@@ -688,10 +696,10 @@ class IME_CSF():
         h = mask.shape[0]
         w = mask.shape[1]
         # r_max = np.sqrt(h**2+w**2)
-        r_max = 1e3  # limit to 1 km
+        r_max = int(2.5e3/self.pixel_res)  # limit to 2.5 km
 
         # calculate IME by increasing mask radius
-        LOG.info('Calculating IME at different radii')
+        LOG.info(f'Calculating IME at different radii with r_max={r_max} pixels')
         ime = []
         for r in np.arange(r_max):
             r += 1
@@ -707,12 +715,12 @@ class IME_CSF():
 
             # no new plume pixels anymore
             if mask.all():
-                LOG.info(f'Masking iteration stops at r = {r}')
+                LOG.info(f'Masking iteration stops at r = {r} pixel length')
                 break
 
         # calculate emission rate
         L = (np.arange(len(ime))+1) * self.pixel_res
-        ime_l_mean = np.mean(ime/L)
+        ime_l_mean = np.mean(ime)/np.mean(L)
         ime_l_std = np.std(ime/L)
         Q = (ime_l_mean * self.wspd).item()
 

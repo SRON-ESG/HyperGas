@@ -173,9 +173,10 @@ class Emiss():
             ds_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf = ime_csf.calc_emiss()
 
         # export csf data
-        csf_filename = self.plume_nc_filename.replace('.nc', '_csf.nc')
-        LOG.info(f'Exported CSF lines to {csf_filename}')
-        ds_csf.to_netcdf(csf_filename)
+        if ds_csf is not None:
+            csf_filename = self.plume_nc_filename.replace('.nc', '_csf.nc')
+            LOG.info(f'Exported CSF lines to {csf_filename}')
+            ds_csf.to_netcdf(csf_filename)
 
         # get info
         info = ime_csf.info
