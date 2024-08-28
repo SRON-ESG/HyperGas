@@ -701,8 +701,10 @@ class IME_CSF():
         # calculate IME by increasing mask radius
         LOG.info(f'Calculating IME at different radii with r_max={r_max} pixels')
         ime = []
-        for r in np.arange(r_max):
-            r += 1
+        r = 0
+        r_step = 1/4  # increase by 1/4 pixel size each step
+        while r < r_max:
+            r += r_step
             LOG.debug(f'IME {r} loop')
             mask = self._create_circular_mask(h, w,
                                               center=(x_target, y_target),
@@ -719,7 +721,7 @@ class IME_CSF():
                 break
 
         # calculate emission rate
-        L = (np.arange(len(ime))+1) * self.pixel_res
+        L = np.arange(0+r_step, r_max, r_step).mean()*self.pixel_res
         ime_l_mean = np.mean(ime)/np.mean(L)
         ime_l_std = np.std(ime/L)
         Q = (ime_l_mean * self.wspd).item()
