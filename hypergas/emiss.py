@@ -156,18 +156,19 @@ class Emiss():
         LOG.info(f'Exported to {self.plume_nc_filename}')
         ds_merge.to_netcdf(self.plume_nc_filename)
 
-    def estimate(self, ipcc_sector, wspd_manual=None, land_only=True, name=None):
+    def estimate(self, ipcc_sector, sp_manual=None, wspd_manual=None, land_only=True, name=None):
         """
         Calculate the gas emission rate
         """
         # init IME_CSF class
         ime_csf = IME_CSF(sensor=self.sensor, longitude_source=self.longitude, latitude_source=self.latitude,
                           plume_nc_filename=self.plume_nc_filename, plume_name=self.plume_name,
-                          ipcc_sector=ipcc_sector, gas=self.gas, wind_source=self.wind_source, wspd_manual=wspd_manual,
+                          ipcc_sector=ipcc_sector, gas=self.gas, wind_source=self.wind_source,
+                          sp_manual=sp_manual, wspd_manual=wspd_manual,
                           land_only=self.land_only, land_mask_source=self.land_mask_source)
 
         # calculate emission rates
-        wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, \
+        surface_pressure, wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, \
             l_eff, u_eff, IME, Q, Q_err, err_random, err_wind, err_calib, \
             Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch, \
             ds_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf = ime_csf.calc_emiss()
@@ -236,6 +237,7 @@ class Emiss():
                    'emission_csf_uncertainty_random': err_random_csf,
                    'emission_csf_uncertainty_wind': err_wind_csf,
                    'emission_csf_uncertainty_calibration': err_calib_csf,
+                   'surface_pressure': surface_pressure,
                    'wind_source': self.wind_source,
                    'wind_speed': wind_speed,
                    'wind_direction': wdir,

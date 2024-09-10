@@ -71,7 +71,8 @@ class IME_CSF():
     def __init__(self, sensor,
                  longitude_source, latitude_source,
                  plume_nc_filename, plume_name, ipcc_sector,
-                 gas='ch4', wind_source='ERA5', wspd_manual=None,
+                 gas='ch4', wind_source='ERA5',
+                 wspd_manual=None, sp_manual=None,
                  land_only=True, land_mask_source='OSM'):
         """Initialize IME_CSF.
 
@@ -94,8 +95,10 @@ class IME_CSF():
                 the trace gas name
             wind_source (str):
                 wind source name
-            wspd_manual (float):
-                Default: None (using the wspd from wind_source data)
+            wspd_manual (float:
+                Default: None (using the wspd from wind_source data), units: m/s
+            sp_manual (float):
+                Default: None (using the surface pressure from wind_source data), units: Pa
             land_only (boolean):
                 whether only considering land pixels
             land_mask_source:
@@ -108,6 +111,7 @@ class IME_CSF():
         self.plume_name = plume_name
         self.wind_source = wind_source
         self.wspd_manual = wspd_manual
+        self.sp_manual = sp_manual
         self.land_only = land_only
         self.land_mask_source = land_mask_source
 
@@ -145,7 +149,7 @@ class IME_CSF():
 
     def calc_emiss(self):
         """Calculate emission rate (kg/h)"""
-        wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q, Q_err, \
+        surface_pressure, wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q, Q_err, \
             err_random, err_wind, err_calib = self.ime()
 
         Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch = self.ime_fetch()
@@ -158,7 +162,7 @@ class IME_CSF():
         else:
             ds_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf = self.csf()
 
-        return wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q, Q_err, \
+        return surface_pressure, wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q, Q_err, \
             err_random, err_wind, err_calib, Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch, \
             ds_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf
 
@@ -614,7 +618,11 @@ class IME_CSF():
 
         # calculate IME (kg)
         LOG.info('Calculating IME')
-        self.sp = ds['sp'].mean().item()  # use the mean surface pressure (Pa)
+        if self.sp_manual is None:
+            self.sp = ds['sp'].mean().item()  # use the mean surface pressure (Pa)
+        else:
+            # overwrite the surface pressure
+            self.sp = self.sp_manual
 
         IME = self._ime_sum(self.gas_mask)
 
@@ -672,7 +680,7 @@ class IME_CSF():
         del ds, ds_original
         gc.collect()
 
-        return self.wspd, wdir, wspd_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q*3600, Q_err*3600, \
+        return self.sp, self.wspd, wdir, wspd_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q*3600, Q_err*3600, \
             err_random*3600, err_wind*3600, err_calib*3600  # kg/h
 
     def ime_fetch(self):

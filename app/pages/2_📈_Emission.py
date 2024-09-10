@@ -109,7 +109,8 @@ col3, col4 = st.columns([6, 3])
 
 # set default params which can be modified from the form
 params = {'gas': 'CH4',
-          'wind_source': None, 'land_mask_source': 'OSM', 'land_only': True, 'wind_speed': None,
+          'wind_source': None, 'land_mask_source': 'OSM', 'land_only': True,
+          'wind_speed': None, 'surface_pressure': None,
           'azimuth_diff_max': 30., 'dist_max': 180.,
           'alpha1': 0.0, 'alpha2': 0.81, 'alpha3': 0.38,
           'name': '', 'ipcc_sector': 'Solid Waste (6A)',
@@ -378,6 +379,10 @@ with col3:
         wind_speed = st.number_input(
             'Manual wspd [m/s] (please leave this as "None", if you use the reanalysis wind data)', value=None, format='%f')
 
+        # manual surface pressure
+        surface_pressure = st.number_input(
+            'Manual surface pressure [Pa] (please leave this as "None", if you use the reanalysis wind data)', value=None, format='%f')
+
         submitted = st.form_submit_button("Submit")
 
         if submitted:
@@ -410,7 +415,7 @@ with col3:
                                 )
 
                 # calculate emission rate and export csv file
-                emiss.estimate(ipcc_sector, wspd_manual=wind_speed, land_only=land_only, name=name)
+                emiss.estimate(ipcc_sector, wspd_manual=wind_speed, sp_manual=surface_pressure, land_only=land_only, name=name)
                 ds_l2b.close()
 
                 # read the new csv file and print key results
