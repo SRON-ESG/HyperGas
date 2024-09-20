@@ -173,7 +173,7 @@ def get_index_nearest(lons, lats, lon_target, lat_target):
     # get_neighbour_info() returns indices in the flattened lat/lon grid. Compute the 2D grid indices:
     y_target, x_target = np.unravel_index(index_array, area_source.shape)
 
-    return y_target, x_target
+    return y_target[0], x_target[0]
 
 
 def target_inside_mask(ds, gas_mask_varname, y_target, x_target, lon_target, lat_target):
@@ -544,6 +544,66 @@ def a_priori_mask_data(filename, ds, gas, lon_target, lat_target, pick_plume_nam
                                     pick_plume_name, only_plume=only_plume)
 
     return mask, lon_mask, lat_mask, lon_target, lat_target, plume_html_filename
+
+
+def cm_mask_data(ds, gas, lon_target, lat_target):
+    LOG.info('Creating the CM plume mask')
+
+    # get the y/x index of the source location
+    y_target, x_target = get_index_nearest(ds['longitude'], ds['latitude'], lon_target, lat_target)
+    pixel_res = int(abs(ds.coords['y'].diff(dim='y').mean(dim='y')))
+
+    # Step 1: Crop the data to 2.5 km around the origin
+    cropped_data = ds[gas].isel(
+        y=slice(y_target - 2500//pixel_res, y_target + 2500//pixel_res),
+        x=slice(x_target - 2500//pixel_res, x_target + 2500//pixel_res)
+    )
+
+    # Step 2: Set concentration threshold by 90th percent (1 km around)
+    crop_origin_y, crop_origin_x = get_index_nearest(cropped_data['longitude'],
+                                                     cropped_data['latitude'],
+                                                     lon_target,
+                                                     lat_target,
+                                                     )
+
+    small_crop = cropped_data.isel(
+        y=slice(crop_origin_y - 1000//pixel_res, crop_origin_y + 1000//pixel_res),
+        x=slice(crop_origin_x - 1000//pixel_res, crop_origin_x + 1000//pixel_res)
+    )
+    threshold = np.percentile(small_crop, 90)
+
+    # Create binary mask
+    mask = (cropped_data > threshold).astype(int)
+
+    # Step 3: Group connected pixels
+    labeled, num_features = ndimage.label(mask)
+
+    # Remove small clusters (less than 5 pixels)
+    for i in np.unique(labeled):
+        if np.sum(labeled == i) < 5:
+            labeled[labeled == i] = 0
+
+    # Step 4: Enforce proximity metric
+    x_coords, y_coords = np.meshgrid(
+        range(cropped_data.sizes['x']), range(cropped_data.sizes['y']))
+    distance = np.sqrt((y_coords-cropped_data.sizes['y']/2)**2 + (
+        x_coords-cropped_data.sizes['x']/2)**2)  # unit: pixel
+
+    for i in np.unique(labeled):
+        if np.min(distance[labeled == i]) > 15:
+            labeled[labeled == i] = 0
+
+    # Step 5: Create final binary mask
+    final_mask = (labeled > 0).astype(int)
+    final_mask = xr.DataArray(final_mask, dims=['y', 'x'], coords=[
+                              cropped_data.y, cropped_data.x])
+
+    # broadcast the plume mask
+    final_mask = final_mask.broadcast_like(ds[gas]).fillna(0)
+    final_mask = final_mask.rename('cm_mask')
+    final_mask.attrs['description'] = 'Carbon Mapper plume mask using v2 method'
+
+    return final_mask
 
 
 def create_circular_mask(h, w, center=None, radius=None):

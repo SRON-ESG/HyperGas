@@ -17,7 +17,7 @@ import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 import xarray as xr
-from hypergas.plume_utils import a_priori_mask_data
+from hypergas.plume_utils import a_priori_mask_data, cm_mask_data
 from hypergas.emiss import Emiss
 
 sys.path.append('..')
@@ -259,8 +259,13 @@ with col3:
                                                                                                                 pick_plume_name, wind_source,
                                                                                                                 land_only, land_mask_source, only_plume,
                                                                                                                 azimuth_diff_max, dist_max)
+                        cm_mask = cm_mask_data(ds, gas, longitude, latitude)
+
                         # mask data
                         gas_mask = ds[gas].where(mask)
+                        gas_cm_mask = ds[gas].where(cm_mask).rename(f'{gas}_cm')
+                        gas_cm_mask.attrs['description'] = gas_cm_mask.attrs['description'] + \
+                            ' masked by the Carbon Mapper v2 method'
 
                         # calculate mean wind and surface pressure in the plume if they are existed
                         if all(key in ds.keys() for key in ['u10', 'v10', 'sp']):
@@ -272,9 +277,9 @@ with col3:
                             u10.attrs = ds['u10'].attrs
                             v10.attrs = ds['v10'].attrs
                             sp.attrs = ds['sp'].attrs
-                            array_list = [gas_mask, u10, v10, sp]
+                            array_list = [gas_mask, gas_cm_mask, u10, v10, sp]
                         else:
-                            array_list = [gas_mask]
+                            array_list = [gas_mask, gas_cm_mask]
 
                         # save useful number for attrs
                         sza = ds[gas].attrs['sza']
@@ -415,7 +420,8 @@ with col3:
                                 )
 
                 # calculate emission rate and export csv file
-                emiss.estimate(ipcc_sector, wspd_manual=wind_speed, sp_manual=surface_pressure, land_only=land_only, name=name)
+                emiss.estimate(ipcc_sector, wspd_manual=wind_speed,
+                               sp_manual=surface_pressure, land_only=land_only, name=name)
                 ds_l2b.close()
 
                 # read the new csv file and print key results
@@ -430,6 +436,10 @@ with col3:
                 err_random = df['emission_uncertainty_random'].item()
                 err_wind = df['emission_uncertainty_wind'].item()
                 err_calib = df['emission_uncertainty_calibration'].item()
+
+                Q_cm = df['emission_cm'].item()
+                IME_cm = df['ime_cm'].item()
+                l_cm = df['l_cm'].item()
 
                 Q_fetch = df['emission_fetch'].item()
                 Q_fetch_err = df['emission_fetch_uncertainty'].item()
@@ -454,6 +464,13 @@ with col3:
                                err_random: {err_random:.2f} kg/h,
                                err_wind: {err_wind:.2f} kg/h,
                                err_calibration: {err_calib:.2f} kg/h,
+                               ]
+                           ''', icon="🔥")
+                st.warning(f'''**IME (Carbon Mapper v2):**
+                               The {gas.upper()} emission rate is {Q_cm:.2f} kg/h.
+                               [
+                               IME: {IME_cm:.2f} kg,
+                               L: {l_cm:.2f} m,
                                ]
                            ''', icon="🔥")
                 st.warning(f'''**IME-fetch (U10):**

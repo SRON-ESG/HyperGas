@@ -16,7 +16,7 @@ import xarray as xr
 from geopy.geocoders import Nominatim
 
 from hypergas.ime_csf import IME_CSF
-from hypergas.plume_utils import a_priori_mask_data
+from hypergas.plume_utils import a_priori_mask_data, cm_mask_data
 
 # set the logger level
 logging.basicConfig(level=logging.INFO,
@@ -103,12 +103,16 @@ class Emiss():
                                                                                          only_plume,
                                                                                          self.azimuth_diff_max, self.dist_max)
 
+        self.cm_mask = cm_mask_data(self.ds, self.gas, self.longitude, self.latitude)
+
     def export_plume_nc(self,):
         """
         Export plume data to L3 NetCDF file
         """
         # mask data
         gas_mask = self.ds[self.gas].where(self.mask)
+        gas_cm_mask = self.ds[self.gas].where(self.cm_mask).rename(f'{self.gas}_cm')
+        gas_cm_mask.attrs['description'] = gas_cm_mask.attrs['description'] + ' masked by the Carbon Mapper v2 method'
 
         # calculate mean wind and surface pressure in the plume if they are existed
         if all(key in self.ds.keys() for key in ['u10', 'v10', 'sp']):
@@ -120,9 +124,9 @@ class Emiss():
             u10.attrs = self.ds['u10'].attrs
             v10.attrs = self.ds['v10'].attrs
             sp.attrs = self.ds['sp'].attrs
-            array_list = [gas_mask, u10, v10, sp]
+            array_list = [gas_mask, gas_cm_mask, u10, v10, sp]
         else:
-            array_list = [gas_mask]
+            array_list = [gas_mask, gas_cm_mask]
 
         # save useful number for attrs
         sza = self.ds[self.gas].attrs['sza']
@@ -171,6 +175,7 @@ class Emiss():
         surface_pressure, wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, \
             l_eff, u_eff, IME, Q, Q_err, err_random, err_wind, err_calib, \
             Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch, \
+            IME_cm, l_cm, Q_cm, \
             ds_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf = ime_csf.calc_emiss()
 
         # export csf data
@@ -228,6 +233,7 @@ class Emiss():
                    'emission_uncertainty_random': err_random,
                    'emission_uncertainty_wind': err_wind,
                    'emission_uncertainty_calibration': err_calib,
+                   'emission_cm': Q_cm,
                    'emission_fetch': Q_fetch,
                    'emission_fetch_uncertainty': Q_fetch_err,
                    'emission_fetch_uncertainty_ime': err_ime_fetch,
@@ -244,6 +250,8 @@ class Emiss():
                    'ime': IME,
                    'ueff_ime': u_eff,
                    'leff_ime': l_eff,
+                   'ime_cm': IME_cm,
+                   'l_cm': l_cm,
                    'ueff_csf': u_eff_csf,
                    'l_csf': l_csf,
                    'alpha1': alpha['alpha1'],

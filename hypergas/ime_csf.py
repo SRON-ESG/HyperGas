@@ -19,6 +19,7 @@ from pyresample.geometry import SwathDefinition
 from scipy.stats.mstats import trimmed_std
 from shapely.geometry import LineString, Point
 from shapely.strtree import STRtree
+from scipy.spatial import ConvexHull
 
 from hypergas.ddeq_plumeline import Poly2D, compute_plume_coordinates
 from hypergas.landmask import Land_mask
@@ -157,14 +158,15 @@ class IME_CSF():
         if self.info['platform'] == 'PRISMA':
             # not yet support CSF for PRISMA data
             LOG.warning('Skip CSF as we do not support PRISMA data with 4326 projection yet.')
-            ds_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf = \
-                    None, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
+            IME_cm, l_cm, Q_cm, ds_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf = \
+                np.nan, np.nan, np.nan, None, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
         else:
             ds_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf = self.csf()
+            IME_cm, l_cm, Q_cm = self.ime_cm()
 
         return surface_pressure, wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q, Q_err, \
             err_random, err_wind, err_calib, Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch, \
-            ds_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf
+            IME_cm, l_cm, Q_cm, ds_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf
 
     def _create_circular_mask(self, h, w, center=None, radius=None):
         """Create circle mask by radius and center"""
@@ -181,6 +183,26 @@ class IME_CSF():
         mask = dist_from_center <= radius
 
         return mask
+
+    def _hull_length(self, mask, origin_y, origin_x):
+        """Create ConvexHull and calculate the hull length (units: m)
+
+        Args:
+            mask (DataArray): plume mask with y and x coords (units: m)
+            origin_y (float): source location (units: m) in ydim
+            origin_x (float): source location (units: m) in xdim
+        """
+        points = np.array([mask.x, mask.y]).T
+        hull = ConvexHull(points)
+
+        hull_points = points[hull.vertices]
+        distances = np.linalg.norm(
+            hull_points - np.array([origin_x, origin_y]), axis=1)
+        # max_loc = hull_points[np.argmax(distances)]
+
+        L = np.max(distances)
+
+        return L
 
     def _ime_sum(self, gas_mask):
         """Calculate the total gas mass (kg) in plume mask"""
@@ -221,7 +243,7 @@ class IME_CSF():
         # get_neighbour_info() returns indices in the flattened lat/lon grid. Compute the 2D grid indices:
         y_target, x_target = np.unravel_index(index_array, area_source.shape)
 
-        return y_target, x_target
+        return y_target[0], x_target[0]
 
     def _calc_wind_error(self, IME, l_eff):
         """Calculate wind error with random distribution"""
@@ -607,6 +629,7 @@ class IME_CSF():
         # read file and pick valid data
         file_original = self.plume_nc_filename.replace('L3', 'L2').replace(f'_{self.plume_name}.nc', '.nc')
         ds_original = xr.open_dataset(file_original)
+        self.ds_original = ds_original
         ds = self.ds
 
         # area of pixel in m2
@@ -682,6 +705,25 @@ class IME_CSF():
 
         return self.sp, self.wspd, wdir, wspd_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q*3600, Q_err*3600, \
             err_random*3600, err_wind*3600, err_calib*3600  # kg/h
+
+    def ime_cm(self):
+        # create mask centered on source point
+        y_target, x_target = self._get_index_nearest(
+            self.ds['longitude'], self.ds['latitude'], self.longitude_source, self.latitude_source)
+
+        # create convex hull of masks
+        mask_stacked = self.ds[f'{self.gas}_cm'].stack(z=['y', 'x']).dropna(dim='z')
+
+        # calculate the length of hull
+        L = self._hull_length(mask_stacked,
+                              self.ds_original.coords['y'].isel(y=y_target),
+                              self.ds_original.coords['x'].isel(x=x_target),
+                              )
+
+        IME = self._ime_sum(self.ds[f'{self.gas}_cm'])
+        Q = (IME * self.wspd / L).item()
+
+        return IME, L, Q*3600
 
     def ime_fetch(self):
         """Calculate the emission rate (kg/h) using IME-fetch method
