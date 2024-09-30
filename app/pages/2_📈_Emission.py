@@ -432,6 +432,7 @@ with col3:
                 Q_err = df['emission_uncertainty'].item()
                 u_eff = df['ueff_ime'].item()
                 l_eff = df['leff_ime'].item()
+                l_ime = df['l_ime'].item()
                 IME = df['ime'].item()
                 err_random = df['emission_uncertainty_random'].item()
                 err_wind = df['emission_uncertainty_wind'].item()
@@ -460,6 +461,7 @@ with col3:
                                [
                                U$_{{eff}}$: {u_eff:.2f} m/s,
                                L$_{{eff}}$: {l_eff:.2f} m,
+                               L: {l_ime:.2f} m,
                                IME: {IME:.2f} kg,
                                err_random: {err_random:.2f} kg/h,
                                err_wind: {err_wind:.2f} kg/h,

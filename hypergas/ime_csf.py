@@ -16,10 +16,10 @@ import pyresample
 import xarray as xr
 from pyproj import Transformer
 from pyresample.geometry import SwathDefinition
+from scipy.spatial import ConvexHull
 from scipy.stats.mstats import trimmed_std
 from shapely.geometry import LineString, Point
 from shapely.strtree import STRtree
-from scipy.spatial import ConvexHull
 
 from hypergas.ddeq_plumeline import Poly2D, compute_plume_coordinates
 from hypergas.landmask import Land_mask
@@ -150,7 +150,7 @@ class IME_CSF():
 
     def calc_emiss(self):
         """Calculate emission rate (kg/h)"""
-        surface_pressure, wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q, Q_err, \
+        surface_pressure, wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, l_ime, l_eff, u_eff, IME, Q, Q_err, \
             err_random, err_wind, err_calib = self.ime()
 
         Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch = self.ime_fetch()
@@ -164,7 +164,7 @@ class IME_CSF():
             ds_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf = self.csf()
             IME_cm, l_cm, Q_cm = self.ime_cm()
 
-        return surface_pressure, wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q, Q_err, \
+        return surface_pressure, wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, l_ime, l_eff, u_eff, IME, Q, Q_err, \
             err_random, err_wind, err_calib, Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch, \
             IME_cm, l_cm, Q_cm, ds_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf
 
@@ -639,6 +639,17 @@ class IME_CSF():
         plume_pixel_num = (~self.gas_mask.isnull()).sum()
         l_eff = np.sqrt(plume_pixel_num * self.area).item()
 
+        # create stacked plume mask array with y/x dim in "npixel" units
+        y_target, x_target = self._get_index_nearest(
+            ds['longitude'], ds['latitude'], self.longitude_source, self.latitude_source)
+        mask_stacked_ime = ds[self.gas].assign_coords({'y': np.arange(ds.sizes['y']),
+                                                       'x': np.arange(ds.sizes['x']),
+                                                       }
+                                                      ).stack(z=['y', 'x']).dropna(dim='z')
+
+        # calculate the convexhull plume length (m)
+        l_ime = self._hull_length(mask_stacked_ime, y_target, x_target) * self.pixel_res
+
         # calculate IME (kg)
         LOG.info('Calculating IME')
         if self.sp_manual is None:
@@ -703,7 +714,7 @@ class IME_CSF():
         del ds, ds_original
         gc.collect()
 
-        return self.sp, self.wspd, wdir, wspd_all, wdir_all, wind_source_all, l_eff, u_eff, IME, Q*3600, Q_err*3600, \
+        return self.sp, self.wspd, wdir, wspd_all, wdir_all, wind_source_all, l_ime, l_eff, u_eff, IME, Q*3600, Q_err*3600, \
             err_random*3600, err_wind*3600, err_calib*3600  # kg/h
 
     def ime_cm(self):
