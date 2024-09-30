@@ -182,14 +182,14 @@ class Map():
                 vmin = 0
                 cmap_vmax = None
 
-                # remove background mask (0)
-                da_ortho = da_ortho.where(da_ortho>0)
-
                 # pick mask with more than 5 pixels
                 da_count = da_ortho.groupby(da_ortho).count()
                 da_count = da_count.where(da_count > 5).dropna(varname)
                 count_unique = da_count.coords[varname].values
                 da_ortho = da_ortho.where(np.isin(da_ortho, count_unique, 0))
+
+                # remove background mask (0)
+                da_ortho = da_ortho.where(da_ortho>0).squeeze()
             else:
                 # set vmax for species automatically
                 #   Note that vmax of radiance and denoised variables are set based on percentile values above
