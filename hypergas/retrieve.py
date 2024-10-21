@@ -228,7 +228,7 @@ class MatchedFilter():
 
         LOG.info('Applying matched filter ...')
         alpha = xr.apply_ufunc(self.col_matched_filter,
-                               self.radiance.transpose(..., 'bands'),
+                               self.radiance.transpose(..., 'bands').chunk(dict(bands=-1)),
                                self.segmentation,
                                self.plume_mask,
                                self.K,
