@@ -21,4 +21,6 @@ dependencies:
   - algotom
   - dem_stitcher
   - aiohttp
+  - tobac
+  - streamlit
   # - spacetrack  # pip install spacetrack
