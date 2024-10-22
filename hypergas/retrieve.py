@@ -228,7 +228,7 @@ class MatchedFilter():
 
         LOG.info('Applying matched filter ...')
         alpha = xr.apply_ufunc(self.col_matched_filter,
-                               self.radiance.transpose(..., 'bands').chunk(dict(bands=-1)),
+                               self.radiance.transpose(..., 'bands'),
                                self.segmentation,
                                self.plume_mask,
                                self.K,
@@ -240,7 +240,9 @@ class MatchedFilter():
                                output_dtypes=[self.radiance.dtype],
                                dask_gufunc_kwargs=dict(output_sizes={'y': self.radiance.sizes['y'],
                                                                      'bands': 1,
-                                                                     })
+                                                                     },
+                                                       allow_rechunk=True,
+                                                       )
                                )
 
         # set the dims order to the same as radiance
