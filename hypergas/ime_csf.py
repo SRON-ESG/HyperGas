@@ -724,17 +724,20 @@ class IME_CSF():
 
         # create convex hull of masks
         mask_stacked = self.ds[f'{self.gas}_cm'].stack(z=['y', 'x']).dropna(dim='z')
+        if mask_stacked.isnull().sizes['z'] == 0:
+            # no plume available
+            return np.nan, np.nan, np.nan
+        else:
+            # calculate the length of hull
+            L = self._hull_length(mask_stacked,
+                                  self.ds_original.coords['y'].isel(y=y_target),
+                                  self.ds_original.coords['x'].isel(x=x_target),
+                                  )
 
-        # calculate the length of hull
-        L = self._hull_length(mask_stacked,
-                              self.ds_original.coords['y'].isel(y=y_target),
-                              self.ds_original.coords['x'].isel(x=x_target),
-                              )
+            IME = self._ime_sum(self.ds[f'{self.gas}_cm'])
+            Q = (IME * self.wspd / L).item()
 
-        IME = self._ime_sum(self.ds[f'{self.gas}_cm'])
-        Q = (IME * self.wspd / L).item()
-
-        return IME, L, Q*3600
+            return IME, L, Q*3600
 
     def ime_fetch(self):
         """Calculate the emission rate (kg/h) using IME-fetch method

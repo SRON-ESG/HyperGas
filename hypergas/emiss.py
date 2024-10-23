@@ -103,7 +103,7 @@ class Emiss():
                                                                                          only_plume,
                                                                                          self.azimuth_diff_max, self.dist_max)
 
-        self.cm_mask = cm_mask_data(self.ds, self.gas, self.longitude, self.latitude)
+        self.cm_mask, self.cm_threshold = cm_mask_data(self.ds, self.gas, self.longitude, self.latitude)
 
     def export_plume_nc(self,):
         """
@@ -111,7 +111,10 @@ class Emiss():
         """
         # mask data
         gas_mask = self.ds[self.gas].where(self.mask)
-        gas_cm_mask = self.ds[self.gas].where(self.cm_mask).rename(f'{self.gas}_cm')
+        with xr.set_options(keep_attrs=True):
+            gas_cm_mask = self.ds[self.gas].where(self.cm_mask).rename(f'{self.gas}_cm')
+            # remove background
+            # gas_cm_mask -= self.cm_threshold
         gas_cm_mask.attrs['description'] = gas_cm_mask.attrs['description'] + ' masked by the Carbon Mapper v2 method'
 
         # calculate mean wind and surface pressure in the plume if they are existed

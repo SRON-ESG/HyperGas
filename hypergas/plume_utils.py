@@ -546,20 +546,28 @@ def a_priori_mask_data(filename, ds, gas, lon_target, lat_target, pick_plume_nam
     return mask, lon_mask, lat_mask, lon_target, lat_target, plume_html_filename
 
 
-def cm_mask_data(ds, gas, lon_target, lat_target):
+def cm_mask_data(ds, gas, lon_target, lat_target,
+                 data_crop_length=2500, limit_crop_length=1000, limit_percentile=90):
+    """Create plume mask using Carbon Mapper's method
+
+    Args:
+        data_crop_length (m): the length for cropping data
+        limit_crop_length (m): the length for calculating the plume enhancement threshold
+        limit_percentile (%): the percentile for the plume enhancement threshold
+    """
     LOG.info('Creating the CM plume mask')
 
     # get the y/x index of the source location
     y_target, x_target = get_index_nearest(ds['longitude'], ds['latitude'], lon_target, lat_target)
     pixel_res = int(abs(ds.coords['y'].diff(dim='y').mean(dim='y')))
 
-    # Step 1: Crop the data to 2.5 km around the origin
+    # Step 1: Crop the data to data_crop_length (m) around the origin
     cropped_data = ds[gas].isel(
-        y=slice(y_target - 2500//pixel_res, y_target + 2500//pixel_res),
-        x=slice(x_target - 2500//pixel_res, x_target + 2500//pixel_res)
+        y=slice(y_target - data_crop_length//pixel_res, y_target + data_crop_length//pixel_res),
+        x=slice(x_target - data_crop_length//pixel_res, x_target + data_crop_length//pixel_res)
     )
 
-    # Step 2: Set concentration threshold by 90th percent (1 km around)
+    # Step 2: Set concentration threshold by <limit_percentile> percent (<limit_crop_length> m around)
     crop_origin_y, crop_origin_x = get_index_nearest(cropped_data['longitude'],
                                                      cropped_data['latitude'],
                                                      lon_target,
@@ -567,10 +575,10 @@ def cm_mask_data(ds, gas, lon_target, lat_target):
                                                      )
 
     small_crop = cropped_data.isel(
-        y=slice(crop_origin_y - 1000//pixel_res, crop_origin_y + 1000//pixel_res),
-        x=slice(crop_origin_x - 1000//pixel_res, crop_origin_x + 1000//pixel_res)
+        y=slice(crop_origin_y - limit_crop_length//pixel_res, crop_origin_y + limit_crop_length//pixel_res),
+        x=slice(crop_origin_x - limit_crop_length//pixel_res, crop_origin_x + limit_crop_length//pixel_res)
     )
-    threshold = np.percentile(small_crop, 90)
+    threshold = np.nanpercentile(small_crop, limit_percentile).item()
 
     # Create binary mask
     mask = (cropped_data > threshold).astype(int)
@@ -584,10 +592,16 @@ def cm_mask_data(ds, gas, lon_target, lat_target):
             labeled[labeled == i] = 0
 
     # Step 4: Enforce proximity metric
-    x_coords, y_coords = np.meshgrid(
-        range(cropped_data.sizes['x']), range(cropped_data.sizes['y']))
-    distance = np.sqrt((y_coords-cropped_data.sizes['y']/2)**2 + (
-        x_coords-cropped_data.sizes['x']/2)**2)  # unit: pixel
+    correct_size = data_crop_length//pixel_res*2
+    if (cropped_data.sizes['y'] == correct_size) or (cropped_data.sizes['x'] == correct_size):
+        x_coords, y_coords = np.meshgrid(range(cropped_data.sizes['x']), range(cropped_data.sizes['y']))
+        distance = np.sqrt((y_coords-cropped_data.sizes['y']/2)**2 + (x_coords-cropped_data.sizes['x']/2)**2)  # unit: pixel
+    else:
+        # raise warning if some pixels are outside
+        LOG.warning(f'Some pixels are outside the {data_crop_length}m*{data_crop_length}m rectangle, swtiching to the method of calculating distance which only supports UTM projection.')
+        x_coords, y_coords = np.meshgrid(cropped_data.coords['x'], cropped_data.coords['y'])
+        distance = np.sqrt((y_coords-cropped_data.coords['y'].isel(y=y_target).values)**2 + (
+            x_coords-cropped_data.coords['x'].isel(x=x_target).values)**2) / pixel_res  # unit: pixel
 
     for i in np.unique(labeled):
         if np.min(distance[labeled == i]) > 15:
@@ -603,7 +617,7 @@ def cm_mask_data(ds, gas, lon_target, lat_target):
     final_mask = final_mask.rename('cm_mask')
     final_mask.attrs['description'] = 'Carbon Mapper plume mask using v2 method'
 
-    return final_mask
+    return final_mask, threshold
 
 
 def create_circular_mask(h, w, center=None, radius=None):
