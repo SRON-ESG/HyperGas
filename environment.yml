@@ -24,3 +24,4 @@ dependencies:
   - tobac
   - streamlit
   # - spacetrack  # pip install spacetrack
+  # - matplotlib-scalebar  # not necessary
