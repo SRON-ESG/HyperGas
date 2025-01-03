@@ -546,6 +546,31 @@ def a_priori_mask_data(filename, ds, gas, lon_target, lat_target, pick_plume_nam
     return mask, lon_mask, lat_mask, lon_target, lat_target, plume_html_filename
 
 
+def crop_to_valid_region(da, y_target, x_target, data_crop_length, pixel_res):
+    """Crop a DataArray around a target location to ensure a square result, centered on the target, 
+    and adjusted to fit within bounds if necessary.
+    """
+    crop_pixels = data_crop_length//pixel_res
+
+    y_len = da.sizes['y']
+    x_len = da.sizes['x']
+
+    ymin = max(0, y_target - crop_pixels)
+    xmin = max(0, x_target - crop_pixels)
+    ymax = min(y_len, y_target + crop_pixels)
+    xmax = min(x_len, x_target + crop_pixels)
+
+    crop_y = min(ymax - y_target, y_target - ymin)
+    crop_x = min(xmax - x_target, x_target - xmin)
+    crop_pixels = min(crop_y, crop_x)//2
+    ymin = y_target - crop_pixels
+    xmin = x_target - crop_pixels
+    ymax = y_target + crop_pixels
+    xmax = x_target + crop_pixels
+
+    return ymin, ymax, xmin, xmax
+
+
 def cm_mask_data(ds, gas, lon_target, lat_target,
                  data_crop_length=2500, limit_crop_length=1000, limit_percentile=90):
     """Create plume mask using Carbon Mapper's method
@@ -562,10 +587,9 @@ def cm_mask_data(ds, gas, lon_target, lat_target,
     pixel_res = int(abs(ds.coords['y'].diff(dim='y').mean(dim='y')))
 
     # Step 1: Crop the data to data_crop_length (m) around the origin
-    cropped_data = ds[gas].isel(
-        y=slice(y_target - data_crop_length//pixel_res, y_target + data_crop_length//pixel_res),
-        x=slice(x_target - data_crop_length//pixel_res, x_target + data_crop_length//pixel_res)
-    )
+    ymin, ymax, xmin, xmax = crop_to_valid_region(ds[gas], y_target, x_target, data_crop_length, pixel_res)
+    cropped_data = ds[gas].isel(y=slice(ymin, ymax), x=slice(xmin, xmax))
+    print(cropped_data)
 
     # Step 2: Set concentration threshold by <limit_percentile> percent (<limit_crop_length> m around)
     crop_origin_y, crop_origin_x = get_index_nearest(cropped_data['longitude'],
@@ -574,10 +598,9 @@ def cm_mask_data(ds, gas, lon_target, lat_target,
                                                      lat_target,
                                                      )
 
-    small_crop = cropped_data.isel(
-        y=slice(crop_origin_y - limit_crop_length//pixel_res, crop_origin_y + limit_crop_length//pixel_res),
-        x=slice(crop_origin_x - limit_crop_length//pixel_res, crop_origin_x + limit_crop_length//pixel_res)
-    )
+    ymin, ymax, xmin, xmax = crop_to_valid_region(cropped_data, crop_origin_y, crop_origin_x, limit_crop_length, pixel_res)
+    small_crop = cropped_data.isel(y=slice(ymin, ymax), x=slice(xmin, xmax))
+    print(small_crop)
     threshold = np.nanpercentile(small_crop, limit_percentile).item()
 
     # Create binary mask
@@ -592,16 +615,8 @@ def cm_mask_data(ds, gas, lon_target, lat_target,
             labeled[labeled == i] = 0
 
     # Step 4: Enforce proximity metric
-    correct_size = data_crop_length//pixel_res*2
-    if (cropped_data.sizes['y'] == correct_size) or (cropped_data.sizes['x'] == correct_size):
-        x_coords, y_coords = np.meshgrid(range(cropped_data.sizes['x']), range(cropped_data.sizes['y']))
-        distance = np.sqrt((y_coords-cropped_data.sizes['y']/2)**2 + (x_coords-cropped_data.sizes['x']/2)**2)  # unit: pixel
-    else:
-        # raise warning if some pixels are outside
-        LOG.warning(f'Some pixels are outside the {data_crop_length}m*{data_crop_length}m rectangle, swtiching to the method of calculating distance which only supports UTM projection.')
-        x_coords, y_coords = np.meshgrid(cropped_data.coords['x'], cropped_data.coords['y'])
-        distance = np.sqrt((y_coords-cropped_data.coords['y'].isel(y=y_target).values)**2 + (
-            x_coords-cropped_data.coords['x'].isel(x=x_target).values)**2) / pixel_res  # unit: pixel
+    x_coords, y_coords = np.meshgrid(range(cropped_data.sizes['x']), range(cropped_data.sizes['y']))
+    distance = np.sqrt((y_coords-cropped_data.sizes['y']/2)**2 + (x_coords-cropped_data.sizes['x']/2)**2)  # unit: pixel
 
     for i in np.unique(labeled):
         if np.min(distance[labeled == i]) > 15:
