@@ -589,7 +589,6 @@ def cm_mask_data(ds, gas, lon_target, lat_target,
     # Step 1: Crop the data to data_crop_length (m) around the origin
     ymin, ymax, xmin, xmax = crop_to_valid_region(ds[gas], y_target, x_target, data_crop_length, pixel_res)
     cropped_data = ds[gas].isel(y=slice(ymin, ymax), x=slice(xmin, xmax))
-    print(cropped_data)
 
     # Step 2: Set concentration threshold by <limit_percentile> percent (<limit_crop_length> m around)
     crop_origin_y, crop_origin_x = get_index_nearest(cropped_data['longitude'],
@@ -600,7 +599,6 @@ def cm_mask_data(ds, gas, lon_target, lat_target,
 
     ymin, ymax, xmin, xmax = crop_to_valid_region(cropped_data, crop_origin_y, crop_origin_x, limit_crop_length, pixel_res)
     small_crop = cropped_data.isel(y=slice(ymin, ymax), x=slice(xmin, xmax))
-    print(small_crop)
     threshold = np.nanpercentile(small_crop, limit_percentile).item()
 
     # Create binary mask
