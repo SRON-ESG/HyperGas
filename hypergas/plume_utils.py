@@ -587,8 +587,8 @@ def cm_mask_data(ds, gas, lon_target, lat_target,
     pixel_res = int(abs(ds.coords['y'].diff(dim='y').mean(dim='y')))
 
     # Step 1: Crop the data to data_crop_length (m) around the origin
-    ymin, ymax, xmin, xmax = crop_to_valid_region(ds[gas], y_target, x_target, data_crop_length, pixel_res)
-    cropped_data = ds[gas].isel(y=slice(ymin, ymax), x=slice(xmin, xmax))
+    ymin_crop, ymax_crop, xmin_crop, xmax_crop = crop_to_valid_region(ds[gas], y_target, x_target, data_crop_length, pixel_res)
+    cropped_data = ds[gas].isel(y=slice(ymin_crop, ymax_crop), x=slice(xmin_crop, xmax_crop))
 
     # Step 2: Set concentration threshold by <limit_percentile> percent (<limit_crop_length> m around)
     crop_origin_y, crop_origin_x = get_index_nearest(cropped_data['longitude'],
@@ -621,13 +621,13 @@ def cm_mask_data(ds, gas, lon_target, lat_target,
             labeled[labeled == i] = 0
 
     # Step 5: Create final binary mask
-    final_mask = (labeled > 0).astype(int)
-    final_mask = xr.DataArray(final_mask, dims=['y', 'x'], coords=[
-                              cropped_data.y, cropped_data.x])
+    # 0: background, >0: labels
+    final_mask = xr.full_like(ds[gas], 0)
+    final_mask.isel(x=slice(xmin_crop, xmax_crop), y=slice(ymin_crop, ymax_crop))[:] = (labeled > 0).astype(int)
 
-    # broadcast the plume mask
-    final_mask = final_mask.broadcast_like(ds[gas]).fillna(0)
+    # clean attrs
     final_mask = final_mask.rename('cm_mask')
+    final_mask.attrs = ''
     final_mask.attrs['description'] = 'Carbon Mapper plume mask using v2 method'
 
     return final_mask, threshold
