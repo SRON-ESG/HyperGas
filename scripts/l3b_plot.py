@@ -42,9 +42,9 @@ PATTERNS = ['ENMAP01-____L3B*.nc', 'EMIT_L3B*.nc', 'PRS_L3_*.nc']
 
 # set basic matplotlib settings
 rcParams['font.family'] = 'sans-serif'
-rcParams['font.sans-serif'] = ['tex gyre heros']
+# rcParams['font.sans-serif'] = ['tex gyre heros']
 
-font_size = 15
+font_size = 10
 rcParams['axes.titlesize'] = font_size
 rcParams['axes.labelsize'] = font_size - 2
 rcParams['xtick.labelsize'] = font_size - 2
@@ -75,65 +75,24 @@ def get_cartopy_crs_from_epsg(epsg_code):
         raise ValueError(f'Expected a valid EPSG code. Got {epsg_code}.')
 
 
-def plot_data(filename, savename, plot_csf, plot_minimal):
-    """Plot L3 data"""
-    LOG.info(f'Plotting {filename}')
+def sron_ime(fig, ax, ds_all, ds, df, gas, proj, plot_minimal, pad=None):
+    """Plot SRON IME results"""
+    if pad is None:
+        # calculate the pad around source center
+        lon_min, lat_min, lon_max, lat_max = df['plume_bounds'].item()
+        lon_width = lon_max - lon_min
+        lat_width = lat_max - lat_min
 
-    # read nc and csv plume files
-    ds = xr.open_dataset(filename)
-    df = pd.read_csv(filename.replace('.nc', '.csv'), converters={'plume_bounds': literal_eval})
-    gas = df['gas'].item().lower()
-
-    # --- plot html ---
-    l2b_filename = ('_'.join(filename.split('_')[:-1])+'.nc').replace('L3', 'L2')
-    plume_num = re.search('plume(.*).nc', os.path.basename(filename)).group(1)
-    plume_name = 'plume' + plume_num
-    plot_mask(filename=l2b_filename.replace('.nc', '.html'),
-              ds=ds,  # read L3 plume
-              gas=gas,
-              mask=np.full(ds[gas].shape, True),  # L3 data is already masked
-              lon_target=df['plume_longitude'].item(),
-              lat_target=df['plume_latitude'].item(),
-              pick_plume_name=plume_name,
-              only_plume=True)
-
-    # --- plot scientific png ---
-    # copy for plotting
-    ds_all = ds.copy()
-
-    # subset data to plume
-    ds = ds.where(~ds[gas].isnull(), drop=True)
-
-    proj = ccrs.PlateCarree()
-
-    fig = plt.figure(layout='compressed')
-
-    # only plot csf if CSF data is available
-    if plot_minimal:
-        plot_csf = False
-    elif (plot_csf) & ('emission_csf' in df.columns) & (df['emission_csf'].notnull().item()):
-        plot_csf = True
-    else:
-        plot_csf = False
-
-    if plot_csf:
-        ax = fig.add_subplot(121, projection=ccrs.PlateCarree())
-    else:
-        ax = fig.add_subplot(111, projection=ccrs.PlateCarree())
-
-    # calculate the pad around source center
-    lon_min, lat_min, lon_max, lat_max = df['plume_bounds'].item()
-    lon_width = lon_max - lon_min
-    lat_width = lat_max - lat_min
-    pad = max(lon_width, lat_width)
+        pad = max(lon_width, lat_width)
 
     # set extent
     lon_min = df['plume_longitude'] - pad
     lon_max = df['plume_longitude'] + pad
     lat_min = df['plume_latitude'] - pad
     lat_max = df['plume_latitude'] + pad
+    extent = (lon_min, lon_max, lat_min, lat_max)
 
-    ax.set_extent((lon_min, lon_max, lat_min, lat_max), crs=proj)
+    ax.set_extent(extent, crs=proj)
 
     # add high-res background
     cx.add_basemap(ax, crs=proj, source=cx.providers.Esri.WorldImagery)
@@ -142,13 +101,19 @@ def plot_data(filename, savename, plot_csf, plot_minimal):
 
     # set colorbar limit
     if gas == 'ch4':
-        vmax = 300  # ppb
+        base = 50  # ppb
+        # vmax = 300  # ppb
     elif gas == 'co2':
-        vmax = 10  # ppm
+        base = 5  # ppm
+        # vmax = 50  # ppm
     else:
         raise ValueError("Please set cmap limit for {gas} here.")
 
     # plot rgb and gas data
+    # auto vmax (upround)
+    vmax = ds_all[gas].quantile(0.99)
+    vmax = int(np.ceil(vmax / base)) * base
+
     m = ds_all[gas].plot(x='longitude', y='latitude', vmin=0, vmax=vmax, cmap='plasma', add_colorbar=False,
                          # cbar_kwargs={'label': 'CH$_4$ Enhancement (ppb)', 'orientation': 'horizontal', 'shrink': 0.7}
                          )
@@ -170,7 +135,7 @@ def plot_data(filename, savename, plot_csf, plot_minimal):
     else:
         extend = 'max'
 
-    cb_label = replace_number_with_subscript(f'{gas.upper()} Enhancement (ppb)')
+    cb_label = replace_number_with_subscript(f"{gas.upper()} Enhancement ({ds_all[gas].attrs['units']})")
     plt.colorbar(m, cax=ax_cb, extend=extend, label=cb_label, orientation='horizontal')
 
     # add source point marker
@@ -212,39 +177,144 @@ def plot_data(filename, savename, plot_csf, plot_minimal):
         title = str(df['name'].item()) + '\n' + title
     ax.set_title(title, fontweight='bold')
 
-    if plot_csf:
-        # read csf file
-        ds_csf = xr.open_dataset(filename.replace('.nc', '_csf.nc'), decode_coords='all')
+    return extent, vmax
 
-        # --- plot csf grids---
-        if ds_csf.rio.crs:
-            data_proj = get_cartopy_crs_from_epsg(ds_csf.rio.crs.to_epsg())
-            transform = data_proj
-        else:
-            transform = None
 
-        # plot csf lines
-        ax.plot(xr.concat([ds_csf['x_start'], ds_csf['x_end']], dim='loc'),
+def sron_csf(fig, ax_ime, ax_csf, ds_csf, df):
+    """Plot SRON CSF results"""
+    if ds_csf.rio.crs:
+        data_proj = get_cartopy_crs_from_epsg(ds_csf.rio.crs.to_epsg())
+        transform = data_proj
+    else:
+        transform = None
+
+    # plot csf lines
+    ax_ime.plot(xr.concat([ds_csf['x_start'], ds_csf['x_end']], dim='loc'),
                 xr.concat([ds_csf['y_start'], ds_csf['y_end']], dim='loc'),
                 transform=transform, c='skyblue', alpha=0.3,
                 )
 
-        # plot centerline
-        ax.plot(ds_csf['x_center'], ds_csf['y_center'], transform=transform, c='darkorange', alpha=0.5)
+    # plot centerline
+    ax_ime.plot(ds_csf['x_center'], ds_csf['y_center'], transform=transform, c='darkorange', alpha=0.5)
 
-        ax = fig.add_subplot(122)
+    # --- plot emission rates ---
+    (ds_csf['emission_rate']/1e3).plot(ax=ax_csf, c='C0')
+    ax_csf.axhline(y=ds_csf['emission_rate'].mean()/1e3, c='orange', linestyle='--')
+    ax_csf.set_xlabel('CSF lines')
+    ax_csf.set_ylabel('Emission Rate (t h$^{-1}$)', c='C0')
+    title = str(round(df['emission_csf'].item()/1e3, 2)) + ' t/h $\pm$ ' \
+        + str(round(df['emission_csf_uncertainty']/df['emission_csf']*100, 2).item()) + '%'
+    ax_csf.set_title(f'CSF: {title}', fontweight='bold')
 
-        # --- plot emission rates ---
+    ds_csf.close()
 
-        (ds_csf['emission_rate']/1e3).plot(ax=ax, c='C0')
-        ax.axhline(y=ds_csf['emission_rate'].mean()/1e3, c='orange', linestyle='--')
-        ax.set_xlabel('CSF lines')
-        ax.set_ylabel('Emission Rate (t h$^{-1}$)', c='C0')
-        title = str(round(df['emission_csf'].item()/1e3, 2)) + ' t/h $\pm$ ' \
-            + str(round(df['emission_csf_uncertainty']/df['emission_csf']*100, 2).item()) + '%'
-        ax.set_title(f'CSF: {title}', fontweight='bold')
 
-        ds_csf.close()
+def cm_ime(fig, ax, ds_all, ds, df, gas, proj, plot_minimal, extent, vmax):
+    """Plot Carbon Mapper IME results"""
+    ax.set_extent(extent, crs=proj)
+
+    # add high-res background
+    cx.add_basemap(ax, crs=proj, source=cx.providers.Esri.WorldImagery)
+    # remove watermark
+    ax.texts[0].remove()
+
+    # plot rgb and gas data
+    gas = gas+'_cm'
+    m = ds_all[gas].plot(x='longitude', y='latitude', vmin=0, vmax=vmax, cmap='plasma', add_colorbar=False,
+                         # cbar_kwargs={'label': 'CH$_4$ Enhancement (ppb)', 'orientation': 'horizontal', 'shrink': 0.7}
+                         )
+
+    # add source point marker
+    ax.scatter(df['plume_longitude'], df['plume_latitude'], color='yellow',
+               linewidth=2, marker='o', fc='none', s=200)
+
+    title = 'CM IME: ' + str(round(df['emission_cm'].item()/1e3, 2)) + ' t/h'  # + ' t/h $\pm$ ' \
+    # + str(round(df['emission_uncertainty']/df['emission']*100, 2).item()) + '%'
+
+    ax.set_title(title, fontweight='bold')
+
+
+def plot_data(filename, savename, plot_csf, plot_cm, plot_minimal, plot_full_field, pad):
+    """Plot L3 data"""
+    LOG.info(f'Plotting {filename}')
+
+    # read nc and csv plume files
+    ds = xr.open_dataset(filename)
+    df = pd.read_csv(filename.replace('.nc', '.csv'), converters={'plume_bounds': literal_eval})
+    gas = df['gas'].item().lower()
+
+    # --- plot html ---
+    l2b_filename = ('_'.join(filename.split('_')[:-1])+'.nc').replace('L3', 'L2')
+    plume_num = re.search('plume(.*).nc', os.path.basename(filename)).group(1)
+    plume_name = 'plume' + plume_num
+    plot_mask(filename=l2b_filename.replace('.nc', '.html'),
+              ds=ds,  # read L3 plume
+              gas=gas,
+              mask=np.full(ds[gas].shape, True),  # L3 data is already masked
+              lon_target=df['plume_longitude'].item(),
+              lat_target=df['plume_latitude'].item(),
+              pick_plume_name=plume_name,
+              only_plume=True)
+
+    # --- plot scientific png ---
+    # copy for plotting
+    if plot_full_field:
+        # read the L2 data
+        ds_all = xr.open_dataset(l2b_filename)
+    else:
+        ds_all = ds.copy()
+
+    # subset data to plume
+    ds = ds.where(~ds[gas].isnull(), drop=True)
+
+    proj = ccrs.PlateCarree()
+
+    fig = plt.figure(layout='compressed')
+
+    # only plot csf if CSF data is available
+    if plot_minimal:
+        plot_csf = False
+    elif (plot_csf) & ('emission_csf' in df.columns):
+        if df['emission_csf'].notnull().item():
+            plot_csf = True
+        else:
+            plot_csf = False
+    else:
+        plot_csf = False
+
+    # only plot Carbon Mapper IME results when cm data is available
+    if plot_minimal:
+        plot_cm = False
+    elif (plot_cm) & ('emission_cm' in df.columns):
+        if df['emission_cm'].notnull().item():
+            plot_cm = True
+        else:
+            plot_cm = False
+    else:
+        plot_cm = False
+
+    if plot_csf & plot_cm:
+        ncols = 3
+    elif plot_csf | plot_cm:
+        ncols = 2
+    else:
+        ncols = 1
+    ax_ime = fig.add_subplot(1, ncols, 1, projection=ccrs.PlateCarree())
+
+    # plot SRON IME results
+    extent, vmax = sron_ime(fig, ax_ime, ds_all, ds, df, gas, proj, plot_minimal, pad)
+
+    # plot SRON csf results
+    if plot_csf:
+        # read csf file
+        ds_csf = xr.open_dataset(filename.replace('.nc', '_csf.nc'), decode_coords='all')
+        ax_csf = fig.add_subplot(1, ncols, 2)
+        sron_csf(fig, ax_ime, ax_csf, ds_csf, df)
+
+    # plot CM IME results
+    if plot_cm:
+        ax_cm = fig.add_subplot(1, ncols, ncols, projection=ccrs.PlateCarree())
+        cm_ime(fig, ax_cm, ds, ds_all, df, gas, proj, plot_minimal, extent, vmax)
 
     LOG.info(f'Exported to {savename}')
     fig.savefig(savename, bbox_inches='tight', pad_inches=0, dpi=300)
@@ -253,7 +323,7 @@ def plot_data(filename, savename, plot_csf, plot_minimal):
     gc.collect()
 
 
-def main(skip_exist=True, plot_csf=True, plot_minimal=False):
+def main(skip_exist=True, plot_csf=True, plot_minimal=False, plot_full_field=False, pad=None):
     # get the filname list
     filelist = list(chain(*[glob(os.path.join(data_dir, pattern), recursive=True) for pattern in PATTERNS]))
 
@@ -272,9 +342,9 @@ def main(skip_exist=True, plot_csf=True, plot_minimal=False):
             if os.path.isfile(savename):
                 LOG.info(f'{savename} exists, skip ...')
             else:
-                plot_data(filename, savename, plot_csf, plot_minimal)
+                plot_data(filename, savename, plot_csf, plot_cm, plot_minimal, plot_full_field, pad)
         else:
-            plot_data(filename, savename, plot_csf, plot_minimal)
+            plot_data(filename, savename, plot_csf, plot_cm, plot_minimal, plot_full_field, pad)
 
 
 if __name__ == '__main__':
@@ -285,12 +355,22 @@ if __name__ == '__main__':
     # whether skip dir which contains exported png file
     skip_exist = True
 
-    # whether plot CSF and IME-fetch results
+    # whether plot CSF results
     plot_csf = True
+
+    # whether plot reproduced Carbon Mapper IME results
+    plot_cm = True
 
     # whether plot minimal image (only title (sitename+datetime+emission_rate) and plume)
     plot_minimal = False
 
+    # pad (degree) around the plume source
+    #   if it is None, we will set the pad based on the plume automatically
+    pad = None
+
+    # whether plot the full field instead of plume
+    plot_full_field = False
+
     for data_dir in lowest_dirs:
         LOG.info(f'Plotting data under {data_dir}')
-        main(skip_exist, plot_csf, plot_minimal)
+        main(skip_exist, plot_csf, plot_minimal, plot_full_field, pad)
