@@ -97,7 +97,7 @@ class L2B():
 
         self.hyp = hyp
 
-    def retrieve(self, land_mask=True, plume_mask=None, land_mask_source='GSHHS', cluster=False, rad_dist='normal'):
+    def retrieve(self, land_mask=True, plume_mask=None, land_mask_source='OSM', cluster=False, rad_dist='normal'):
         """run retrieval"""
         # retrieve trace gas
         for species in self.species:
@@ -289,6 +289,9 @@ def main():
     # if skip already processed file
     skip_exist = True
 
+    # whether export unortho L2 species data
+    unortho_export = True
+
     # whether cluster pixels for matched filter
 
     # set species to be retrieved (3 formats)
@@ -323,6 +326,13 @@ def main():
             # rad_dist: 'normal', 'lognormal'
             # land_mask_source: 'OSM', 'GSHHS', 'Natural Earth'
             l2b_scene.retrieve(rad_dist='normal', cluster=False, land_mask_source='OSM')
+
+            if unortho_export:
+                # output unortho data
+                unortho_savename = l2b_scene.savename.replace('.nc', '_unortho.nc')
+                LOG.info(f'Exporting unortho file: {unortho_savename}')
+                l2b_scene.hyp.scene.save_datasets(datasets=[species], filename=unortho_savename, writer='cf')
+
             l2b_scene.denoise()
             l2b_scene.ortho()
             l2b_scene.plume_mask()
