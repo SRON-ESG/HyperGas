@@ -47,7 +47,10 @@ def reprocess_data(filename, wind_data):
 
     # read settings in csv file
     azimuth_diff_max = df['azimuth_diff_max'].item()
-    dist_max = df['dist_max'].item()
+    if 'dist_max' in df.columns:
+        dist_max = df['dist_max'].item()
+    else:
+        dist_max = 180
     ipcc_sector = df['ipcc_sector'].item()
     gas = df['gas'].item().lower()
     name = df['name'].item()
@@ -66,37 +69,41 @@ def reprocess_data(filename, wind_data):
     if reprocess_nc:
         # read L2B data
         l2b_filename = ('_'.join(plume_filename.split('_')[:-1])+'.nc').replace('L3', 'L2')
-        ds_l2b = xr.open_dataset(l2b_filename, decode_coords='all')
 
-        # read plume source location
-        longitude = df['plume_longitude'].item()
-        latitude = df['plume_latitude'].item()
+        if os.path.isfile(l2b_filename):
+            ds_l2b = xr.open_dataset(l2b_filename, decode_coords='all')
 
-        plume_num = re.search('plume(.*).nc', os.path.basename(plume_filename)).group(1)
-        plume_name = 'plume' + plume_num
+            # read plume source location
+            longitude = df['plume_longitude'].item()
+            latitude = df['plume_latitude'].item()
 
-        # create Emiss class
-        emiss = Emiss(ds=ds_l2b, gas=gas, plume_name=plume_name)
+            plume_num = re.search('plume(.*).nc', os.path.basename(plume_filename)).group(1)
+            plume_name = 'plume' + plume_num
 
-        # select connected mask data
-        emiss.mask_data(longitude, latitude,
-                        wind_source=wind_source,
-                        land_only=land_only,
-                        land_mask_source=land_mask_source,
-                        only_plume=True,
-                        azimuth_diff_max=azimuth_diff_max,
-                        dist_max=dist_max,
-                        )
+            # create Emiss class
+            emiss = Emiss(ds=ds_l2b, gas=gas, plume_name=plume_name)
 
-        # export to NetCDF file
-        emiss.export_plume_nc()
+            # select connected mask data
+            emiss.mask_data(longitude, latitude,
+                            wind_source=wind_source,
+                            land_only=land_only,
+                            land_mask_source=land_mask_source,
+                            only_plume=True,
+                            azimuth_diff_max=azimuth_diff_max,
+                            dist_max=dist_max,
+                            )
 
-        # calculate emission rate and export csv file
-        emiss.estimate(ipcc_sector, wspd_manual=wspd_manual, land_only=land_only, name=name)
+            # export to NetCDF file
+            emiss.export_plume_nc()
 
-        ds_l2b.close()
-        del emiss, ds_l2b
-        gc.collect()
+            # calculate emission rate and export csv file
+            emiss.estimate(ipcc_sector, wspd_manual=wspd_manual, land_only=land_only, name=name)
+
+            ds_l2b.close()
+            del emiss, ds_l2b
+            gc.collect()
+        else:
+            LOG.warning(f'{l2b_filename} does not exist. Skip !!!!!')
     else:
         ds_l3 = xr.open_dataset(plume_filename, decode_coords='all')
 
