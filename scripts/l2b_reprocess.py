@@ -11,6 +11,7 @@ import re
 import logging
 import os
 from glob import glob
+from pathlib import Path
 from itertools import chain
 
 import numpy as np
@@ -40,6 +41,7 @@ def reprocess_data(filename, prefix, species, land_mask_source, rad_dist):
                            concat_dim=[pd.Index(np.arange(len(l3_filelist)), name='plume_id')],
                            combine='nested',
                            )
+    dirname = os.path.dirname(filename)
 
     # create mask, 0 (plume): not included in matched filter
     mask = (~ds[species].isnull()).sum(dim='plume_id')
@@ -55,6 +57,7 @@ def reprocess_data(filename, prefix, species, land_mask_source, rad_dist):
 
     # run retrieval and save L2 NetCDF file
     LOG.info('Retrieving with background where plume pixels are excluded.')
+    l2b_scene.savename = os.path.join(dirname, os.path.basename(str(Path(ds.attrs['filename'].replace('L1', 'L2').replace('_RAD', '')).with_suffix('.nc'))))
     l2b_scene.retrieve(plume_mask=mask_resample, land_mask_source=land_mask_source, rad_dist=rad_dist)
     l2b_scene.denoise()
     l2b_scene.ortho()
@@ -87,7 +90,6 @@ def main():
         LOG.info(f"Reprocessing {prefix.replace('L3', 'L2')} ...")
         # only need to reprocess L2 once
         reprocess_data(filenames[0], prefix, species, land_mask_source, rad_dist)
-
 
 if __name__ == '__main__':
     # root dir of hyper data
