@@ -102,12 +102,13 @@ def main():
         if rad_dist == 'auto':
             if species == 'ch4':
                 df_emiss = pd.concat((pd.read_csv(f) for f in csv_filenames), ignore_index=True)
-                if df_emiss['emission'].max() > 10*1e3:
+                q_max = df_emiss['emission'].max() / 1e3
+                if q_max > 10:
                     rad_dist = 'lognormal'
-                    LOG.info('Using LMF because Q_max > 10 t/h')
+                    LOG.info(f'Using LMF because Q_max ({np.round(q_max, 1)}) > 10 t/h')
                 else:
                     rad_dist = 'normal'
-                    LOG.info('Using MF because Q_max <= 10 t/h')
+                    LOG.info(f'Using MF because Q_max ({np.round(q_max, 1)}) <= 10 t/h')
             else:
                 rad_dist = 'normal'
                 LOG.info(f'Using MF because the species {species} is not ch4')
