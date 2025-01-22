@@ -63,11 +63,12 @@ def Land_mask(lons, lats, source='OSM'):
         lon_min, lon_max = lons.min(), lons.max()
         osm_filenames = find_tiles(lat_min, lat_max, lon_min, lon_max)
         osm_paths = [os.path.join(osm_dir, fname) for fname in osm_filenames]
-        da_osm = xr.open_mfdataset(osm_paths)['band_data'].isel(band=0)
 
-        # crop the mask to scene
-        osm_crop = da_osm.sel(y=slice(lat_max, lat_min), x=slice(lon_min, lon_max))
-        osm_crop.load()
+        # Load and crop the OSM data
+        with xr.open_mfdataset(osm_paths) as ds_osm:
+            da_osm = ds_osm['band_data'].isel(band=0)
+            osm_crop = da_osm.sel(y=slice(lat_max, lat_min), x=slice(lon_min, lon_max))
+            osm_crop.load()
 
         # set the resample grids
         lon_grid, lat_grid = np.meshgrid(osm_crop.x, osm_crop.y)
@@ -79,8 +80,7 @@ def Land_mask(lons, lats, source='OSM'):
         # landmask: 0->1, 1->0
         landmask = np.where((landmask == 0) | (landmask == 1), landmask ^ 1, landmask).astype(float)
 
-        da_osm.close()
-        del osm_crop, lon_grid, lat_grid
+        del da_osm, osm_crop, lon_grid, lat_grid
         gc.collect()
 
     elif source in ['Natural Earth', 'GSHHS']:
