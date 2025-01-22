@@ -309,7 +309,7 @@ class IME_CSF():
 
         return wind_error
 
-    def _calc_random_err(self, da_gas, gas_mask):
+    def _calc_random_err(self, da_gas, gas_mask, max_attempts=1000, samples=100):
         """Calculate random error by moving plume around the whole scene"""
         # crop gas field to valid region
         gas_mask_crop = gas_mask.where(~gas_mask.isnull()).dropna(dim='y', how='all').dropna(dim='x', how='all')
@@ -318,12 +318,19 @@ class IME_CSF():
         bkgd_rows, bkgd_cols = gas_mask.shape
         mask_rows, mask_cols = gas_mask_crop.shape
 
+        # Precompute the number of valid pixels
+        n_valid_pixel = gas_mask.notnull().sum()
+
         # Insert plume mask data at a random position
         IME_noplume = []
         self.ch4_bkgds = []
 
         LOG.info('Moving plume around the scene for valid background masks')
-        while len(IME_noplume) <= 100:
+
+        attempts = 0
+        while len(IME_noplume) < samples:
+            attempts += 1
+
             # Generate random row and column index to place b inside a
             y_move_pixel = bkgd_rows - mask_rows
             x_move_pixel = bkgd_cols - mask_cols
@@ -334,21 +341,29 @@ class IME_CSF():
             ch4_shift_notnull = ch4_shift.notnull().values
 
             # check if 1) the plume shape is not outside of scene 2) plume pixels are not included
-            n_valid_pixel = gas_mask.notnull().sum()
             no_outside = ch4_shift.notnull().sum() == n_valid_pixel
             no_plume = gas_mask.where(ch4_shift_notnull).isnull().all()
 
             if no_outside and no_plume:
-                ch4_bkgd = da_gas.where(ch4_shift_notnull)
                 # 3) all valid value
-                if da_gas.notnull().where(ch4_shift_notnull, False).sum() == n_valid_pixel:
-                    self.ch4_bkgds.append(ch4_bkgd)
+                # sometimes the plume is long and it is difficult to get a valid background mask of same length
+                #   we can relax the constraints
+                #   but it is important to set fill values for nan pixels and set them to nan again for CSF
+                if da_gas.notnull().where(ch4_shift_notnull, False).sum() > n_valid_pixel*0.9:
+                    ch4_bkgd = da_gas.where(ch4_shift_notnull)
+                    ch4_bkgd_fillna = da_gas.fillna(-999).where(ch4_shift_notnull)
                     IME_noplume.append(self._ime_sum(ch4_bkgd))
+                    self.ch4_bkgds.append(ch4_bkgd_fillna)
+                    del ch4_bkgd
 
-        LOG.info('Moving plume around the scene for valid background masks (Done)')
+            # Stop if we've reached `max_samples`
+            if attempts >= max_attempts:
+                break
+
+        LOG.info(f'Finished moving plume with {len(IME_noplume)} samples after {attempts} attempts.)')
 
         std_value = trimmed_std(np.array(IME_noplume), (1e-3, 1e-3))
-        del IME_noplume, ch4_bkgd
+        del IME_noplume
         gc.collect()
 
         return std_value
@@ -359,6 +374,7 @@ class IME_CSF():
 
         for ch4_bkgd in self.ch4_bkgds:
             ch4_bkgd_valid = ch4_bkgd.stack(z=("x", "y")).dropna(dim='z')
+            ch4_bkgd_valid = ch4_bkgd_valid.where(ch4_bkgd_valid != -999)
             C_lines = []
             for match_list in match_lists:
                 gas_match = ch4_bkgd_valid.isel(z=match_list)
