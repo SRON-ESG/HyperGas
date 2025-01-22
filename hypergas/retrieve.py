@@ -186,6 +186,8 @@ class MatchedFilter():
                     alpha[:, 0][mask] = 0
 
         elif self.mode == 'scene':
+            # this function is experimental
+            LOG.warning('The scene MF is experimental!!!')
             background = self.background
 
             # get mean value

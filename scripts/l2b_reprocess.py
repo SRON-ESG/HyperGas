@@ -67,8 +67,15 @@ def reprocess_data(filename, prefix, species, land_mask_source, rad_dist):
 
 def main():
     species = 'ch4'
-    rad_dist = 'normal'  # 'lognormal' or 'normal'
-    land_mask_source = 'OSM'  # 'OSM', 'GSHHS' or 'Natural Earth'
+
+    # set the matched filter method
+    #   'auto', 'lognormal' or 'normal'
+    #   'auto': if the emission rate it higher than 10 t/h, the lognormal MF will be applied
+    rad_dist = 'auto'
+
+    # set the land_mask source
+    #   'OSM', 'GSHHS' or 'Natural Earth'
+    land_mask_source = 'OSM'
 
     # get the filname list
     filelist = list(chain(*[glob(os.path.join(data_dir, pattern), recursive=True) for pattern in PATTERNS]))
@@ -86,10 +93,29 @@ def main():
         # get file with same prefix because one scene may have multiple plumes
         prefix = file_plume0.split('plume0')[0]
         filenames = glob(f"{prefix}*.nc")
+        csv_filenames = glob(f"{prefix}*.csv")
+
+        # remove csf nc filenames from list
+        filenames = [file for file in filenames if re.search(r'_plume\d+\.nc$', file)]
+
+        # calculate the highest emission rate for 'auto' MF
+        if rad_dist == 'auto':
+            if species == 'ch4':
+                df_emiss = pd.concat((pd.read_csv(f) for f in csv_filenames), ignore_index=True)
+                if df_emiss['emission'].max() > 10*1e3:
+                    rad_dist = 'lognormal'
+                    LOG.info('Using LMF because Q_max > 10 t/h')
+                else:
+                    rad_dist = 'normal'
+                    LOG.info('Using MF because Q_max <= 10 t/h')
+            else:
+                rad_dist = 'normal'
+                LOG.info(f'Using MF because the species {species} is not ch4')
 
         LOG.info(f"Reprocessing {prefix.replace('L3', 'L2')} ...")
         # only need to reprocess L2 once
         reprocess_data(filenames[0], prefix, species, land_mask_source, rad_dist)
+
 
 if __name__ == '__main__':
     # root dir of hyper data

@@ -142,12 +142,17 @@ class Unit_spec():
         if len(df_atm.columns) == 11:
             # US standard atmosphere profile
             col_names = ['thickness', 'pressure', 'temperature', 'H2O', 'CO2', 'O3', 'N2O', 'CO', 'CH4', 'O2', 'NO2']
+        ## !!! test
+        #if len(df_atm.columns) == 12:
+        #    col_names = ['thickness', 'pressure', 'temperature', 'H2O', 'CO2', 'O3', 'N2O', 'CO', 'CH4', 'O2', 'NO2', 'O4']
 
         df_atm.columns = col_names
 
         # fixme: set NO2 to 0 if the column is not existed.
         if 'NO2' not in col_names:
             df_atm['NO2'] = 0
+            ## !!! test
+            #df_atm['O4'] = 0
 
         # read solar irradiance data
         E_filename = 'solar_irradiance_0400-2600nm_highres_sparse.nc'
@@ -191,6 +196,7 @@ class Unit_spec():
         nCO = self.atm['CO'].copy().values
         nCH4 = self.atm['CH4'].copy().values
         nNO2 = self.atm['NO2'].copy().values
+        #nO4 = self.atm['O4'].copy().values
 
         # add species by "d_omega" [mol m-2] to the first layer
         nH2O[0] = nH2O[0] + del_omega['H2O'] * 6.023e+23 / 10000
@@ -228,11 +234,16 @@ class Unit_spec():
             optd_NO2 = np.matmul(sigma_NO2_subset, nNO2)
             sigma_O3_subset = self.abs['abs_O3'].sel(wavelength=slice(self.wvl_min, self.wvl_max)).data
             optd_O3 = np.matmul(sigma_O3_subset, nO3)
+            ## !!! test
+            #sigma_O4_subset = self.abs['abs_O4'].sel(wavelength=slice(self.wvl_min, self.wvl_max)).data
+            #optd_O4 = np.matmul(sigma_O4_subset, nO4)
         else:
             optd_NO2 = 0
             optd_O3 = 0
+            ## !!! test
+            #optd_O4 = 0
 
-        tau_vert = optd_H2O + optd_CO2 + optd_O3  + optd_N2O + optd_CO + optd_CH4 + optd_NO2
+        tau_vert = optd_H2O + optd_CO2 + optd_O3  + optd_N2O + optd_CO + optd_CH4 + optd_NO2 #+ optd_O4
 
         def f_young(za):
             za = radians(za)

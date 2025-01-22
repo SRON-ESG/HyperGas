@@ -391,6 +391,10 @@ class Hyper():
         self.scene['segmentation'] = segmentation.rename('segmentation')
         self.scene[species] = enhancement.rename(species)
 
+        # add the MF info
+        if 'mf' in algo:
+            self.scene[species].attrs['matched_filter'] = f'{rad_dist} matched filter'
+
     def terrain_corr(self, varname='rgb', rpcs=None):
         """Apply orthorectification
 
