@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Copyright (c) 2023-2024 HyperGas developers
 #
@@ -18,6 +18,7 @@ from itertools import chain
 
 import cartopy.crs as ccrs
 import contextily as cx
+import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -25,7 +26,12 @@ import xarray as xr
 from cartopy.crs import epsg as ccrs_from_epsg
 from hypergas.plume_utils import plot_mask
 from matplotlib import rcParams
+from matplotlib_scalebar.scalebar import ScaleBar
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from pyproj import CRS
+from pyproj.aoi import AreaOfInterest
+from pyproj.database import query_utm_crs_info
+from shapely.geometry.point import Point
 
 from utils import get_dirs
 
@@ -242,6 +248,8 @@ def plot_data(filename, savename, plot_csf, plot_cm, plot_minimal, plot_full_fie
     ds = xr.open_dataset(filename)
     df = pd.read_csv(filename.replace('.nc', '.csv'), converters={'plume_bounds': literal_eval})
     gas = df['gas'].item().lower()
+    plume_longitude = df['plume_longitude'].item()
+    plume_latitude = df['plume_latitude'].item()
 
     # --- plot html ---
     l2b_filename = ('_'.join(filename.split('_')[:-1])+'.nc').replace('L3', 'L2')
@@ -251,8 +259,8 @@ def plot_data(filename, savename, plot_csf, plot_cm, plot_minimal, plot_full_fie
               ds=ds,  # read L3 plume
               gas=gas,
               mask=np.full(ds[gas].shape, True),  # L3 data is already masked
-              lon_target=df['plume_longitude'].item(),
-              lat_target=df['plume_latitude'].item(),
+              lon_target=plume_longitude,
+              lat_target=plume_latitude,
               pick_plume_name=plume_name,
               only_plume=True)
 
@@ -315,6 +323,41 @@ def plot_data(filename, savename, plot_csf, plot_cm, plot_minimal, plot_full_fie
     if plot_cm:
         ax_cm = fig.add_subplot(1, ncols, ncols, projection=ccrs.PlateCarree())
         cm_ime(fig, ax_cm, ds, ds_all, df, gas, proj, plot_minimal, extent, vmax)
+
+    # add scalebar
+    # Geographic WGS 84 - degrees
+    scale_points = gpd.GeoSeries([Point(plume_longitude-1, plume_latitude),
+                                  Point(plume_longitude, plume_latitude)],
+                                 crs=4326)
+    # UTM projection
+    utm_crs_list = query_utm_crs_info(
+        datum_name='WGS 84',
+        area_of_interest=AreaOfInterest(
+            west_lon_degree=plume_longitude,
+            south_lat_degree=plume_latitude,
+            east_lon_degree=plume_longitude,
+            north_lat_degree=plume_latitude,
+        ),
+    )
+    utm_epsg = CRS.from_epsg(utm_crs_list[0].code).to_epsg()
+
+    # Projected WGS 84 - meters
+    scale_points = scale_points.to_crs(utm_epsg)
+    distance_meters = scale_points[0].distance(scale_points[1])
+    if plot_minimal:
+        scale_bar_location = 'lower left'
+    else:
+        # the left position is saved for wind info
+        scale_bar_location = 'lower right'
+
+    scalebar = ScaleBar(distance_meters,
+                        location=scale_bar_location,
+                        color='white',
+                        box_alpha=0,
+                        font_properties={'size': 10},
+                        )
+
+    ax_ime.add_artist(scalebar)
 
     LOG.info(f'Exported to {savename}')
     fig.savefig(savename, bbox_inches='tight', pad_inches=0, dpi=300)
