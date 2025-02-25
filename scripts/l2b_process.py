@@ -15,6 +15,7 @@ from glob import glob
 import numpy as np
 from itertools import chain
 from pathlib import Path
+import xarray as xr
 
 import hypergas
 from hypergas import Hyper
@@ -113,6 +114,8 @@ class L2B():
                               species=species,
                               )
             gas_fullwvl = self.hyp.scene[species]
+
+            # retrieval only using the strong window
             self.hyp.retrieve(land_mask=land_mask,
                               plume_mask=plume_mask,
                               land_mask_source=land_mask_source,
@@ -122,11 +125,24 @@ class L2B():
                               )
             gas = self.hyp.scene[species]
 
-            # calculate gas_comb
+            # update data if gas_fullwvl < gas
             diff = gas_fullwvl - gas
-            scale = gas.std()/gas_fullwvl.std()
-            # scale if gas_fullwvl < gas
-            self.hyp.scene[f'{species}_comb'] = gas.where(diff > 0, gas_fullwvl*scale).rename(f'{species}_comb')
+            self.hyp.scene[f'{species}_comb'] = gas.copy()
+
+            # calculat the scale factor by segmentation
+            with xr.set_options(keep_attrs=True):
+                for label in np.unique(self.hyp.scene['segmentation']):
+                    # calculate gas_comb by segmentation
+                    segmentation_mask = self.hyp.scene['segmentation'] == label
+                    scale = gas.where(segmentation_mask).std()/gas_fullwvl.where(segmentation_mask).std()
+
+                    # scale if gas_fullwvl < gas
+                    self.hyp.scene[f'{species}_comb'] = xr.where(segmentation_mask, gas.where(diff > 0, gas_fullwvl*scale), self.hyp.scene[f'{species}_comb'])
+
+            # update attrs
+            self.hyp.scene[f'{species}_comb'] = self.hyp.scene[f'{species}_comb'].rename(f'{species}_comb')
+            self.hyp.scene[f'{species}_comb'].attrs['description'] = gas_fullwvl.attrs['description']
+            self.hyp.scene[f'{species}_comb'] = self.hyp.scene[f'{species}_comb'].transpose(..., 'y', 'x')
 
     def _update_scene(self):
         # update Scene values
@@ -220,16 +236,9 @@ class L2B():
     def denoise(self):
         """Denoise random noise"""
         LOG.info(f'Denoising {self.species} data')
-
-        # we need a higher weight for denoising PRISMA data
-        if self.reader == 'hyc_l1':
-            weight = 150
-        else:
-            weight = 50
-
         for species in self.species:
-            self.hyp.scene[f'{species}_denoise'] = self.hyp.denoise(varname=species, weight=weight)
-            self.hyp.scene[f'{species}_comb_denoise'] = self.hyp.denoise(varname=f'{species}_comb', weight=weight)
+            self.hyp.scene[f'{species}_denoise'] = self.hyp.denoise(varname=species)
+            self.hyp.scene[f'{species}_comb_denoise'] = self.hyp.denoise(varname=f'{species}_comb')
 
     def plume_mask(self):
         """Create a priori plume mask"""
@@ -290,7 +299,7 @@ def main():
     skip_exist = True
 
     # whether export unortho L2 species data
-    unortho_export = True
+    unortho_export = False
 
     # whether cluster pixels for matched filter
 
@@ -331,7 +340,7 @@ def main():
                 # output unortho data
                 unortho_savename = l2b_scene.savename.replace('.nc', '_unortho.nc')
                 LOG.info(f'Exporting unortho file: {unortho_savename}')
-                l2b_scene.hyp.scene.save_datasets(datasets=[species], filename=unortho_savename, writer='cf')
+                l2b_scene.hyp.scene.save_datasets(datasets=[species, 'segmentation'], filename=unortho_savename, writer='cf')
 
             l2b_scene.denoise()
             l2b_scene.ortho()

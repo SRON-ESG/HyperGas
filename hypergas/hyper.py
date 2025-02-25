@@ -408,15 +408,15 @@ class Hyper():
 
         return da_ortho
 
-    def denoise(self, varname='ch4', method='tv_filter', weight=50):
+    def denoise(self, varname='ch4', method='calibrated_tv_filter', weight=None):
         """Denoise the random noise
 
         Args:
             varname (str): The variable to be denoised
             method (str): The filter to denoise data
-                Default: 'tv_filter'
+                Default: 'calibrated_tv_filter'
             weight (int): The denoising weights for filter
-                Default: 50
+                Default: None
         """
         da_denoise = Denoise(self.scene, varname, method=method, weight=weight).smooth()
 
