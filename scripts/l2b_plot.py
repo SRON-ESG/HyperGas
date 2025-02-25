@@ -16,6 +16,7 @@ import warnings
 from glob import glob
 from itertools import chain
 from pathlib import Path
+from shapely import Point
 
 import pandas as pd
 import xarray as xr
@@ -86,10 +87,16 @@ class L2B_plot():
         self.df_marker = df_marker
         self.varnames = varnames
 
-    def _load(self):
+    def _load(self, bbox=None):
         """Load the L2B data"""
         LOG.info(f'Reading {self.filename}')
         self.ds = xr.open_dataset(self.filename)
+
+        if bbox:
+            # subset to zoom-in region
+            zoom_mask = (self.ds['longitude'] > bbox[0]) & (self.ds['longitude'] < bbox[2]) \
+                            & (self.ds['latitude'] > bbox[1]) & (self.ds['latitude'] < bbox[3])
+            self.ds = self.ds.where(zoom_mask, drop=True)
 
     def make_map(self):
         """"Make the background folium map"""
@@ -101,7 +108,7 @@ class L2B_plot():
         self.m = Map(self.ds, self.varnames)
         self.m.initialize()
 
-    def plot(self):
+    def plot(self, pre_suffix=''):
         """Plot data on folium map."""
         LOG.debug('Plot the data on map')
         # the length of `show_layers` and `opacities` should be as same as varnames
@@ -109,6 +116,7 @@ class L2B_plot():
                     opacities=[0.9]+[0.7]*(len(self.varnames)-1),
                     df_marker=self.df_marker,
                     vmax=vmax,
+                    pre_suffix=pre_suffix,
                     )
 
 
@@ -127,7 +135,24 @@ def read_markers():
     return df_marker
 
 
-def plot_data(filelist, df_marker, len_chunklist, index):
+def get_zoom_bbox(pad, lat_zoom, lon_zoom):
+    """Calculate the lon/lat boundary for zoom-in images"""
+    if pad:
+        if (lat_zoom != None) & (lon_zoom != None):
+            point_zoom = Point(lon_zoom, lat_zoom)
+
+            # boundary box: min x, min y, max x, max y
+            bbox = point_zoom.buffer(pad).bounds
+
+            return bbox
+        else:
+            LOG.warning(f'lat_zoom ({lat_zoom}) and lon_zoom ({lon_zoom}) should be numbers. Plotting the whole scene instead ...')
+            return None
+    else:
+        return None
+
+
+def plot_data(filelist, df_marker, len_chunklist, index, bbox):
     """Read data from filelist and plot data"""
     # initialize two classes with the first file
     l2b_map_allinone = L2B_plot(filelist[0], df_marker)
@@ -135,20 +160,24 @@ def plot_data(filelist, df_marker, len_chunklist, index):
     for filename in filelist:
         # use the filename as savename with html suffix
         savename = str(Path(filename).with_suffix('.html'))
+        if bbox:
+            pre_suffix = '_zoomin'
+        else:
+            pre_suffix = ''
 
         # load data
         LOG.info(f'Processing {filename}')
         l2b_map = L2B_plot(filename, df_marker)
         l2b_map.filename = filename
-        l2b_map._load()
+        l2b_map._load(bbox)
         l2b_map_allinone.ds = l2b_map.ds
 
         # 1. one map for each file
         # make a new map everytime and plot data
         LOG.info('Making map for single file')
         l2b_map.make_map()
-        l2b_map.plot()
-        l2b_map.m.export(savename)
+        l2b_map.plot(pre_suffix=pre_suffix)
+        l2b_map.m.export(savename, pre_suffix=pre_suffix)
 
         # get scene center
         scene_center = l2b_map.m.center_map
@@ -182,12 +211,12 @@ def plot_data(filelist, df_marker, len_chunklist, index):
 
     # export combined html file
     if map_allinone:
-        l2b_map_allinone.m.export(savename_all)
+        l2b_map_allinone.m.export(savename_all, pre_suffix=pre_suffix)
         del l2b_map_allinone.m, l2b_map_allinone
         gc.collect()
 
 
-def main(chunk=8, skip_exist=True, plot_markers=False):
+def main(chunk=8, skip_exist=True, plot_markers=False, bbox=None):
     # get the filname list
     filelist = list(chain(*[glob(os.path.join(data_dir, pattern), recursive=True) for pattern in PATTERNS]))
     filelist = list(sorted(filelist))
@@ -224,7 +253,7 @@ def main(chunk=8, skip_exist=True, plot_markers=False):
             # I have tried to del var and release memory, but it doesn't work
             #   so I use the process trick here.
             p = multiprocessing.Pool(1)
-            p.starmap(plot_data, [(filelist, df_marker, len_chunklist, index)])
+            p.starmap(plot_data, [(filelist, df_marker, len_chunklist, index, bbox)])
             p.terminate()
             p.join()
 
@@ -240,10 +269,18 @@ if __name__ == '__main__':
     # whether plot pre-saved markers on map
     plot_markers = False
 
+
     # the chunk of files for each html file
     #   don't set it too high if you meet RAM error
-    chunk = 4
+    chunk = 3
+
+    # pad (degree) around the specific location
+    #   if it is None, we will plot the whole scene
+    pad = None # e.g. 0.05
+    lat_zoom = None # float
+    lon_zoom = None # float
+    bbox = get_zoom_bbox(pad, lat_zoom, lon_zoom)
 
     for data_dir in lowest_dirs:
         LOG.info(f'Plotting data under {data_dir}')
-        main(chunk, skip_exist, plot_markers)
+        main(chunk, skip_exist, plot_markers, bbox)

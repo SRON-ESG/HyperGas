@@ -138,7 +138,7 @@ class Map():
 
         self.map = m
 
-    def plot_png(self, out_epsg=3857, vmax=None, export_dir=None):
+    def plot_png(self, out_epsg=3857, vmax=None, export_dir=None, pre_suffix=''):
         """Plot data and export to png files"""
 
         for varname in self.varnames:
@@ -258,6 +258,9 @@ class Map():
                                                os.path.basename(self.filename).replace('.', f'_{varname}.')
                                                .replace('_RAD', '').replace('L1', 'L2'))).with_suffix('.png')
 
+            # append pre-suffix
+            output_png = str(output_png).replace('.png', f'{pre_suffix}.png')
+
             # delete pads and remove edges
             fig.savefig(output_png, bbox_inches='tight', pad_inches=0.0, edgecolor=None, transparent=True, dpi=1000)
 
@@ -272,7 +275,8 @@ class Map():
         gc.collect()
 
     def plot(self, out_epsg=3857, vmax=None, show_layers=None, opacities=None,
-             marker=None, df_marker=None, export_dir=None, draw_polygon=True):
+             marker=None, df_marker=None, export_dir=None, draw_polygon=True,
+             pre_suffix=''):
         """Plot data, export to png files, plot folium map, and export to html files
 
         Args:
@@ -292,6 +296,8 @@ class Map():
                 The directory to save plotted images (Default: the same path as filename attrs)
             draw_polygon (boolean):
                 Whether plot the scene boundary polygon (Default: True)
+            pre_suffix (str):
+                the string to be added before png and html suffix (Defalut: '')
         """
         # check the length of self.
         if show_layers is None:
@@ -311,7 +317,7 @@ class Map():
                 f"opacities's length ({len(self.opacities)}) should be as same as varnames's length ({len(self.varnames)})")
 
         # plot png images
-        self.plot_png(out_epsg=out_epsg, vmax=vmax, export_dir=export_dir)
+        self.plot_png(out_epsg=out_epsg, vmax=vmax, export_dir=export_dir, pre_suffix=pre_suffix)
 
         # get the swath polygon from area boundary
         area = SwathDefinition(lons=self.ds.longitude, lats=self.ds.latitude)
@@ -324,7 +330,7 @@ class Map():
         self.df_marker = df_marker
         self.export_dir = export_dir
         self.draw_polygon = draw_polygon
-        self.plot_folium()
+        self.plot_folium(pre_suffix)
 
         # delete vars
         del self.gjs
@@ -364,7 +370,7 @@ class Map():
         self.map.add_child(gplot)
         gplot.add_child(folium.Marker(self.center_map, icon=icon, draggable=True))
 
-    def plot_folium(self):
+    def plot_folium(self, pre_suffix=''):
         """Overlay plotted png images on folium map"""
         # get the time string
         self.time_str = self.ds[self.varnames[0]].attrs['start_time']
@@ -400,6 +406,8 @@ class Map():
                                                os.path.basename(self.filename)
                                                .replace('.', f'_{varname}.')
                                                .replace('_RAD', '').replace('L1', 'L2'))).with_suffix('.png')
+            # append pre-suffix
+            output_png = str(output_png).replace('.png', f'{pre_suffix}.png')
 
             # plot 2D trace gas field
             raster = folium.raster_layers.ImageOverlay(image=str(output_png),
@@ -433,13 +441,16 @@ class Map():
                                     popup=popup,
                                     ).add_to(self.map)
 
-    def export(self, savename=None):
+    def export(self, savename=None, pre_suffix=''):
         """Export plotted folium map to html file"""
         layer_control = folium.LayerControl(collapsed=False, position='topleft', draggable=True)
         self.map.add_child(layer_control)
 
         if savename is None:
             savename = str(Path(self.filename.replace('_RAD', '').replace('L1', 'L2')).with_suffix('.html'))
+
+        # append pre-suffix
+        savename = savename.replace('.html', f'{pre_suffix}.html')
 
         LOG.info(
             f'Export folium map to {savename}')
