@@ -7,7 +7,9 @@
 # hypergas is a library to retrieve trace gases from hyperspectral satellite data
 """IME/CSF method of calculating gas emission rates"""
 
+import os
 import gc
+import yaml
 import logging
 
 import geopandas as gpd
@@ -38,35 +40,13 @@ grav = 9.8  # gravity (m s-2)
 molar_volume = 22.4  # L/mol at STP
 
 
-'''
-instrument data
-    pixel_res: meters
-    alpha: IME alphas
-'''
-emit_info = {
-    'platform': 'EMIT', 'instrument': 'emi', 'provider': 'NASA-JPL', 'pixel_res': 60,
-    'alpha_area': {'alpha1': 0., 'alpha2': 0.67, 'alpha3': 0.45, 'resid': 0.053},
-    'alpha_point': {'alpha1': 0., 'alpha2': 0.28, 'alpha3': 0.49, 'resid': 0.033},
-    'beta_area': {'beta1': 1.13, 'beta2': 0, 'resid': -0.017},
-    'beta_point': {'beta1': 1.13, 'beta2': 0, 'resid': -0.042},
-}
-
-enmap_info = {
-    'platform': 'EnMAP', 'instrument': 'hsi', 'provider': 'DLR', 'pixel_res': 30,
-    'alpha_area': {'alpha1': 0., 'alpha2': 0.69, 'alpha3': 0.37, 'resid': 0.034},
-    'alpha_point': {'alpha1': 0., 'alpha2': 0.43, 'alpha3': 0.38, 'resid': 0.014},
-    'beta_area': {'beta1': 1.22, 'beta2': 0, 'resid': -0.004},
-    'beta_point': {'beta1': 1.14, 'beta2': 0, 'resid': -0.025},
-}
-prisma_info = {
-    'platform': 'PRISMA', 'instrument': 'hsi', 'provider': 'ASI', 'pixel_res': 30,
-    'alpha_area': {'alpha1': 0., 'alpha2': 0.70, 'alpha3': 0.37, 'resid': 0.035},
-    'alpha_point': {'alpha1': 0., 'alpha2': 0.42, 'alpha3': 0.39, 'resid': 0.014},
-    'beta_area': {'beta1': 1.22, 'beta2': 0, 'resid': -0.007},
-    'beta_point': {'beta1': 1.14, 'beta2': 0, 'resid': -0.022},
-}
-sensor_info = {'EMIT': emit_info, 'EnMAP': enmap_info, 'PRISMA': prisma_info}
-
+# load sensor and calibration settings
+_dirname = os.path.dirname(__file__)
+with open(os.path.join(_dirname, 'config.yaml')) as f:
+    settings = yaml.safe_load(f)
+    sensor_info = settings['sensor']
+    ime_calibration_info = settings['ime_calibration']
+    csf_calibration_info = settings['csf_calibration']
 
 class IME_CSF():
     def __init__(self, sensor,
@@ -116,8 +96,8 @@ class IME_CSF():
         self.land_only = land_only
         self.land_mask_source = land_mask_source
 
-        self.info = sensor_info[sensor]
-        self.pixel_res = self.info['pixel_res']
+        self.sensor_info = sensor_info[sensor]
+        self.pixel_res = self.sensor_info['pixel_res']
 
         self.ds = xr.open_dataset(self.plume_nc_filename, decode_coords='all')
         self.unit = self.ds[self.gas].attrs['units']
@@ -131,22 +111,30 @@ class IME_CSF():
         # get the masked plume data
         self.gas_mask = self.ds.dropna(dim='y', how='all').dropna(dim='x', how='all')[self.gas]
 
-        if ipcc_sector == 'Solid Waste (6A)':
-            # area source
-            self.alpha = self.info['alpha_area']
-            self.beta = self.info['beta_area']
-            self.alpha_replace = self.info['alpha_point']
-            self.beta_replace = self.info['beta_point']
-            # set residual as zero as we will use the point-source calibration
-            self.alpha_replace['resid'] = 0
-            self.beta_replace['resid'] = 0
+        if gas == 'ch4':
+            if ipcc_sector == 'Solid Waste (6A)':
+                # area source
+                self.alpha = ime_calibration_info[gas]['area-source'][sensor]
+                self.beta = csf_calibration_info[gas]['area-source'][sensor]
+                self.alpha_replace = ime_calibration_info[gas]['point-source'][sensor]
+                self.beta_replace = csf_calibration_info[gas]['point-source'][sensor]
+                # set residual as zero as we will use the point-source calibration
+                self.alpha_replace['resid'] = 0
+                self.beta_replace['resid'] = 0
+            else:
+                # point source
+                self.alpha = ime_calibration_info[gas]['point-source'][sensor]
+                self.beta = csf_calibration_info[gas]['point-source'][sensor]
+                # use residual as uncertainty
+                self.alpha_replace = self.alpha
+                self.beta_replace = self.beta
+        elif gas == 'co2':
+            self.alpha = ime_calibration_info[gas]['point-source'][sensor]
+            self.beta = csf_calibration_info[gas]['point-source'][sensor]
+            self.alpha_replace = self.alpha
+            self.beta_replace = self.beta
         else:
-            # point source
-            self.alpha = self.info['alpha_point']
-            self.beta = self.info['beta_point']
-            # use residual as uncertainty
-            self.alpha_replace = self.info['alpha_point']
-            self.beta_replace = self.info['beta_point']
+            raise ValueError(f'{gas} is not supported by IME/CSF yet. Please update config.yaml and paras here to include it.')
 
     def calc_emiss(self):
         """Calculate emission rate (kg/h)"""
@@ -155,7 +143,7 @@ class IME_CSF():
 
         Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch = self.ime_fetch()
 
-        if self.info['platform'] == 'PRISMA':
+        if self.sensor_info['platform'] == 'PRISMA':
             # not yet support CSF for PRISMA data
             LOG.warning('Skip CSF as we do not support PRISMA data with 4326 projection yet.')
             IME_cm, l_cm, Q_cm, ds_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf = \

@@ -188,7 +188,7 @@ class Emiss():
             ds_csf.to_netcdf(csf_filename)
 
         # get info
-        info = ime_csf.info
+        info = ime_csf.sensor_info
         alpha = ime_csf.alpha
         beta = ime_csf.beta
 

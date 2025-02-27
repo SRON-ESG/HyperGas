@@ -62,6 +62,88 @@ species:
     wavelength: [400, 500]
     full_wavelength: [400, 700]
     rad_source: model
-    concentrations: [0.0e-3, 1.0e-3, 2.0e-3, 4.0e-3, 8.0e-3, 1.6e-2, 3.2e-2, 6.4e-2]
+    concentrations: [0.0e-3, 1.0e-3, 2.0e-3, 4.0e-3, 8.0e-3, 1.6e-2, 3.2e-2, 6.4e-2]  # ppm
     units: ppb  #umol m-2
 
+sensor:
+  EMIT:
+    platform: 'EMIT'
+    instrument: 'emi'
+    provider: 'NASA-JPL'
+    pixel_res: 60
+  EnMAP:
+    platform: 'EnMAP'
+    instrument: 'hsi'
+    provider: 'DLR'
+    pixel_res: 30
+  PRISMA:
+    platform: 'PRISMA'
+    instrument: 'hsi'
+    provider: 'ASI'
+    pixel_res: 30
+
+ime_calibration: # ueff = alpha1*log(wspd) + alpha2 + alpha3*wspd
+  # full plume
+  ch4:
+    point-source:
+      EMIT:
+        alpha1: 0.
+        alpha2: 0.28
+        alpha3: 0.49
+        resid: 0.033
+      EnMAP:
+        alpha1: 0.
+        alpha2: 0.43
+        alpha3: 0.38
+        resid: 0.014
+      PRISMA:
+        alpha1: 0.
+        alpha2: 0.42
+        alpha3: 0.39
+        resid: 0.014
+    area-source:
+      EMIT:
+        alpha1: 0.
+        alpha2: 0.67
+        alpha3: 0.45
+        resid: 0.053
+      EnMAP:
+        alpha1: 0.
+        alpha2: 0.69
+        alpha3: 0.37
+        resid: 0.034
+      PRISMA:
+        alpha1: 0.
+        alpha2: 0.70
+        alpha3: 0.37
+        resid: 0.035
+
+csf_calibration: # ueff = beta1*wspd + beta2
+  # full plume
+  ch4:
+    point-source:
+      EMIT:
+        beta1: 1.13
+        beta2: 0
+        resid: -0.042
+      EnMAP:
+        beta1: 1.14
+        beta2: 0.
+        resid: -0.025
+      PRISMA:
+        beta1: 1.14
+        beta2: 0.
+        resid: -0.022
+    area-source:
+      EMIT:
+        beta1: 1.13
+        beta2: 0.
+        resid: -0.017
+      EnMAP:
+        beta1: 1.22
+        beta2: 0.
+        resid: -0.004
+      PRISMA:
+        beta1: 1.22
+        beta2: 0.
+        resid: -0.007
