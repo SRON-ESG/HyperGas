@@ -112,7 +112,6 @@ params = {'gas': 'CH4',
           'wind_source': None, 'land_mask_source': 'OSM', 'land_only': True,
           'wind_speed': None, 'surface_pressure': None,
           'azimuth_diff_max': 30., 'dist_max': 180.,
-          'alpha1': 0.0, 'alpha2': 0.81, 'alpha3': 0.38,
           'name': '', 'ipcc_sector': 'Solid Waste (6A)',
           'platform': None, 'source_tropomi': True, 'source_trace': False
           }
@@ -259,11 +258,12 @@ with col3:
                                                                                                                 pick_plume_name, wind_source,
                                                                                                                 land_only, land_mask_source, only_plume,
                                                                                                                 azimuth_diff_max, dist_max)
-                        cm_mask = cm_mask_data(ds, gas, longitude, latitude)
+                        cm_mask, cm_threshold = cm_mask_data(ds, gas, longitude, latitude)
 
                         # mask data
                         gas_mask = ds[gas].where(mask)
-                        gas_cm_mask = ds[gas].where(cm_mask).rename(f'{gas}_cm')
+                        with xr.set_options(keep_attrs=True):
+                            gas_cm_mask = ds[gas].where(cm_mask).rename(f'{gas}_cm')  # - cm_threshold
                         gas_cm_mask.attrs['description'] = gas_cm_mask.attrs['description'] + \
                             ' masked by the Carbon Mapper v2 method'
 
