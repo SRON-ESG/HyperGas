@@ -179,7 +179,7 @@ class Emiss():
             l_ime, l_eff, u_eff, IME, Q, Q_err, err_random, err_wind, err_calib, \
             Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch, \
             IME_cm, l_cm, Q_cm, \
-            ds_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf = ime_csf.calc_emiss()
+            ds_csf, n_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf = ime_csf.calc_emiss()
 
         # export csf data
         if ds_csf is not None:
@@ -257,6 +257,7 @@ class Emiss():
                    'ime_cm': IME_cm,
                    'l_cm': l_cm,
                    'ueff_csf': u_eff_csf,
+                   'n_csf': n_csf,
                    'l_csf': l_csf,
                    'alpha1': alpha['alpha1'],
                    'alpha2': alpha['alpha2'],

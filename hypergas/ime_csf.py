@@ -146,15 +146,15 @@ class IME_CSF():
         if self.sensor_info['platform'] == 'PRISMA':
             # not yet support CSF for PRISMA data
             LOG.warning('Skip CSF as we do not support PRISMA data with 4326 projection yet.')
-            IME_cm, l_cm, Q_cm, ds_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf = \
-                np.nan, np.nan, np.nan, None, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
+            IME_cm, l_cm, Q_cm, ds_csf, n_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf = \
+                np.nan, np.nan, np.nan, None, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
         else:
-            ds_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf = self.csf()
+            ds_csf, n_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf = self.csf()
             IME_cm, l_cm, Q_cm = self.ime_cm()
 
         return surface_pressure, wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, l_ime, l_eff, u_eff, IME, Q, Q_err, \
             err_random, err_wind, err_calib, Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch, \
-            IME_cm, l_cm, Q_cm, ds_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf
+            IME_cm, l_cm, Q_cm, ds_csf, n_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf
 
     def _create_circular_mask(self, h, w, center=None, radius=None):
         """Create circle mask by radius and center"""
@@ -274,7 +274,7 @@ class IME_CSF():
 
         return wind_error
 
-    def _calc_wind_error_csf(self, C):
+    def _calc_wind_error_csf(self, C_lines):
         """Calculate wind error with random distribution"""
         # Generate U10 distribution
         #   uncertainty = 50%, if wspd <= 3 m/s
@@ -290,7 +290,7 @@ class IME_CSF():
         u_eff_distribution = self.beta['beta1'] * wspd_distribution + self.beta['beta2']
 
         # Calculate Q distribution
-        Q_distribution = u_eff_distribution * C
+        Q_distribution = np.nanmean(u_eff_distribution[:, None] * C_lines, axis=0)
 
         # Calculate standard deviation of Q distribution
         wind_error = np.nanstd(Q_distribution)
@@ -356,7 +356,7 @@ class IME_CSF():
 
         return std_value
 
-    def _calc_random_err_csf(self, C, u_eff, match_lists):
+    def _calc_random_err_csf(self, u_eff, match_lists):
         """Calculate random error by moving plume around the whole scene"""
         C_noplume = []
 
@@ -388,7 +388,7 @@ class IME_CSF():
 
         return error
 
-    def _calc_calibration_error_csf(self, C, u_eff):
+    def _calc_calibration_error_csf(self, C_lines, u_eff):
         """Calculate wind calibration error by replacing betas"""
         # Calculate Ueff
         u_eff_replace = self.beta_replace['beta1'] * self.wspd + self.beta_replace['beta2'] + self.beta_replace['resid']
@@ -397,7 +397,7 @@ class IME_CSF():
             u_eff_replace = self.beta_replace['beta1'] * self.wspd + self.beta_replace['beta2'] + self.beta['resid']
 
         # Calculate uncertainty
-        error = abs(u_eff_replace - u_eff) * C
+        error = abs(u_eff_replace - u_eff) * np.nanmean(C_lines)
 
         return error
 
@@ -516,6 +516,7 @@ class IME_CSF():
 
         # calculate emission rate using intersected pixels
         Q_lines = []
+        C_lines = []
         match_lists = []
         u_eff = self.beta['beta1'] * self.wspd + self.beta['beta2']
 
@@ -525,12 +526,13 @@ class IME_CSF():
             if len(match_list) > 0:
                 gas_match = self.gas_valid.isel(z=match_list)
                 C = self._csf_sum(gas_match)
+                C_lines.append(C)
                 Q_lines.append(C * u_eff)
                 match_lists.append(match_list)
             else:
                 Q_lines.append(np.nan)
 
-        return C, u_eff, np.array(Q_lines), match_lists
+        return np.array(C_lines), u_eff, np.array(Q_lines), match_lists
 
     def _csf_dataset(self, center_curve, csf_lines, Q_lines):
         """Combine CSF info into one xarray Dataset"""
@@ -587,8 +589,9 @@ class IME_CSF():
         l_csf = LineString(center_curve).length
 
         # calculate the emission rate at each CSF line
-        C, u_eff, Q_lines, match_lists = self._emiss_csf_lines(csf_lines)
+        C_lines, u_eff, Q_lines, match_lists = self._emiss_csf_lines(csf_lines)
         ds_csf = self._csf_dataset(center_curve, csf_lines, Q_lines)
+        n_csf = len(C_lines)  # number of csf lines
 
         # calculate the mean emission rate
         Q = np.nanmean(Q_lines)
@@ -596,21 +599,21 @@ class IME_CSF():
         # ---- uncertainty ----
         # 1. random
         LOG.info('Calculating random error')
-        C_std = self._calc_random_err_csf(C, u_eff, match_lists)
+        C_std = self._calc_random_err_csf(u_eff, match_lists)
         err_random = u_eff * C_std
 
         # 2. wind error
         LOG.info('Calculating wind error')
-        err_wind = self._calc_wind_error_csf(C)
+        err_wind = self._calc_wind_error_csf(C_lines)
 
         # 3. calibration error
         LOG.info('Calculating calibration error')
-        err_calib = self._calc_calibration_error_csf(C, u_eff)
+        err_calib = self._calc_calibration_error_csf(C_lines, u_eff)
 
         # sum error
         Q_err = np.sqrt(err_random**2 + err_wind**2 + err_calib**2)
 
-        return ds_csf, l_csf, u_eff, Q*3600, Q_err*3600, \
+        return ds_csf, n_csf, l_csf, u_eff, Q*3600, Q_err*3600, \
             err_random*3600, err_wind*3600, err_calib*3600  # kg/h
 
     def ime(self):
