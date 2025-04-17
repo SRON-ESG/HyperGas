@@ -90,7 +90,6 @@ class IME_CSF():
         self.latitude_source = latitude_source
         self.plume_nc_filename = plume_nc_filename
         self.plume_name = plume_name
-        self.wind_source = wind_source
         self.wspd_manual = wspd_manual
         self.sp_manual = sp_manual
         self.land_only = land_only
@@ -101,6 +100,12 @@ class IME_CSF():
 
         self.ds = xr.open_dataset(self.plume_nc_filename, decode_coords='all')
         self.unit = self.ds[self.gas].attrs['units']
+
+        if self.wspd_manual:
+            # set the wind source to 'OBS' if the wspd_manual is not None
+            self.wind_source = 'OBS'
+        else:
+            self.wind_source = wind_source
 
         # get the crs
         if self.ds.rio.crs:
@@ -290,7 +295,7 @@ class IME_CSF():
         u_eff_distribution = self.beta['beta1'] * wspd_distribution + self.beta['beta2']
 
         # Calculate Q distribution
-        Q_distribution = np.nanmean(u_eff_distribution[:, None] * C_lines, axis=0)
+        Q_distribution = np.nanmean(u_eff_distribution[:, None] * C_lines, axis=1)
 
         # Calculate standard deviation of Q distribution
         wind_error = np.nanstd(Q_distribution)
