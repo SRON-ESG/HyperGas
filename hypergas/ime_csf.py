@@ -674,8 +674,13 @@ class IME_CSF():
 
         # get wind info
         LOG.info('Calculating wind info')
-        u10 = ds['u10'].sel(source=self.wind_source).item()
-        v10 = ds['v10'].sel(source=self.wind_source).item()
+        if self.wspd_manual is None:
+            u10 = ds['u10'].sel(source=self.wind_source).item()
+            v10 = ds['v10'].sel(source=self.wind_source).item()
+        else:
+            # read the first wspd data by default if wspd is set manually, this is only used to calculate wdir
+            u10 = ds['u10'].isel(source=0).item()
+            v10 = ds['v10'].isel(source=0).item()
         if self.wspd_manual is None:
             self.wspd = np.sqrt(u10**2 + v10**2)
         else:
