@@ -277,8 +277,9 @@ class Hyper():
                 scn['radiance'].attrs['vza'] = scn['vza'].mean().load().item()
             else:
                 # vza is not saved in the PRISMA L1 product
-                _, vza = self._calc_sensor_angle()
+                vaa, vza = self._calc_sensor_angle()
                 scn['radiance'].attrs['vza'] = vza
+                scn['radiance'].attrs['vaa'] = vaa
 
         if drop_waterbands:
             # drop water vapor bands
