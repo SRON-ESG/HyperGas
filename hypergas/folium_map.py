@@ -84,8 +84,19 @@ class Map():
 
     def _calc_center(self):
         """Calculate center lon and lat based on geotransform info."""
-        center_lon = self.ds.coords['longitude'].mean()
-        center_lat = self.ds.coords['latitude'].mean()
+        # The mean value doesn't work well
+        # center_lon = self.ds.coords['longitude'].mean()
+        # center_lat = self.ds.coords['latitude'].mean()
+
+        self.swath = SwathDefinition(lons=self.ds.coords['longitude'], lats=self.ds.coords['latitude'])
+        corners = self.swath.corners
+
+        # Extract lon and lat separately
+        lons_corner = [c.lon for c in corners]
+        lats_corner = [c.lat for c in corners]
+        center_lon = np.rad2deg(np.mean(lons_corner))
+        center_lat = np.rad2deg(np.mean(lats_corner))
+
         self.center_map = [center_lat, center_lon]
 
     def _get_cartopy_crs_from_epsg(self, epsg_code):
@@ -164,7 +175,7 @@ class Map():
                 if 'segmentation' in self.ds.keys():
                     # if the data is masked, we choose the data with label >=1
                     #   which means "land" type or "not background" classification
-                    cmap_vmax = da_ortho.where(self.ds['segmentation']>=1).quantile(0.99)
+                    cmap_vmax = da_ortho.where(self.ds['segmentation'] >= 1).quantile(0.99)
                 else:
                     cmap_vmax = da_ortho.quantile(0.99)
 
@@ -189,7 +200,7 @@ class Map():
                 da_ortho = da_ortho.where(np.isin(da_ortho, count_unique, 0))
 
                 # remove background mask (0)
-                da_ortho = da_ortho.where(da_ortho>0).squeeze()
+                da_ortho = da_ortho.where(da_ortho > 0).squeeze()
             else:
                 # set vmax for species automatically
                 #   Note that vmax of radiance and denoised variables are set based on percentile values above
@@ -320,8 +331,7 @@ class Map():
         self.plot_png(out_epsg=out_epsg, vmax=vmax, export_dir=export_dir, pre_suffix=pre_suffix)
 
         # get the swath polygon from area boundary
-        area = SwathDefinition(lons=self.ds.longitude, lats=self.ds.latitude)
-        hull = ConvexHull(area.boundary().vertices)
+        hull = ConvexHull(self.swath.boundary().vertices)
         lonlatPoly = geometry.Polygon(hull.points[hull.vertices])
         self.gjs = geojson.Feature(geometry=lonlatPoly, properties={})
 
