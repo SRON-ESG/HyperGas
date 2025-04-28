@@ -203,7 +203,7 @@ class L2B():
 
         self._update_scene()
 
-    def _ortho_emit(self):
+    def _ortho_emit_prisma(self):
         # orthorectification
         self.rgb_corr = self.hyp.terrain_corr(varname='rgb')
         self.segmentation_corr = self.hyp.terrain_corr(varname='segmentation')
@@ -228,10 +228,8 @@ class L2B():
         LOG.info('Applying orthorectification')
         if self.reader == 'hsi_l1b':
             self._ortho_enmap()
-        elif self.reader == 'emit_l1b':
-            self._ortho_emit()
-        elif self.reader == 'hyc_l1':
-            LOG.info('We do not support applying orthorectification to PRISMA L1 data yet.')
+        elif self.reader in ['emit_l1b', 'hyc_l1']:
+            self._ortho_emit_prisma()
 
     def denoise(self):
         """Denoise random noise"""
@@ -340,7 +338,7 @@ def main():
                 # output unortho data
                 unortho_savename = l2b_scene.savename.replace('.nc', '_unortho.nc')
                 LOG.info(f'Exporting unortho file: {unortho_savename}')
-                l2b_scene.hyp.scene.save_datasets(datasets=[species, 'segmentation'], filename=unortho_savename, writer='cf')
+                l2b_scene.hyp.scene.save_datasets(datasets=[species, f'{species}_comb', 'segmentation'], filename=unortho_savename, writer='cf')
 
             l2b_scene.denoise()
             l2b_scene.ortho()

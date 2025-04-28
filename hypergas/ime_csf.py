@@ -96,10 +96,12 @@ class IME_CSF():
         self.land_mask_source = land_mask_source
 
         self.sensor_info = sensor_info[sensor]
-        self.pixel_res = self.sensor_info['pixel_res']
 
         self.ds = xr.open_dataset(self.plume_nc_filename, decode_coords='all')
         self.unit = self.ds[self.gas].attrs['units']
+
+        # get the UTM pixel resolution
+        self.pixel_res = abs(self.ds.y.diff('y').mean().item())
 
         if self.wspd_manual:
             # set the wind source to 'OBS' if the wspd_manual is not None
@@ -148,14 +150,8 @@ class IME_CSF():
 
         Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch = self.ime_fetch()
 
-        if self.sensor_info['platform'] == 'PRISMA':
-            # not yet support CSF for PRISMA data
-            LOG.warning('Skip CSF as we do not support PRISMA data with 4326 projection yet.')
-            IME_cm, l_cm, Q_cm, ds_csf, n_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf = \
-                np.nan, np.nan, np.nan, None, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
-        else:
-            ds_csf, n_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf = self.csf()
-            IME_cm, l_cm, Q_cm = self.ime_cm()
+        ds_csf, n_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf = self.csf()
+        IME_cm, l_cm, Q_cm = self.ime_cm()
 
         return surface_pressure, wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, l_ime, l_eff, u_eff, IME, Q, Q_err, \
             err_random, err_wind, err_calib, Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch, \

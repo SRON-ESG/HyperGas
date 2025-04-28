@@ -23,9 +23,6 @@ from pyresample.geometry import AreaDefinition
 from rasterio import warp
 from rasterio.enums import Resampling
 
-# the target UTM resolution for orthorectified data
-ORTHO_RES = {'hsi_l1b': 30, 'emit_l1b': 60}
-
 LOG = logging.getLogger(__name__)
 
 
@@ -49,8 +46,8 @@ class Ortho():
         self._check_vars()
 
         # get the bounds of scene
-        lons, lats = scene[varname].attrs['area'].get_lonlats()
-        self.bounds = [lons.min(), lats.min(), lons.max(), lats.max()]
+        self.lons, self.lats = scene[varname].attrs['area'].get_lonlats()
+        self.bounds = [self.lons.min(), self.lats.min(), self.lons.max(), self.lats.max()]
 
         # get the UTM epsg code
         self._utm_epsg()
@@ -61,11 +58,6 @@ class Ortho():
 
     def _check_vars(self):
         """Check necessary variables for ortho."""
-        # hardcode the ortho res
-        #   it is better to set it as same as the input data
-        reader = list(self.scene._readers.keys())[0]
-        self.ortho_res = ORTHO_RES.get(reader, None)
-
         # check already loaded vars
         loaded_varnames = [key['name'] for key in self.scene._datasets]
 
@@ -83,7 +75,18 @@ class Ortho():
         elif glt_boolean:
             self.ortho_source = 'glt'
         else:
-            raise ValueError(f'Neither rpc nor glt variabes are available in loaded vars: {loaded_varnames}')
+            self.ortho_source = 'none'
+
+        # calculate the pixel resolution for the UTM projection
+        src_height, src_width = self.lons.shape
+        self.default_dst_transform, dst_width, dst_height = warp.calculate_default_transform(
+            src_crs='EPSG:4326',
+            dst_crs=self.utm_epsg,
+            width=src_width,
+            height=src_height,
+            src_geoloc_array=(self.lons, self.lats),
+        )
+        self.ortho_res = abs(self.default_dst_transform.a)
 
     def _download_dem(self):
         """Download SRTMV3 DEM data."""
@@ -173,13 +176,14 @@ class Ortho():
 
     def apply_ortho(self):
         """Apply orthorectification."""
+        # read data and expand to 3d array with "band" dim for rioxarray
+        data = self.scene[self.varname]
+        if len(data.dims) == 2:
+            data = data.expand_dims(dim={'band': 1})
+
         if self.ortho_source == 'rpc':
             LOG.debug('Orthorectify data using rpc')
-            tmp_da = self.scene[self.varname]
-            if len(tmp_da.dims) == 2:
-                # expand to 3d array with "band" dim for rioxarray
-                tmp_da = tmp_da.expand_dims(dim={'band': 1})
-            ortho_arr, dst_transform = warp.reproject(tmp_da.data,
+            ortho_arr, dst_transform = warp.reproject(data.data,
                                                       rpcs=self.rpcs,
                                                       src_crs='EPSG:4326',
                                                       dst_crs=f'EPSG:{self.utm_epsg}',
@@ -200,10 +204,6 @@ class Ortho():
             self.scene['glt_x'].load()
 
             # select value and set fill_value to nan
-            data = self.scene[self.varname]
-            if len(data.dims) == 2:
-                # expand to 3d array with "band" dim for rioxarray
-                data = data.expand_dims(dim={'band': 1})
             da_ortho = data[:, self.scene['glt_y']-1, self.scene['glt_x']-1].where(glt_valid_mask)
 
             # create temporary array because we perfer using AreaDefinition later
@@ -221,14 +221,24 @@ class Ortho():
             dst_transform = tmp_da.rio.transform()
 
         else:
-            raise ValueError('Please load `rpc` or `glt` variables for ortho.')
+            LOG.info('`rpc` or `glt` is missing. Please check the accuracy of orthorectification manually.')
+            destination = np.full(tuple(data.sizes.values()), np.nan)
+
+            ortho_arr, dst_transform = warp.reproject(data,
+                                                      destination=destination,
+                                                      src_crs=CRS.from_epsg(4326),
+                                                      dst_crs=CRS.from_epsg(self.utm_epsg),
+                                                      dst_transform=self.default_dst_transform,
+                                                      dst_nodata=np.nan,
+                                                      src_geoloc_array=np.stack((self.lons, self.lats))
+                                                      )
 
         # create the DataArray by replacing values
-        da_ortho = xr.DataArray(ortho_arr, dims=tmp_da.dims)
+        da_ortho = xr.DataArray(ortho_arr, dims=data.dims)
 
         # assign source coords for wind data if exists
-        if 'source' in tmp_da.dims:
-            da_ortho.coords['source'] = tmp_da.coords['source'].values
+        if 'source' in data.dims:
+            da_ortho.coords['source'] = data.coords['source'].values
 
         # copy attrs
         da_ortho = da_ortho.rename(self.scene[self.varname].name)
