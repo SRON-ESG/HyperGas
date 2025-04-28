@@ -52,6 +52,9 @@ class Ortho():
         # get the UTM epsg code
         self._utm_epsg()
 
+        # get the default transform info
+        self._get_default_transform()
+
         # download the DEM data if we use the RPC method
         if self.ortho_source == 'rpc':
             self._download_dem()
@@ -77,6 +80,7 @@ class Ortho():
         else:
             self.ortho_source = 'none'
 
+    def _get_default_transform(self):
         # calculate the pixel resolution for the UTM projection
         src_height, src_width = self.lons.shape
         self.default_dst_transform, dst_width, dst_height = warp.calculate_default_transform(
