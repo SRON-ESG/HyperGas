@@ -71,7 +71,7 @@ class Ortho():
                 f'{self.varname} is not loaded. Please make sure the name is correct.')
 
         # check if we have rpc or glt loaded
-        rpc_boolean = any(['rpc' in name for name in loaded_varnames])
+        rpc_boolean = (any(['rpc' in name for name in loaded_varnames])) or (self.rpcs is not None)
         glt_boolean = any(['glt' in name for name in loaded_varnames])
         if rpc_boolean:
             self.ortho_source = 'rpc'
@@ -83,7 +83,7 @@ class Ortho():
     def _get_default_transform(self):
         # calculate the pixel resolution for the UTM projection
         src_height, src_width = self.lons.shape
-        self.default_dst_transform, dst_width, dst_height = warp.calculate_default_transform(
+        self.default_dst_transform, self.dst_width, self.dst_height = warp.calculate_default_transform(
             src_crs='EPSG:4326',
             dst_crs=self.utm_epsg,
             width=src_width,
@@ -182,12 +182,20 @@ class Ortho():
         """Apply orthorectification."""
         # read data and expand to 3d array with "band" dim for rioxarray
         data = self.scene[self.varname]
+
         if len(data.dims) == 2:
             data = data.expand_dims(dim={'band': 1})
 
+        # load into normal array
+        if 'source' in data.dims:
+            source_coord = data.coords['source'].values
+        dims = data.dims
+        data_sizes = data.shape
+        data = data.values
+
         if self.ortho_source == 'rpc':
             LOG.debug('Orthorectify data using rpc')
-            ortho_arr, dst_transform = warp.reproject(data.data,
+            ortho_arr, dst_transform = warp.reproject(data,
                                                       rpcs=self.rpcs,
                                                       src_crs='EPSG:4326',
                                                       dst_crs=f'EPSG:{self.utm_epsg}',
@@ -226,7 +234,7 @@ class Ortho():
 
         else:
             LOG.info('`rpc` or `glt` is missing. Please check the accuracy of orthorectification manually.')
-            destination = np.full(tuple(data.sizes.values()), np.nan)
+            destination = np.full((data_sizes[0], self.dst_height, self.dst_width), np.nan)
 
             ortho_arr, dst_transform = warp.reproject(data,
                                                       destination=destination,
@@ -238,11 +246,11 @@ class Ortho():
                                                       )
 
         # create the DataArray by replacing values
-        da_ortho = xr.DataArray(ortho_arr, dims=data.dims)
+        da_ortho = xr.DataArray(ortho_arr, dims=dims)
 
         # assign source coords for wind data if exists
-        if 'source' in data.dims:
-            da_ortho.coords['source'] = data.coords['source'].values
+        if 'source' in dims:
+            da_ortho.coords['source'] = source_coord
 
         # copy attrs
         da_ortho = da_ortho.rename(self.scene[self.varname].name)
