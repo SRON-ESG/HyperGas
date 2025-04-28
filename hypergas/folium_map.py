@@ -69,6 +69,9 @@ class Map():
         # check all variabels are loaded
         self._check_vars()
 
+        # get the swath info
+        self.swath = SwathDefinition(lons=self.ds.coords['longitude'], lats=self.ds.coords['latitude'])
+
         # calculate the map center
         if center_map is None:
             self._calc_center()
@@ -88,7 +91,6 @@ class Map():
         # center_lon = self.ds.coords['longitude'].mean()
         # center_lat = self.ds.coords['latitude'].mean()
 
-        self.swath = SwathDefinition(lons=self.ds.coords['longitude'], lats=self.ds.coords['latitude'])
         corners = self.swath.corners
 
         # Extract lon and lat separately
