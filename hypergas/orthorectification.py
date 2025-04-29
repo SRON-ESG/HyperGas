@@ -202,7 +202,7 @@ class Ortho():
         data = data.values
 
         if self.ortho_source == 'rpc':
-            LOG.debug('Orthorectify data using rpc')
+            LOG.debug(f'Orthorectify {data.name} using rpc')
             ortho_arr, dst_transform = warp.reproject(data,
                                                       rpcs=self.rpcs,
                                                       src_crs='EPSG:4326',
@@ -215,7 +215,7 @@ class Ortho():
                                                       RPC_DEM=self.file_dem,
                                                       )
         elif self.ortho_source == 'glt':
-            LOG.debug('Orthorectify data using glt')
+            LOG.debug(f'Orthorectify {data.name} using glt')
             # Adjust for One based Index
             #   the value is 0 if no data is available
             glt_valid_mask = (self.scene['glt_x'] != 0) & (self.scene['glt_y'] != 0)
@@ -240,7 +240,7 @@ class Ortho():
             dst_transform = tmp_da.rio.transform()
 
         elif self.ortho_source == 'gcp':
-            LOG.info('Orthorectify data using gcp')
+            LOG.info(f'Orthorectify {data.name} using gcp')
             # Step 1: Project lons/lats to UTM
             # self.lons and self.lats have shape (height, width)
             utm_x, utm_y = transform(
