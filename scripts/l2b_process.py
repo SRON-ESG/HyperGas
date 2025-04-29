@@ -16,6 +16,8 @@ import numpy as np
 from itertools import chain
 from pathlib import Path
 import xarray as xr
+import pandas as pd
+from rasterio.crs import CRS
 
 import hypergas
 from hypergas import Hyper
@@ -137,7 +139,8 @@ class L2B():
                     scale = gas.where(segmentation_mask).std()/gas_fullwvl.where(segmentation_mask).std()
 
                     # scale if gas_fullwvl < gas
-                    self.hyp.scene[f'{species}_comb'] = xr.where(segmentation_mask, gas.where(diff > 0, gas_fullwvl*scale), self.hyp.scene[f'{species}_comb'])
+                    self.hyp.scene[f'{species}_comb'] = xr.where(segmentation_mask, gas.where(
+                        diff > 0, gas_fullwvl*scale), self.hyp.scene[f'{species}_comb'])
 
             # update attrs
             self.hyp.scene[f'{species}_comb'] = self.hyp.scene[f'{species}_comb'].rename(f'{species}_comb')
@@ -203,25 +206,46 @@ class L2B():
 
         self._update_scene()
 
-    def _ortho_emit_prisma(self):
+    def _ortho_emit_prisma(self, rpcs=None):
+        # read gcps if available
+        gcps, gcp_crs = self._read_gcps()
+
         # orthorectification
-        self.rgb_corr = self.hyp.terrain_corr(varname='rgb')
-        self.segmentation_corr = self.hyp.terrain_corr(varname='segmentation')
+        self.rgb_corr = self.hyp.terrain_corr(varname='rgb', rpcs=rpcs, gcps=gcps, gcp_crs=gcp_crs)
+        self.segmentation_corr = self.hyp.terrain_corr(varname='segmentation', rpcs=rpcs, gcps=gcps, gcp_crs=gcp_crs)
 
         if self.hyp.wind:
-            self.u10_corr = self.hyp.terrain_corr(varname='u10')
-            self.v10_corr = self.hyp.terrain_corr(varname='v10')
-            self.sp_corr = self.hyp.terrain_corr(varname='sp')
+            self.u10_corr = self.hyp.terrain_corr(varname='u10', rpcs=rpcs, gcps=gcps, gcp_crs=gcp_crs)
+            self.v10_corr = self.hyp.terrain_corr(varname='v10', rpcs=rpcs, gcps=gcps, gcp_crs=gcp_crs)
+            self.sp_corr = self.hyp.terrain_corr(varname='sp', rpcs=rpcs, gcps=gcps, gcp_crs=gcp_crs)
 
-        self.radiance_2100_corr = self.hyp.terrain_corr(varname='radiance_2100')
+        self.radiance_2100_corr = self.hyp.terrain_corr(varname='radiance_2100', rpcs=rpcs, gcps=gcps, gcp_crs=gcp_crs)
 
         for species in self.species:
-            setattr(self, f'{species}_corr', self.hyp.terrain_corr(varname=species))
-            setattr(self, f'{species}_comb_corr', self.hyp.terrain_corr(varname=f'{species}_comb'))
-            setattr(self, f'{species}_denoise_corr', self.hyp.terrain_corr(varname=f'{species}_denoise'))
-            setattr(self, f'{species}_comb_denoise_corr', self.hyp.terrain_corr(varname=f'{species}_comb_denoise'))
+            setattr(self, f'{species}_corr', self.hyp.terrain_corr(
+                varname=species, rpcs=rpcs, gcps=gcps, gcp_crs=gcp_crs))
+            setattr(self, f'{species}_comb_corr', self.hyp.terrain_corr(
+                varname=f'{species}_comb', rpcs=rpcs, gcps=gcps, gcp_crs=gcp_crs))
+            setattr(self, f'{species}_denoise_corr', self.hyp.terrain_corr(
+                varname=f'{species}_denoise', rpcs=rpcs, gcps=gcps, gcp_crs=gcp_crs))
+            setattr(self, f'{species}_comb_denoise_corr', self.hyp.terrain_corr(
+                varname=f'{species}_comb_denoise', rpcs=rpcs, gcps=gcps, gcp_crs=gcp_crs))
 
         self._update_scene()
+
+    def _read_gcps(self):
+        gcp_file = self.savename.replace('.nc', '.points')
+        if os.path.isfile(gcp_file):
+            with open(gcp_file, 'r') as f:
+                first_line = f.readline()
+                wkt = first_line[len('#CRS:'):].strip()
+                gcp_crs = CRS.from_wkt(wkt).to_epsg()
+
+            df_gcp = pd.read_csv(gcp_file, delimiter=',', comment='#', header=0)
+
+            return df_gcp, gcp_crs
+        else:
+            return None, None
 
     def ortho(self):
         """Apply orthorectification."""
@@ -259,7 +283,8 @@ class L2B():
         # set saved variables
         species_vnames = []
         for species in self.species:
-            species_vnames.extend([species, f'{species}_comb', f'{species}_denoise', f'{species}_comb_denoise', f'{species}_mask'])
+            species_vnames.extend([species, f'{species}_comb', f'{species}_denoise',
+                                  f'{species}_comb_denoise', f'{species}_mask'])
         vnames = ['u10', 'v10', 'sp', 'rgb', 'segmentation', 'radiance_2100']
         vnames.extend(species_vnames)
         loaded_names = [x['name'] for x in self.hyp.scene.keys()]
@@ -338,7 +363,8 @@ def main():
                 # output unortho data
                 unortho_savename = l2b_scene.savename.replace('.nc', '_unortho.nc')
                 LOG.info(f'Exporting unortho file: {unortho_savename}')
-                l2b_scene.hyp.scene.save_datasets(datasets=[species, f'{species}_comb', 'segmentation'], filename=unortho_savename, writer='cf')
+                l2b_scene.hyp.scene.save_datasets(
+                    datasets=[species, f'{species}_comb', 'segmentation'], filename=unortho_savename, writer='cf')
 
             l2b_scene.denoise()
             l2b_scene.ortho()

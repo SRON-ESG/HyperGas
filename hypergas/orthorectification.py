@@ -22,6 +22,8 @@ from pyproj.database import query_utm_crs_info
 from pyresample.geometry import AreaDefinition
 from rasterio import warp
 from rasterio.enums import Resampling
+from rasterio.warp import transform
+from rasterio.control import GroundControlPoint as GCP
 
 LOG = logging.getLogger(__name__)
 
@@ -29,7 +31,7 @@ LOG = logging.getLogger(__name__)
 class Ortho():
     """Apply orthorectification by DEM model data"""
 
-    def __init__(self, scene, varname, rpcs=None):
+    def __init__(self, scene, varname, rpcs=None, gcps=None, gcp_crs=None):
         """Initialize ortho class.
 
         Args:
@@ -39,6 +41,9 @@ class Ortho():
         self.scene = scene
         self.varname = varname
         self.rpcs = rpcs
+        self.gcps = gcps
+        self.gcp_crs = gcp_crs
+
         self.glt_x = getattr(scene, 'glt_x', None)
         self.glt_y = getattr(scene, 'glt_y', None)
 
@@ -73,10 +78,13 @@ class Ortho():
         # check if we have rpc or glt loaded
         rpc_boolean = (any(['rpc' in name for name in loaded_varnames])) or (self.rpcs is not None)
         glt_boolean = any(['glt' in name for name in loaded_varnames])
+
         if rpc_boolean:
             self.ortho_source = 'rpc'
         elif glt_boolean:
             self.ortho_source = 'glt'
+        elif self.gcps is not None:
+            self.ortho_source = 'gcp'
         else:
             self.ortho_source = 'none'
 
@@ -206,7 +214,6 @@ class Ortho():
                                                       resampling=Resampling.nearest,
                                                       RPC_DEM=self.file_dem,
                                                       )
-
         elif self.ortho_source == 'glt':
             LOG.debug('Orthorectify data using glt')
             # Adjust for One based Index
@@ -232,6 +239,38 @@ class Ortho():
             ortho_arr = tmp_da.data
             dst_transform = tmp_da.rio.transform()
 
+        elif self.ortho_source == 'gcp':
+            LOG.info('Orthorectify data using gcp')
+            # Step 1: Project lons/lats to UTM
+            # self.lons and self.lats have shape (height, width)
+            utm_x, utm_y = transform(
+                'EPSG:4326', f'EPSG:{self.utm_epsg}',
+                self.lons.flatten(), self.lats.flatten()
+            )
+
+            # Reshape to 2D
+            utm_x = np.array(utm_x).reshape(self.lons.shape)
+            utm_y = np.array(utm_y).reshape(self.lats.shape)
+
+            # Step 2: For each GCP, find nearest pixel
+            gcps_corr = []
+            for sx, sy, mapx, mapy in zip(self.gcps['sourceX'], self.gcps['sourceY'], self.gcps['mapX'], self.gcps['mapY']):
+                # Compute distance to all pixels
+                dist = np.sqrt((utm_x - sx)**2 + (utm_y - sy)**2)
+                idx = np.unravel_index(np.argmin(dist), dist.shape)
+                row, col = idx  # pixel coordinates
+                gcps_corr.append(GCP(row=row, col=col, x=mapx, y=mapy))
+
+            destination = np.full((data_sizes[0], self.dst_height, self.dst_width), np.nan)
+            ortho_arr, dst_transform = warp.reproject(data,
+                                                      destination=destination,
+                                                      gcps=gcps_corr,
+                                                      src_crs=CRS.from_epsg(self.gcp_crs),
+                                                      dst_crs=CRS.from_epsg(self.utm_epsg),
+                                                      dst_transform=self.default_dst_transform,
+                                                      dst_nodata=np.nan,
+                                                      resampling=Resampling.nearest,
+                                                      )
         else:
             LOG.info('`rpc` or `glt` is missing. Please check the accuracy of orthorectification manually.')
             destination = np.full((data_sizes[0], self.dst_height, self.dst_width), np.nan)

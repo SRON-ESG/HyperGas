@@ -396,7 +396,7 @@ class Hyper():
         if 'mf' in algo:
             self.scene[species].attrs['matched_filter'] = f'{rad_dist} matched filter'
 
-    def terrain_corr(self, varname='rgb', rpcs=None):
+    def terrain_corr(self, varname='rgb', rpcs=None, gcps=None, gcp_crs=None):
         """Apply orthorectification
 
         Args:
@@ -405,7 +405,7 @@ class Hyper():
                 If `rpcs` is None, we look for glt_x/glt_y data automatically.
         """
 
-        da_ortho = Ortho(self.scene, varname, rpcs=rpcs).apply_ortho()
+        da_ortho = Ortho(self.scene, varname, rpcs=rpcs, gcps=gcps, gcp_crs=gcp_crs).apply_ortho()
 
         return da_ortho
 
