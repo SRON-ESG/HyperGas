@@ -190,6 +190,7 @@ class Ortho():
         """Apply orthorectification."""
         # read data and expand to 3d array with "band" dim for rioxarray
         data = self.scene[self.varname]
+        data_name = data.name
 
         if len(data.dims) == 2:
             data = data.expand_dims(dim={'band': 1})
@@ -199,11 +200,10 @@ class Ortho():
             source_coord = data.coords['source'].values
         dims = data.dims
         data_sizes = data.shape
-        data = data.values
 
         if self.ortho_source == 'rpc':
-            LOG.debug(f'Orthorectify {data.name} using rpc')
-            ortho_arr, dst_transform = warp.reproject(data,
+            LOG.debug(f'Orthorectify {data_name} using rpc')
+            ortho_arr, dst_transform = warp.reproject(data.values,
                                                       rpcs=self.rpcs,
                                                       src_crs='EPSG:4326',
                                                       dst_crs=f'EPSG:{self.utm_epsg}',
@@ -215,7 +215,7 @@ class Ortho():
                                                       RPC_DEM=self.file_dem,
                                                       )
         elif self.ortho_source == 'glt':
-            LOG.debug(f'Orthorectify {data.name} using glt')
+            LOG.debug(f'Orthorectify {data_name} using glt')
             # Adjust for One based Index
             #   the value is 0 if no data is available
             glt_valid_mask = (self.scene['glt_x'] != 0) & (self.scene['glt_y'] != 0)
@@ -240,7 +240,7 @@ class Ortho():
             dst_transform = tmp_da.rio.transform()
 
         elif self.ortho_source == 'gcp':
-            LOG.info(f'Orthorectify {data.name} using gcp')
+            LOG.info(f'Orthorectify {data_name} using gcp')
             # Step 1: Project lons/lats to UTM
             # self.lons and self.lats have shape (height, width)
             utm_x, utm_y = transform(
@@ -262,7 +262,7 @@ class Ortho():
                 gcps_corr.append(GCP(row=row, col=col, x=mapx, y=mapy))
 
             destination = np.full((data_sizes[0], self.dst_height, self.dst_width), np.nan)
-            ortho_arr, dst_transform = warp.reproject(data,
+            ortho_arr, dst_transform = warp.reproject(data.values,
                                                       destination=destination,
                                                       gcps=gcps_corr,
                                                       src_crs=CRS.from_epsg(self.gcp_crs),
@@ -275,7 +275,7 @@ class Ortho():
             LOG.info('`rpc` or `glt` is missing. Please check the accuracy of orthorectification manually.')
             destination = np.full((data_sizes[0], self.dst_height, self.dst_width), np.nan)
 
-            ortho_arr, dst_transform = warp.reproject(data,
+            ortho_arr, dst_transform = warp.reproject(data.values,
                                                       destination=destination,
                                                       src_crs=CRS.from_epsg(4326),
                                                       dst_crs=CRS.from_epsg(self.utm_epsg),
