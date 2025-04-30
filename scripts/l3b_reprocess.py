@@ -20,11 +20,6 @@ from hypergas.emiss import Emiss
 
 from utils import get_dirs
 
-# calculate IME (kg m-2)
-mass = 16.04e-3  # molar mass CH4 [kg/mol]
-mass_dry_air = 28.964e-3  # molas mass dry air [kg/mol]
-grav = 9.8  # gravity (m s-2)
-
 # set the logger level
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s: %(message)s',
@@ -151,7 +146,7 @@ def main():
     for filename in filelist:
         LOG.info(f'Reprocessing {filename} ...')
         # regenerate the L3 plume NetCDF file based on csv settings and export new csv files
-        #   if users wanna change the alpha values, just change them in the `emiss.py` and run this script again
+        #   if users wanna change the alpha values, just change them in the `config.yaml` file and run this script again
         reprocess_data(filename, wind_data)
 
 
