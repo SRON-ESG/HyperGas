@@ -83,67 +83,96 @@ sensor:
     pixel_res: 30
 
 ime_calibration: # ueff = alpha1*log(wspd) + alpha2 + alpha3*wspd
-  # full plume
   ch4:
     point-source:
       EMIT:
         alpha1: 0.
-        alpha2: 0.28
-        alpha3: 0.49
-        resid: 0.033
+        alpha2: 0.43
+        alpha3: 0.35
+        resid: 0.05
       EnMAP:
         alpha1: 0.
-        alpha2: 0.43
-        alpha3: 0.38
-        resid: 0.014
+        alpha2: 0.45
+        alpha3: 0.32
+        resid: 0.05
       PRISMA:
         alpha1: 0.
-        alpha2: 0.42
-        alpha3: 0.39
-        resid: 0.014
+        alpha2: 0.43
+        alpha3: 0.31
+        resid: 0.06
     area-source:
       EMIT:
         alpha1: 0.
-        alpha2: 0.67
-        alpha3: 0.45
-        resid: 0.053
+        alpha2: 0.63
+        alpha3: 0.39
+        resid: 0.12
       EnMAP:
+        alpha1: 0.
+        alpha2: 0.68
+        alpha3: 0.37
+        resid: 0.21
+      PRISMA:
         alpha1: 0.
         alpha2: 0.69
         alpha3: 0.37
-        resid: 0.034
+        resid: 0.33
+  co2:
+    point-source:
+      EMIT:
+        alpha1: 0.
+        alpha2: 0.44
+        alpha3: 0.34
+        resid: 0.05
+      EnMAP:
+        alpha1: 0.
+        alpha2: 0.46
+        alpha3: 0.31
+        resid: 0.04
       PRISMA:
         alpha1: 0.
-        alpha2: 0.70
-        alpha3: 0.37
-        resid: 0.035
+        alpha2: 0.44
+        alpha3: 0.32
+        resid: 0.07
 
 csf_calibration: # ueff = beta1*wspd + beta2
-  # full plume
   ch4:
     point-source:
       EMIT:
-        beta1: 1.13
+        beta1: 1.07
         beta2: 0
-        resid: -0.042
+        resid: -0.06
       EnMAP:
-        beta1: 1.14
+        beta1: 1.12
         beta2: 0.
-        resid: -0.025
+        resid: -0.05
       PRISMA:
-        beta1: 1.14
+        beta1: 1.09
         beta2: 0.
-        resid: -0.022
+        resid: -0.03
     area-source:
       EMIT:
-        beta1: 1.13
+        beta1: 1.15
         beta2: 0.
-        resid: -0.017
+        resid: 0.03
       EnMAP:
-        beta1: 1.22
+        beta1: 1.27
         beta2: 0.
-        resid: -0.004
+        resid: 0.12
       PRISMA:
-        beta1: 1.22
+        beta1: 1.25
         beta2: 0.
-        resid: -0.007
+        resid: 0.20
+  co2:
+    point-source:
+      EMIT:
+        beta1: 1.05
+        beta2: 0.
+        resid: -0.05
+      EnMAP:
+        beta1: 1.11
+        beta2: 0.
+        resid: -0.04
+      PRISMA:
+        beta1: 1.09
+        beta2: 0.
+        resid: -0.03
