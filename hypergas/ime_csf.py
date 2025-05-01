@@ -48,6 +48,7 @@ with open(os.path.join(_dirname, 'config.yaml')) as f:
     ime_calibration_info = settings['ime_calibration']
     csf_calibration_info = settings['csf_calibration']
 
+
 class IME_CSF():
     def __init__(self, sensor,
                  longitude_source, latitude_source,
@@ -484,9 +485,13 @@ class IME_CSF():
         # get the centerline
         center_curve = np.vstack((curve(t=t)[0], curve(t=t)[1])).T.astype('float')
 
-        # get the csf line
-        length = (yp.max() - yp.min())*1.5  # make the CSF lines longer
-        csf_lines = create_perpendiculars(LineString(center_curve), interval=interval, line_width=length)
+        if center_curve.shape[0] > 1:
+            # get the csf line
+            length = (yp.max() - yp.min())*1.5  # make the CSF lines longer
+            csf_lines = create_perpendiculars(LineString(center_curve), interval=interval, line_width=length)
+        else:
+            LOG.info('The plume is too short to create CSF lines.')
+            csf_lines = None
 
         ds.close()
         del ds
@@ -587,35 +592,39 @@ class IME_CSF():
         LOG.info('Calculating CSF')
         # set the plume centerline and CSF lines
         center_curve, csf_lines = self._def_csf_lines(npixel_interval)
-        l_csf = LineString(center_curve).length
 
-        # calculate the emission rate at each CSF line
-        C_lines, u_eff, Q_lines, match_lists = self._emiss_csf_lines(csf_lines)
-        ds_csf = self._csf_dataset(center_curve, csf_lines, Q_lines)
-        n_csf = len(C_lines)  # number of csf lines
+        if csf_lines is not None:
+            l_csf = LineString(center_curve).length
 
-        # calculate the mean emission rate
-        Q = np.nanmean(Q_lines)
+            # calculate the emission rate at each CSF line
+            C_lines, u_eff, Q_lines, match_lists = self._emiss_csf_lines(csf_lines)
+            ds_csf = self._csf_dataset(center_curve, csf_lines, Q_lines)
+            n_csf = len(C_lines)  # number of csf lines
 
-        # ---- uncertainty ----
-        # 1. random
-        LOG.info('Calculating random error')
-        C_std = self._calc_random_err_csf(u_eff, match_lists)
-        err_random = u_eff * C_std
+            # calculate the mean emission rate
+            Q = np.nanmean(Q_lines)
 
-        # 2. wind error
-        LOG.info('Calculating wind error')
-        err_wind = self._calc_wind_error_csf(C_lines)
+            # ---- uncertainty ----
+            # 1. random
+            LOG.info('Calculating random error')
+            C_std = self._calc_random_err_csf(u_eff, match_lists)
+            err_random = u_eff * C_std
 
-        # 3. calibration error
-        LOG.info('Calculating calibration error')
-        err_calib = self._calc_calibration_error_csf(C_lines, u_eff)
+            # 2. wind error
+            LOG.info('Calculating wind error')
+            err_wind = self._calc_wind_error_csf(C_lines)
 
-        # sum error
-        Q_err = np.sqrt(err_random**2 + err_wind**2 + err_calib**2)
+            # 3. calibration error
+            LOG.info('Calculating calibration error')
+            err_calib = self._calc_calibration_error_csf(C_lines, u_eff)
 
-        return ds_csf, n_csf, l_csf, u_eff, Q*3600, Q_err*3600, \
-            err_random*3600, err_wind*3600, err_calib*3600  # kg/h
+            # sum error
+            Q_err = np.sqrt(err_random**2 + err_wind**2 + err_calib**2)
+
+            return ds_csf, n_csf, l_csf, u_eff, Q*3600, Q_err*3600, \
+                err_random*3600, err_wind*3600, err_calib*3600  # kg/h
+        else:
+            return None, None, None, None, None, None, None, None, None
 
     def ime(self):
         """Calculate the emission rate (kg/h) using IME method
