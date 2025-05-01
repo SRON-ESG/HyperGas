@@ -6,7 +6,7 @@
 
 ### Main improvements
 
-- Fix the PRISMA offset using manual GCPs ([Issue 22](https://github.com/zxdawn/HyperGas/issues/22)
+- Fix the PRISMA offset using manual GCPs ([Issue 22](https://github.com/zxdawn/HyperGas/issues/22))
 - Memory issue of L3 data processing ([Issue 84](https://github.com/zxdawn/HyperGas/issues/84))
 - TV filter with dynamic weights ([Issue 100](https://github.com/zxdawn/HyperGas/issues/100))
 - Apply the MF and LMF based on emission rates automatically ([Issue 101](https://github.com/zxdawn/HyperGas/issues/101))
