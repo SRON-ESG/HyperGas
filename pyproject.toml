@@ -1,0 +1,71 @@
+[project]
+name = "hypergas"
+dynamic = ["version"]
+description = "Python package for hyperspectral satellite imaging of trace gases"
+authors = [
+    { name = "The HyperGas Team", email = "hypergas@googlegroups.com" }
+]
+dependencies = [
+	"matplotlib >=3.8.0",
+	"numpy",
+	"pandas",
+	"scikit-learn",
+	"scikit-image",
+	"scipy",
+        "xarray",
+	"cfgrib",
+	"h5netcdf",
+	"rioxarray",
+	"pyresample",
+	"folium",
+	"contextily",
+        "enpt",
+	"satpy",
+	"algotom",
+	"dem_stitcher",
+	"aiohttp",
+	"spacetrack",
+]
+
+readme = "README.rst"
+requires-python = ">=3.10"
+license = { text = "GPLv3" }
+
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Topic :: Scientific/Engineering"
+]
+
+[project.optional-dependencies]
+# Documentation:
+doc = ["sphinx", "sphinx_rtd_theme", "sphinxcontrib-apidoc"]
+
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.sdist]
+only-include = [
+    "hypergas",
+    "doc",
+    "AUTHORS.md",
+    "CHANGELOG.md",
+    "CITATION",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["hypergas"]
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "hypergas/version.py"
+
