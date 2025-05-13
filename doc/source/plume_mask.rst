@@ -1,0 +1,9 @@
+=============
+Plume Masking
+=============
+
+Detection
+=========
+
+Segmentation
+============

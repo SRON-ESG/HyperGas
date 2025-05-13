@@ -68,6 +68,12 @@ Default path: ``resources/rgb``.
     ├── rgb
     │   └── D_illuminants.mat
 
+osm_dir
+^^^^^^^
+
+The directory where OSM+WorldCover water mask rasters are stored.
+Default path: ``resources/OSM_WorldCover``.
+
 era5_dir
 ^^^^^^^^
 

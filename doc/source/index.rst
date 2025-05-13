@@ -19,11 +19,11 @@ facilitating interoperability with HyperGas.
 
 Key features of HyperGas include:
 
-- Creating RGB (Red/Green/Blue) images by combining multiple bands
-- Retrieving trace gases enhancements
-- Denoising retrieval results
-- Writing output data in various formats such as PNG, HTML, and CF standard NetCDF files
-- Calculation of gas emission rates and saving them in CSV files
+- Creating RGB (Red/Green/Blue) images by combining multiple spectral bands
+- Retrieving trace gas enhancements (e.g., methane, carbon dioxide)
+- Denoising retrieval outputs
+- Exporting results in various formats, including PNG, HTML, and CF-compliant NetCDF files
+- Estimating gas emission rates and saving them in CSV format
 
 Go to the HyperGas project_ page for source code and downloads.
 
@@ -60,6 +60,12 @@ Documentation
    config
    data_download
    quickstart
+   reading
+   retrieval
+   orthorectification
+   denoising
+   plume_mask
+   emission
    batch_processing
    plume_app
    dev_guide
