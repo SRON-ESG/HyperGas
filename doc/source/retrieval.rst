@@ -2,8 +2,8 @@
 Retrieval
 =========
 
-Default retrieval settings
-==========================
+Default settings
+================
 
 The default retrieval setting of HyperGas is matched filter with watermask defined by OSM and ESA WorldCover.
 
@@ -53,13 +53,23 @@ HyperGas provides different options for *retrieval algorithm* and *watermask/clu
     -  algorithms
         - matched filter
         - lognormal matched filter
-        - cluster-tuned matched filter.
+        - cluster-tuned matched filter
 
     -  watermask/cluster
         - OSM and ESA WorldCover
         - the Global Self-consistent, Hierarchical, High-resolution Geography database (GSHHG)
         - the Natural Earth dataset
         - k-means clustering
+
+The default wavelength windows for each trace gas are defined in ``<HyperGas_dir>/hypergas/config.yaml``.
+See :doc:`dev_guide` for more information.
+Users can test wavelength ranges temporarily by modifying the ``wvl_intervals`` parameter,
+which can be a list or multi-list.
+
+    >>> hyp.retrieve(wvl_intervals=[1300, 2500], species='ch4')
+    >>> hyp.retrieve(wvl_intervals=[[1600, 1750], [2110, 2450]], species='ch4')
+
+.. _algorithms:
 
 Algorithms
 ==========
@@ -113,8 +123,8 @@ Users need to take care of the results because the cluster-tuned matched filter 
     >>> hyp.retrieve(species='ch4', cluster=True)
 
 
-Watermask/Cluster
-=================
+Landmask/Cluster
+================
 
 Due to the high spatial resolution of HSIs, HyperGas classifies pixels by integrating data from both OpenStreetMap (OSM)
 and ESA WorldCover databases.
@@ -130,6 +140,8 @@ Once the ``cluster`` is turned on, the ``land_mask_source`` would not be applied
 Users can also combine different algorithms and masks:
 
     >>> hyp.retrieve(rad_dist='lognormal', land_mask_source='OSM')  # OSM land/water mask with lognormal matched filter
+
+.. _databases:
 
 Databases
 ---------
@@ -162,6 +174,8 @@ whereas the GSHHG dataset misclassifies some sea areas as land, and the Natural 
 
 .. image:: ../fig/clusters.jpg
 
-The effects of masks on the methane retrieval are important:
+Here are the effects of different masks on methane retrieval:
+The results based on the GSHHG dataset tend to overestimate methane enhancement due to the mixture of land and water pixels.
+The results using the Natural Earth, OSM, and ESA WorldCover datasets are similar, whereas the k-means method produces a noisier image.
 
 .. image:: ../fig/ch4_clusters.jpg
