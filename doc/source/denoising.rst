@@ -47,6 +47,5 @@ Here is a real-world example of a denoised methane field using three different w
 
 .. image:: ../fig/denoise_ch4.jpg
 
-The middle image corresponds to the result obtained with the calibrated weight.
-It effectively removes background noise while preserving the structure of the gas plume.
+The TV filter with calibrated weight effectively removes background noise while preserving the structure of the gas plume.
 In contrast, using the doubled weight over-smooths the field and obscures important features.
