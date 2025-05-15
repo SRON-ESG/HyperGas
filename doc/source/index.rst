@@ -53,6 +53,7 @@ Documentation
 =============
 
 .. toctree::
+   :caption: Basic Information
    :maxdepth: 2
 
    overview
@@ -60,16 +61,49 @@ Documentation
    config
    data_download
    quickstart
+ 
+.. toctree::
+   :caption: Level 1 Product
+   :maxdepth: 2
+
    reading
+
+.. toctree::
+   :caption: Level 2 Product
+   :maxdepth: 2
+
    retrieval
    orthorectification
    denoising
+
+.. toctree::
+   :caption: Level 3 Product
+   :maxdepth: 2
+
    plume_mask
+
+.. toctree::
+   :caption: Level 4 Product
+   :maxdepth: 2
+
    emission
+
+.. toctree::
+   :caption: Workflow
+   :maxdepth: 2
+
    batch_processing
    plume_app
+
+.. toctree::
+   :caption: Developer Uuide
+
    dev_guide
 
+.. toctree::
+    :maxdepth: 1
+
+    HyperGas API <api/modules>
 
 Indices and tables
 ==================

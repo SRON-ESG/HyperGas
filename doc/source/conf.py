@@ -29,16 +29,24 @@ author = 'The HyperGas Team'
 #               "sphinx.ext.viewcode", "sphinxcontrib.apidoc",
 #               "sphinx.ext.mathjax"]
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.mathjax', "sphinx.ext.intersphinx", "sphinxcontrib.apidoc",
-              'sphinx_rtd_theme']
+              'sphinx_rtd_theme', 'sphinx.ext.apidoc']
 
 # API docs
-apidoc_module_dir = "../../hypergas"
-apidoc_output_dir = "api"
+apidoc_modules = [
+    {
+        "path": "../../hypergas",
+        "destination": "api/",
+        "exclude_patterns": [],
+    },
+]
+
+apidoc_separate_modules = True
+apidoc_include_private = True
 
 templates_path = ['_templates']
-exclude_patterns = []
 
-
+# The suffix of source filenames.
+source_suffix = ".rst"
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = "sphinx"

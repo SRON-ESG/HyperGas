@@ -154,9 +154,9 @@ The geographic coverage is distributed as follows: ESA WorldCover data primarily
 while OpenStreetMap data covers the remaining global regions.
 These datasets were combined to create a global dataset.
 The implemented water mask effectively identifies both coastal waters and major inland water bodies.
-For regions beyond 85S and 85N, we apply a simplified classification:
-all areas north of 85N are classified as water,
-while all areas south of 85S are designated as non-water.
+For regions beyond 85°S and 85°N, we apply a simplified classification:
+all areas north of 85°N are classified as water,
+while all areas south of 85°S are designated as non-water.
 
 GSHHG and Natural Earth
 ^^^^^^^^^^^^^^^^^^^^^^^
