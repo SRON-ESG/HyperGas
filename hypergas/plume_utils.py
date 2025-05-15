@@ -193,106 +193,6 @@ def target_inside_mask(ds, gas_mask_varname, y_target, x_target, lon_target, lat
     return y_target, x_target
 
 
-def plume_mask(ds, gas, lon_target, lat_target, plume_varname='comb_denoise',
-               wind_source='ERA5', wind_weights=True, land_only=False, land_mask_source='GSHHS',
-               niter=1, quantile_value=0.98, size_median=3, sigma_guass=2):
-    """Get the plume mask based on matched filter results
-
-    Steps:
-        - apply wind weights (optional)
-        - apply land mask
-        - set 1 to pixel values larger than quantile_value
-        - apply median_filter, gaussian_filter, and dilation to get a smoothed mask
-        - assign labels and get labelled region where the source point is inside
-        - pick mask pixels where enhancement values are positive
-        - erosion the mask and propagate again
-        - fill holes of mask
-
-    Args:
-        gas (str): the gas field to be masked
-        lon_target (float): source longitude for picking plume dilation mask
-        lat_target (float): source latitude for picking plume dilation mask
-        plume_varname (str): the variable used to create plume mask (Default:comb_denoise)
-        wind_source (str): 'ERA5' or 'GEOS-FP'
-        wind_weights (boolean): whether apply the wind weights to gas fields
-        n_iter (int): number of iterations for dilations
-        quantile_value (float): the lower quantile limit of enhancements are included in the mask
-        size_median (int): size for median filter
-        sigma_guass (int): sigma for guassian filter
-    """
-    # get lon and lat
-    lon = ds['longitude']
-    lat = ds['latitude']
-
-    # get the variable for plume masking
-    #   default: <gas>_comb_denoise
-    if plume_varname == 'comb_denoise':
-        varname = f'{gas}_comb_denoise'
-    elif plume_varname == 'denoise':
-        varname = f'{gas}_denoise'
-    else:
-        varname = gas
-
-    da_gas = getattr(ds, varname, ds[gas])
-
-    # get_neighbour_info() returns indices in the flattened lat/lon grid. Compute the 2D grid indices:
-    y_target, x_target = get_index_nearest(ds['longitude'], ds['latitude'], lon_target, lat_target)
-
-    if wind_weights:
-        # calculate wind angle
-        angle_wind_rad, angle_wind = get_wind_azimuth(ds['u10'].sel(source=wind_source).isel(y=y_target, x=x_target).item(),
-                                                      ds['v10'].sel(source=wind_source).isel(y=y_target, x=x_target).item())
-        weights = conish_2d(lon, lat, lon_target, lat_target, np.pi/2. - angle_wind_rad)
-        da_gas_weights = da_gas * weights
-    else:
-        da_gas_weights = da_gas
-
-    # set oceanic pixel values to nan
-    if land_only:
-        segmentation = Land_mask(lon.data, lat.data, land_mask_source)
-        if segmentation.isel(y=y_target, x=x_target).values != 0:
-            # because sometimes cartopy land mask is not accurate
-            #  we need to make sure the source point is not on the ocean
-            da_gas_weights = da_gas_weights.where(segmentation)
-        else:
-            LOG.warning('The source point is over ocean! Please make sure you choose the suitable cfeature.')
-
-    # set init mask by the quantile value
-    mask_buf = np.zeros(np.shape(da_gas))
-    mask_buf[da_gas_weights >= da_gas_weights.quantile(quantile_value)] = 1.
-
-    # blur the mask
-    median_blurred = ndimage.median_filter(mask_buf, size_median)
-    gaussmed_blurred = ndimage.gaussian_filter(median_blurred, sigma_guass)
-    mask = np.zeros(np.shape(da_gas))
-    mask[gaussmed_blurred > 0.05] = 1.
-
-    # dilation
-    if niter >= 1:
-        mask = ndimage.binary_dilation(mask, iterations=niter)
-
-    # assign labels by 3x3
-    labeled_mask, nfeatures = ndimage.label(mask, structure=np.ones((3, 3)))
-
-    # get the labeled mask where the target is inside
-    feature_label = labeled_mask[y_target, x_target]
-    mask = labeled_mask == feature_label
-
-    # create the positive mask
-    fg_mask = da_gas_weights.where(mask) > 0
-    # erosion the mask and propagate again
-    eroded_square = ndimage.binary_erosion(fg_mask)
-    reconstruction = ndimage.binary_propagation(eroded_square, mask=fg_mask)
-    # fill the negative values inside
-    mask = ndimage.binary_fill_holes(reconstruction)
-
-    # get the masked lon and lat
-    lon_mask = xr.DataArray(lon, dims=['y', 'x']).where(mask).rename('longitude')
-    lat_mask = xr.DataArray(lat, dims=['y', 'x']).where(mask).rename('latitude')
-
-    return mask, lon_mask, lat_mask
-
-
 def plot_mask(filename, ds, gas, mask, lon_target, lat_target, pick_plume_name, only_plume=True):
     """Plot masked data"""
     # read gas data
@@ -333,46 +233,6 @@ def plot_mask(filename, ds, gas, mask, lon_target, lat_target, pick_plume_name, 
     m.export(plume_html_filename)
 
     return plume_html_filename
-
-
-def mask_data(filename, ds, gas, lon_target, lat_target, pick_plume_name, plume_varname,
-              wind_source, wind_weights, land_only, land_mask_source,
-              niter, size_median, sigma_guass, quantile_value, only_plume):
-    '''Generate and plot masked plume data
-
-    Args:
-        filename (str): input filename
-        ds (Dataset): L2 data
-        gas (str): the gas field to be masked
-        lon_target (float): The longitude of plume source
-        lat_target (float): The latitude of plume source
-        pick_plume_name (str): the plume name (plume0, plume1, ....)
-        plume_varname (str): the variable used to create plume mask (Default:comb_denoise)
-        wind_source (str): 'ERA5' or 'GEOS-FP'
-        wind_weights (boolean): whether apply the wind weights to gas fields
-        n_iter (int): number of iterations for dilations
-        quantile_value (float): the lower quantile limit of enhancements are included in the mask
-        size_median (int): size for median filter
-        sigma_guass (int): sigma for guassian filter
-
-    Return:
-        mask (DataArray): Boolean mask (pixel)
-        lon_mask (DataArray): plume longitude
-        lat_mask (DataArray): plume latitude
-        plume_html_filename (str): exported plume html filename
-        '''
-    # create the plume mask
-    mask, lon_mask, lat_mask = plume_mask(ds, gas, lon_target, lat_target, plume_varname=plume_varname,
-                                          wind_source=wind_source, wind_weights=wind_weights,
-                                          land_only=land_only, land_mask_source=land_mask_source,
-                                          niter=niter, size_median=size_median, sigma_guass=sigma_guass,
-                                          quantile_value=quantile_value)
-
-    # plot the mask (png and html)
-    plume_html_filename = plot_mask(filename, ds, gas, mask, lon_target, lat_target,
-                                    pick_plume_name, only_plume=only_plume)
-
-    return mask, lon_mask, lat_mask, plume_html_filename
 
 
 def select_connect_masks(masks, y_target, x_target, az_max=30, dist_max=180):
@@ -489,13 +349,14 @@ def select_connect_masks(masks, y_target, x_target, az_max=30, dist_max=180):
     return mask
 
 
-def a_priori_mask_data(filename, ds, gas, lon_target, lat_target, pick_plume_name,
-                       wind_source, land_only, land_mask_source, only_plume, az_max=30, dist_max=180):
+def a_priori_mask_data(ds, gas, lon_target, lat_target,
+                       pick_plume_name, wind_source,
+                       only_plume=True, az_max=30, dist_max=180,
+                       filename=None
+                       ):
     '''Read a priori plume masks and connect them by conditions
 
     Args:
-        filename (str):
-            Input filename
         ds (Dataset):
             L2 data
         gas (str):
@@ -512,6 +373,8 @@ def a_priori_mask_data(filename, ds, gas, lon_target, lat_target, pick_plume_nam
             Maximum of azimuth of minimum rotated rectangle. (Default: 30)
         dist_max (float):
             Maximum of dilation distance (meter)
+        filename (str):
+            Input filename
 
     Return:
         mask (DataArray): Boolean mask (pixel)
@@ -539,11 +402,14 @@ def a_priori_mask_data(filename, ds, gas, lon_target, lat_target, pick_plume_nam
     lon_mask = xr.DataArray(ds['longitude'], dims=['y', 'x']).where(mask).rename('longitude')
     lat_mask = xr.DataArray(ds['latitude'], dims=['y', 'x']).where(mask).rename('latitude')
 
-    # plot the mask (png and html)
-    plume_html_filename = plot_mask(filename, ds, gas, mask, lon_target, lat_target,
-                                    pick_plume_name, only_plume=only_plume)
+    if filename is not None:
+        # plot the mask (png and html)
+        plume_html_filename = plot_mask(filename, ds, gas, mask, lon_target, lat_target,
+                                        pick_plume_name, only_plume=only_plume)
 
-    return mask, lon_mask, lat_mask, lon_target, lat_target, plume_html_filename
+        return mask, lon_mask, lat_mask, lon_target, lat_target, plume_html_filename
+    else:
+        return mask, lon_mask, lat_mask, lon_target, lat_target
 
 
 def crop_to_valid_region(da, y_target, x_target, data_crop_length, pixel_res):

@@ -96,12 +96,12 @@ class Emiss():
 
         # select connected plume masks
         self.mask, lon_mask, lat_mask, \
-            self.longitude, self.latitude, self.plume_html_filename = a_priori_mask_data(l2b_html_filename, self.ds, self.gas,
+            self.longitude, self.latitude, self.plume_html_filename = a_priori_mask_data(self.ds, self.gas,
                                                                                          self.longitude, self.latitude,
                                                                                          self.plume_name, self.wind_source,
-                                                                                         self.land_only, self.land_mask_source,
-                                                                                         only_plume,
-                                                                                         self.azimuth_diff_max, self.dist_max)
+                                                                                         only_plume, self.azimuth_diff_max, self.dist_max,
+                                                                                         l2b_html_filename
+                                                                                         )
 
         self.cm_mask, self.cm_threshold = cm_mask_data(self.ds, self.gas, self.longitude, self.latitude)
 

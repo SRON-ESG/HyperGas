@@ -92,7 +92,7 @@ class Denoise():
 
     def tv_filter(self):
         """TV filter"""
-        noisy = self.data.squeeze.where(self.segmentation > 0)
+        noisy = self.data.squeeze().where(self.segmentation > 0)
         trim_mean = trimmed_mean(noisy.stack(z=('y', 'x')).dropna('z'), (1e-3, 1e-3))
         res = denoise_tv_chambolle(np.ma.masked_array(np.where(noisy.isnull(), trim_mean, noisy), noisy.isnull()),
                                    weight=self.weight
