@@ -254,10 +254,11 @@ with col3:
 
                     with xr.open_dataset(ds_name, decode_coords='all') as ds:
                         # create mask and plume html file
-                        mask, lon_mask, lat_mask, longitude, latitude, plume_html_filename = a_priori_mask_data(filename, ds, gas, longitude, latitude,
+                        mask, lon_mask, lat_mask, longitude, latitude, plume_html_filename = a_priori_mask_data(ds, gas, longitude, latitude,
                                                                                                                 pick_plume_name, wind_source,
-                                                                                                                land_only, land_mask_source, only_plume,
-                                                                                                                azimuth_diff_max, dist_max)
+                                                                                                                only_plume, azimuth_diff_max,
+                                                                                                                dist_max, filename
+                                                                                                                )
                         cm_mask, cm_threshold = cm_mask_data(ds, gas, longitude, latitude)
 
                         # mask data
