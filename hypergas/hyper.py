@@ -341,8 +341,8 @@ class Hyper():
                 Default: 'normal'
             land_mask (boolean): Whether apply the matched filter to continental and oceanic pixels seperately.
                 Default: True
-            land_mask_source (str): the data source of land mask ('GSHHS' or 'Natural Earth')
-                Default: GSHHS
+            land_mask_source (str): the data source of land mask ('OSM', 'GSHHS' or 'Natural Earth')
+                Default: OSM
             cluster (boolean): Whether apply the pixel classification
                 Default: False
             plume_mask (2d array): Manual mask. 0: neglected pixels, 1: valid pixels.

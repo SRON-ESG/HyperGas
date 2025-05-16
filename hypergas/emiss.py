@@ -78,7 +78,7 @@ class Emiss():
 
     def mask_data(self, longitude, latitude,
                   wind_source='ERA5', land_only=True,
-                  land_mask_source='GSHHS', only_plume=True,
+                  land_mask_source='OSM', only_plume=True,
                   azimuth_diff_max=30,
                   dist_max=180,
                   ):

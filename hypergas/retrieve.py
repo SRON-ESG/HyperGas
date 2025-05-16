@@ -25,7 +25,7 @@ class MatchedFilter():
 
     def __init__(self, scn, wvl_intervals, species='ch4',
                  mode='column', rad_dist='normal', rad_source='model',
-                 land_mask=True, land_mask_source='GSHHS', cluster=False,
+                 land_mask=True, land_mask_source='OSM', cluster=False,
                  plume_mask=None, scaling=None,
                  ):
         """Initialize MatchedFilter.
@@ -52,8 +52,8 @@ class MatchedFilter():
                 Default: 'model'
             land_mask (boolean): Whether apply the matched filter to continental and oceanic pixels seperately.
                 Default: True
-            land_mask_source (str): the data source of land mask ('GSHHS' or 'Natural Earth')
-                Default: GSHHS
+            land_mask_source (str): the data source of land mask ('OSM', 'GSHHS' or 'Natural Earth')
+                Default: OSM
             cluster (boolean): Whether apply the pixel classification
                 Default: False
             plume_mask (2d array): 0: neglected pixels, 1: plume pixels.
