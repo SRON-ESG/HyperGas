@@ -17,7 +17,7 @@ Local
 .. code-block:: bash
 
     cd HyperGas
-    streamlit run 👋About.py
+    streamlit run About.py
 
 The browser will automatically open the website by default;
 if not, you can manually open it by copying the Local URL displayed in the terminal.
@@ -28,7 +28,7 @@ Remote
 .. code-block:: bash
 
     cd HyperGas
-    streamlit run 👋About.py --server.headless true --server.port 8501
+    streamlit run About.py --server.headless true --server.port 8501
 
 If users have a remote machine or server, they can run the app on the server as above and then establish a connection to it using SSH:
 

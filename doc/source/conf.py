@@ -24,24 +24,20 @@ author = 'The HyperGas Team'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-# extensions = ["sphinx.ext.autodoc", "sphinx.ext.intersphinx", "sphinx.ext.todo", "sphinx.ext.coverage",
-#               "sphinx.ext.doctest", "sphinx.ext.napoleon", "sphinx.ext.autosummary",
-#               "sphinx.ext.viewcode", "sphinxcontrib.apidoc",
-#               "sphinx.ext.mathjax"]
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.mathjax', "sphinx.ext.intersphinx", "sphinxcontrib.apidoc",
-              'sphinx_rtd_theme', 'sphinx.ext.apidoc']
+# sphinxcontrib.apidoc was added to sphinx in 8.2.0 as sphinx.etx.apidoc
+needs_sphinx = "8.2.0"
+
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.mathjax', "sphinx.ext.intersphinx", 'sphinx_rtd_theme', 'sphinx.ext.apidoc']
 
 # API docs
 apidoc_modules = [
     {
         "path": "../../hypergas",
-        "destination": "api/",
+        "destination": "api",
         "exclude_patterns": [],
+        'separate_modules': True,
     },
 ]
-
-apidoc_separate_modules = True
-apidoc_include_private = True
 
 templates_path = ['_templates']
 
@@ -73,8 +69,6 @@ html_js_files = [
 
 # The master toctree document.
 master_doc = "index"
-
-extensions = ["sphinx.ext.autodoc", "sphinx.ext.intersphinx",]
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {
