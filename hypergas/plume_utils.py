@@ -634,7 +634,7 @@ def calc_calibration_error(wspd, IME, u_eff, l_eff, alpha_replace):
 
 def calc_emiss(gas, f_gas_mask, pick_plume_name, alpha_replace, pixel_res=30,
                alpha={'alpha1': 0., 'alpha2': 0.81, 'alpha3': 0.38},
-               wind_source='ERA5', wspd=None, land_only=True, land_mask_source='GSHHS'):
+               wind_source='ERA5', wspd=None, land_only=True, land_mask_source='OSM'):
     '''Calculate the emission rate (kg/h) using IME method
 
     Args:
