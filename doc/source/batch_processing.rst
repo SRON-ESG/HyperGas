@@ -139,7 +139,7 @@ Step 2: l2b_plot.py
 -------------------
 
 This script reads L2 data and plots images as PNG files.
-These images are then combined into chunked HTML files using Folium.
+These images are then combined into chunked HTML files using `Folium <https://python-visualization.github.io/folium/latest/>`_.
 Users can view multiple variables across different days by toggling layers in the HTML interface.
 
 The script supports modifying following parameters:
@@ -169,11 +169,46 @@ Wind arrows are positioned at the scene center and can be repositioned by clicki
   The colorbar limit for the denoised field is set automatically from the ``mean_value`` to the ``maximum value``,
   For the original field, it is hardcoded in ``<HyperGas_dir>/hypergas/folium_map.py`` to allow comparison across different days.
 
+.. _l3_process:
+
 L2 --> L3/L4
 ============
 
-The streamlit app is designed to interactively generate L3 and L4 products, including plume masks and emission rates.
-For more information, refer to :doc:`plume_app`.
+To generate L3 and L4 products, users need to add the plume markers using :doc:`plume_app` (See :ref:`plume_marker`).
+After that, uesers can run ``l3_process.py`` or the app to generate plume masks and emission rates.
+
+.. note::
+
+   Time-saving tips:
+
+   - Running ``l3_process.py`` to generate the default plume masks and checking the app to adjust them if necessary.
+   - Running the emission estimation only when the plume mask is ready.
+
+Supported parameters:
+
+- ``root_dir (str)``: Root directory of L2 data.
+
+- ``gas (str)``: Gas species to reprocess.
+
+- ``ipcc_sector``: the emission sector defined by IPCC.
+  - 'Electricity Generation (1A1)', 'Coal Mining (1B1a)', 'Oil & Gas (1B2)', 'Livestock (4B)', 'Solid Waste (6A)', 'Other'
+
+- ``land_mask_source (str)``: Source for land classification. Options: "OSM", "GSHHS" or "Natural Earth".
+
+- ``wind_source (str)``: Source for wind reanalysis data. Options: 'ERA5' or 'GEOS-FP'
+
+- ``land_only (boolean)``: Whether only to condiser land pixels
+
+- ``land_mask_source (str)``: Source for land classification. Options: "OSM", "GSHHS" or "Natural Earth".
+
+- ``wspd_manual (float or None)``: Manually override wind speed. If ``None``, the reanalysis wind speed from the CSV file is used.
+
+- ``azimuth_diff_max (float)``: The maximum of azimuth of minimum rotated rectangle.
+  - keep this as default unless you find obvious wrong plume pixels
+
+- ``dist_max``: The maximum of dilation distance (meter)
+  - keep this as default unless you find obvious wrong plume pixels
+
 
 Reprocessing (optional)
 =======================

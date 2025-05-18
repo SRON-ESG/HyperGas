@@ -50,16 +50,22 @@ To mitigate the noisy background, we perform the matched filter over a wider spe
 Then, we apply a Chambolle total variance denoising
 `(TV) filter <https://scikit-image.org/docs/stable/api/skimage.restoration.html#skimage.restoration.denoise_tv_chambolle>`_
 with the `J-Invariance calibration <https://scikit-image.org/docs/stable/auto_examples/filters/plot_j_invariant_tutorial.html>`_
-to obtain a smoothed gas enhancement field.
+to obtain a smoothed gas enhancement field, which is used for generating plume masks.
 The TV filter aims to minimize a cost function between the original and smoothed images.
 See :doc:`denoising` for more information.
 
-.. Writing
-.. =======
+Plume masking
+=============
 
-.. HyperGas enables users to save data in various formats, including PNG, HTML, and data file formats such as NetCDF.
-.. Please refer to the documentation on writing (see :doc:`writing`) for detailed information.
+HyperGas uses a two-step process for plume masking.
+The first step is using `tobac <https://github.com/tobac-project/tobac>`_
+to automatically generate masks.
+The second step is selecting plumes by assigning a plume marker.
+See :doc:`plume_mask` for more information.
 
-.. Emission Rates
-.. ==============
+Emission estimation
+===================
 
+HyperGas supports two widely used methods for emission estimation:
+Integrated Mass Enhancement (IME) and Cross-Sectional Flux (CSF).
+See :doc:`emission` for more information.

@@ -7,6 +7,8 @@ However, using a constant value or a fixed standard deviation may result in inco
 To address this issue, HyperGas provides automatic plume detection and masking using
 `watershed segmentation <https://scikit-image.org/docs/0.25.x/auto_examples/segmentation/plot_watershed.html>`_.
 
+.. _a_priori_mask:
+
 A priori mask
 =============
 
@@ -52,6 +54,8 @@ and nearby areas with high enhancement values.
    >>>     ax.set_title('Zoom in')
 
 .. image:: ../fig/plume_mask.jpg
+
+.. _pick_plume:
 
 Pick plume
 ==========
