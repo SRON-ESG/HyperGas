@@ -612,7 +612,10 @@ class IME_CSF():
 
             # 2. wind error
             LOG.info('Calculating wind error')
-            err_wind = self._calc_wind_error_csf(C_lines)
+            if self.wspd_manual is None:
+                err_wind = self._calc_wind_error_csf(C_lines)
+            else:
+                err_wind = 0
 
             # 3. calibration error
             LOG.info('Calculating calibration error')
@@ -722,7 +725,10 @@ class IME_CSF():
 
         # 2. wind error
         LOG.info('Calculating wind error')
-        err_wind = self._calc_wind_error(IME, l_eff)
+        if self.wspd_manual is None:
+            err_wind = self._calc_wind_error(IME, l_eff)
+        else:
+            err_wind = 0
 
         # 3. calibration error
         LOG.info('Calculating calibration error')
@@ -819,7 +825,10 @@ class IME_CSF():
 
         # 2. wind error
         LOG.info('Calculating wind error')
-        err_wind = self._calc_wind_error_fetch(ime_l_mean)
+        if self.wspd_manual is None:
+            err_wind = self._calc_wind_error_fetch(ime_l_mean)
+        else:
+            err_wind = 0
 
         # sum error
         Q_err = np.sqrt(err_ime**2 + err_wind**2)
