@@ -151,7 +151,7 @@ class MatchedFilter():
                 mask_exclude_plume = mask * plume_mask.astype(bool)
 
                 # calculate the background stats if there're many valid values
-                if mask.sum() > 1:
+                if mask_exclude_plume.sum() > 1:
                     if self.rad_dist == 'lognormal':
                         # calculate lognormal rads
                         lograds = np.log(radiance, out=np.zeros_like(radiance), where=radiance > 0)
