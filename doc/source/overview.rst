@@ -11,6 +11,7 @@ The following sections describe the various components and concepts of HyperGas.
 Additionally, the :doc:`quickstart` guide presents straightforward example of HyperGas.
 
 .. image:: ../fig/workflow.jpg
+   :alt: Mind map link: https://gitmind.com/app/docs/mwe3luac
 
 Reading
 =======
@@ -21,51 +22,50 @@ For detailed information, please refer to Satpy's documentation.
 Since HSI file formats vary across different instruments,
 we have integrated multiple HSI readers into Satpy, ensuring a standardized data loading interface.
 This makes it easy to add new HSI data for HyperGas.
-
-RGB Composite
-=============
-
-HyperGas applied `HSI2RGB <https://github.com/JakobSig/HSI2RGB>`_ to generate the RGB image from HSI L1 data.
-If this method failed, bands data close to 650, 560, and 470 nm are combined with a Gamma norm.
+See :doc:`reading` for more information.
 
 Retrieval
 =========
 
 HyperGas emploies a linearized matched filter to retrieve the trace gas enhancements.
 This technique has been successfully applied to both satellite and aircraft observations.
-The matched filter assumes a spectrally flat background and models the background radiance spectrum as a Gaussian distribution
-with a mean vector :math:`\mu` and a covariance matrix :math:`\Sigma`.
-The radiance spectrum (:math:`L`) can be represented by two hypotheses: H0, which assumes the absence of plume, and H1, where the plume is present.
+HyperGas applies the matched filter to each cluster separately to account for the different background signals in land and water pixels.
+See :ref:`databases` for more information about watermask.
 
-.. math::
-    H_0: L \sim \mathcal{N}(\mu,\Sigma);
-    H_1: L \sim \mathcal{N}(\mu+\alpha t, \Sigma)
+Besides the linear matched filter, HyperGas also supports lognormal matched filter and Cluster-tuned matched filter.
+See :ref:`algorithms` for more information.
 
-Here, :math:`t` represents the target signature, which is the product of two components:
-the background radiance (:math:`\mu`) and the negative gas absorption coefficient (:math:`k`).
-To calculate :math:`k`, we employ a forward model and convolve it with the imager's central wavelength and full width at half maxima (FWHM).
-The scale factor :math:`\alpha` is derived from the first-order Taylor expansion of Beer-Lambert's law.
-The maximum likelihood estimate of :math:`\alpha` is:
+Orthorectification
+==================
 
-.. math::
-    \alpha = \frac{(t-\mu)^T\Sigma^{-1}(L-\mu)}{(t-\mu)^T\Sigma^{-1}(t-\mu)} 
+Hyperspectral Level 1 data is provided in sensor geometry,
+which means the image data has only image coordinates rather than map coordinates.
+HyperGas addresses this limitation by supporting both automatic and manual orthorectification methods.
+See :doc:`orthorectification` for more information.
 
 Denoising
 =========
 
-To mitigate the noisy background, we initially perform the same retrieval over the 1300 :math:`\sim` 2500 nm window.
+To mitigate the noisy background, we perform the matched filter over a wider spectral range (e.g., 1300 :math:`\sim` 2500 nm for methane and carbon dioxide).
 Then, we apply a Chambolle total variance denoising
 `(TV) filter <https://scikit-image.org/docs/stable/api/skimage.restoration.html#skimage.restoration.denoise_tv_chambolle>`_
-to obtain a smoothed enhancement field.
-The TV filter aims to minimize the cost function between the original and smoothed images.
-Considering the lower SNR value of PRISMA, we select a denoising weight of 90, which is higher than the weight of 50 used for EMIT and EnMAP.
+with the `J-Invariance calibration <https://scikit-image.org/docs/stable/auto_examples/filters/plot_j_invariant_tutorial.html>`_
+to obtain a smoothed gas enhancement field, which is used for generating plume masks.
+The TV filter aims to minimize a cost function between the original and smoothed images.
+See :doc:`denoising` for more information.
 
-.. Writing
-.. =======
+Plume masking
+=============
 
-.. HyperGas enables users to save data in various formats, including PNG, HTML, and data file formats such as NetCDF.
-.. Please refer to the documentation on writing (see :doc:`writing`) for detailed information.
+HyperGas uses a two-step process for plume masking.
+The first step is using `tobac <https://github.com/tobac-project/tobac>`_
+to automatically generate masks.
+The second step is selecting plumes by assigning a plume marker.
+See :doc:`plume_mask` for more information.
 
-.. Emission Rates
-.. ==============
+Emission estimation
+===================
 
+HyperGas supports two widely used methods for emission estimation:
+Integrated Mass Enhancement (IME) and Cross-Sectional Flux (CSF).
+See :doc:`emission` for more information.

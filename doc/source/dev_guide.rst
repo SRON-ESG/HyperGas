@@ -5,12 +5,10 @@ Developer's Guide
 Adding a Custom Gas Retrieval
 =============================
 
-In order to add a customed gas retrieval to HyperGas,
-developers must ensure that the absorption cross section data (``absorption_cs_ALL_*.nc``)
-and atmosphere profile (``atmosphere_*.dat``) contain the relevant species.
+To add a custom gas retrieval to HyperGas, developers must ensure that both the absorption cross-section data (``absorption_cs_ALL_*.nc``) and the atmospheric profile (``atmosphere_*.dat``) include the relevant species.
 
-Once the data is prepared, developers can proceed to adjust the ``<HyperGas_dir>/hypergas/config.yaml`` file.
-Below is an illustration of how to include carbon monoxide (CO):
+Once the data is prepared, developers can proceed to modify the ``<HyperGas_dir>/hypergas/config.yaml`` file.
+Below is an example of how to include carbon monoxide (CO):
 
 
 .. code-block:: yaml
@@ -29,3 +27,21 @@ Below is an illustration of how to include carbon monoxide (CO):
     - Set ``rad_source`` as ``model`` since the ``lut`` option exclusively supports ch4 and co2.
     - Make sure that the ``concentrations (ppm)`` cover a typical emission range.
     - The term ``units`` specifies the units used for the L2 product outputs.
+
+Modifying wind calibrations
+===========================
+
+ALl wind calibration factors are stored in the ``<HyperGas_dir>/hypergas/config.yaml`` file.
+
+Below is an example of IME calibration for a point source detected by EMIT:
+
+.. code-block:: yaml
+
+    ime_calibration: # ueff = alpha1*log(wspd) + alpha2 + alpha3*wspd
+      ch4:
+        point-source:
+          EMIT:
+            alpha1: 0.
+            alpha2: 0.43
+            alpha3: 0.35
+            resid: 0.05

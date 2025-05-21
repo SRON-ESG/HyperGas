@@ -19,13 +19,13 @@ facilitating interoperability with HyperGas.
 
 Key features of HyperGas include:
 
-- Creating RGB (Red/Green/Blue) images by combining multiple bands
-- Retrieving trace gases enhancements
-- Denoising retrieval results
-- Writing output data in various formats such as PNG, HTML, and CF standard NetCDF files
-- Calculation of gas emission rates and saving them in CSV files
+- Creating RGB (Red/Green/Blue) images by combining multiple spectral bands
+- Retrieving trace gas enhancements (e.g., methane, carbon dioxide)
+- Denoising retrieval outputs
+- Exporting results in various formats, including PNG, HTML, and CF-compliant NetCDF files
+- Estimating gas emission rates and saving them in CSV format
 
-Go to the HyperGas project_ page for source code and downloads.
+Go to the HyperGas project page (coming soon) for source code and downloads.
 
 HyperGas is designed to easily support the retrieval of trace gases for any HSI instruments.
 The following table displays the HSI data that HyperGas supports.
@@ -53,6 +53,7 @@ Documentation
 =============
 
 .. toctree::
+   :caption: Basic Information
    :maxdepth: 2
 
    overview
@@ -60,10 +61,49 @@ Documentation
    config
    data_download
    quickstart
+ 
+.. toctree::
+   :caption: Level 1 Product
+   :maxdepth: 2
+
+   reading
+
+.. toctree::
+   :caption: Level 2 Product
+   :maxdepth: 2
+
+   retrieval
+   orthorectification
+   denoising
+
+.. toctree::
+   :caption: Level 3 Product
+   :maxdepth: 2
+
+   plume_mask
+
+.. toctree::
+   :caption: Level 4 Product
+   :maxdepth: 2
+
+   emission
+
+.. toctree::
+   :caption: Workflow
+   :maxdepth: 2
+
    batch_processing
    plume_app
+
+.. toctree::
+   :caption: Developer Uuide
+
    dev_guide
 
+.. toctree::
+    :maxdepth: 1
+
+    HyperGas API <api/modules>
 
 Indices and tables
 ==================

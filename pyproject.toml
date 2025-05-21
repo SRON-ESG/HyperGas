@@ -10,7 +10,7 @@ dependencies = [
 	"numpy",
 	"pandas",
 	"scikit-learn",
-	"scikit-image",
+	"scikit-image >=0.24.0",
 	"scipy",
         "xarray",
 	"cfgrib",
@@ -19,7 +19,7 @@ dependencies = [
 	"pyresample",
 	"folium",
 	"contextily",
-        "enpt",
+        "enpt >= 0.21.1",
 	"satpy",
 	"algotom",
 	"dem_stitcher",
@@ -28,7 +28,7 @@ dependencies = [
 ]
 
 readme = "README.rst"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 license = { text = "GPLv3" }
 
 classifiers = [

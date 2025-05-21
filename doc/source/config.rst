@@ -6,9 +6,22 @@ This file is located at ``<HyperGas_dir>/hypergas/config.yaml``.
 All path names in the config file are relative paths within ``<HyperGas_dir>/hypergas/``.
 For instance, ``resources/absorption`` corresponds to ``<HyperGas_dir>/hypergas/resources/absorption/``.
 
-Parameters
+SRON users
 ----------
 
+If you are a user at SRON, all input data is already shared within the L4 group.
+You can link the data to the ``hypergas`` directory using the following command:
+
+.. code-block:: bash
+
+   cd <HyperGas_dir>/hypergas
+   ln -s /deos/xinz/hypergas_data ./
+
+Non-SRON users
+--------------
+
+If you are not a user at SRON, please download the input data manually from the shared repository (coming soon).
+Once you have the data, place it in the appropriate directory.
 
 absorption_dir
 ^^^^^^^^^^^^^^
@@ -67,6 +80,12 @@ Default path: ``resources/rgb``.
 
     ├── rgb
     │   └── D_illuminants.mat
+
+osm_dir
+^^^^^^^
+
+The directory where OSM+WorldCover water mask rasters are stored.
+Default path: ``resources/OSM_WorldCover``.
 
 era5_dir
 ^^^^^^^^
