@@ -17,7 +17,6 @@ Install all packages from the ``environment.yml`` file:
 .. code-block:: bash
 
     conda config --add channels conda-forge
-    conda config --set channel_priority strict
     conda env create -f environment.yml
 
 .. note::
