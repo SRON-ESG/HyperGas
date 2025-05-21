@@ -25,7 +25,7 @@ Key features of HyperGas include:
 - Exporting results in various formats, including PNG, HTML, and CF-compliant NetCDF files
 - Estimating gas emission rates and saving them in CSV format
 
-Go to the HyperGas project_ page for source code and downloads.
+Go to the HyperGas project page (coming soon) for source code and downloads.
 
 HyperGas is designed to easily support the retrieval of trace gases for any HSI instruments.
 The following table displays the HSI data that HyperGas supports.
