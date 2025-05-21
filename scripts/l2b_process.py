@@ -333,7 +333,7 @@ def main():
     species = 'ch4'
 
     # root directory of input data
-    data_dir = '/data/xinz/Hyper_TROPOMI_landfill/'
+    data_dir = '../hypergas/resources/test_data/ch4_cases/'
     # ---- settings --- #
 
     filelist = list(chain(*[glob(os.path.join(data_dir, '**', pattern), recursive=True) for pattern in PATTERNS]))

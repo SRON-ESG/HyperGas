@@ -152,7 +152,7 @@ def main():
 
 if __name__ == '__main__':
     # root dir of hyper data
-    root_dir = '/data/xinz/Hyper_TROPOMI_landfill/'
+    root_dir = '../hypergas/resources/test_data/ch4_cases/'
     lowest_dirs = get_dirs(root_dir)
 
     # which wind source data to be applied

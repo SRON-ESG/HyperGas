@@ -260,7 +260,7 @@ def main(chunk=8, skip_exist=True, plot_markers=False, bbox=None):
 
 if __name__ == '__main__':
     # root dir of hyper data
-    root_dir = '/data/xinz/Hyper_TROPOMI_landfill/'
+    root_dir = '../hypergas/resources/test_data/ch4_cases/'
     lowest_dirs = get_dirs(root_dir)
 
     # whether skip dir which contains exported html
