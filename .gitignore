@@ -5,6 +5,9 @@ doc/build
 eggs
 *.eggs
 
+# input data
+hypergas/resources
+
 # Sphinx
 doc/source/_build/*
 
