@@ -20,11 +20,14 @@ Install all packages from the ``environment.yml`` file:
     conda config --set channel_priority strict
     conda env create -f environment.yml
 
-If you use ``mamba``, you can run:
+.. note::
 
-.. code-block:: bash
+   If your ``conda`` version is older than 23.10, we recommend updating it
+   to take advantage of the faster `mamba <https://conda.github.io/conda-libmamba-solver/user-guide/>`_ feature:
 
-    mamba env create -f environment.yml
+   .. code-block:: bash
+
+       conda update -n base conda
 
 You need to activate the new environment before importing hypergas.
 
