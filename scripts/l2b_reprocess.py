@@ -32,7 +32,7 @@ LOG = logging.getLogger(__name__)
 PATTERNS = ['ENMAP01-____L3B*plume0.nc', 'EMIT_L3B*plume0.nc', 'PRS_L3_*plume0.nc']
 
 
-def reprocess_data(filename, prefix, species, land_mask_source, rad_dist):
+def reprocess_data(filename, prefix, species, land_mask_source, rad_dist, unortho_export):
     """Reprocess L2 by L3 plume masks"""
     # read all L3 nc data with same prefix
     l3_filelist = glob(prefix+'*nc')
@@ -57,8 +57,17 @@ def reprocess_data(filename, prefix, species, land_mask_source, rad_dist):
 
     # run retrieval and save L2 NetCDF file
     LOG.info('Retrieving with background where plume pixels are excluded.')
-    l2b_scene.savename = os.path.join(dirname, os.path.basename(str(Path(ds.attrs['filename'].replace('L1', 'L2').replace('_RAD', '')).with_suffix('.nc'))))
+    l2b_scene.savename = os.path.join(dirname, os.path.basename(
+        str(Path(ds.attrs['filename'].replace('L1', 'L2').replace('_RAD', '')).with_suffix('.nc'))))
     l2b_scene.retrieve(plume_mask=mask_resample, land_mask_source=land_mask_source, rad_dist=rad_dist)
+
+    if unortho_export:
+        # output unortho data
+        unortho_savename = l2b_scene.savename.replace('.nc', '_unortho.nc')
+        LOG.info(f'Exporting unortho file: {unortho_savename}')
+        l2b_scene.hyp.scene.save_datasets(
+            datasets=[species, f'{species}_comb', 'segmentation'], filename=unortho_savename, writer='cf')
+
     l2b_scene.denoise()
     l2b_scene.ortho()
     l2b_scene.plume_mask()
@@ -66,12 +75,16 @@ def reprocess_data(filename, prefix, species, land_mask_source, rad_dist):
 
 
 def main():
+    # set the name of trace gas species
     species = 'ch4'
 
     # set the matched filter method
     #   'auto', 'lognormal' or 'normal'
     #   'auto': if the emission rate it higher than 10 t/h, the lognormal MF will be applied
     rad_dist = 'auto'
+
+    # # whether export unortho L2 species data
+    unortho_export = False
 
     # set the land_mask source
     #   'OSM', 'GSHHS' or 'Natural Earth'
@@ -115,7 +128,7 @@ def main():
 
         LOG.info(f"Reprocessing {prefix.replace('L3', 'L2')} ...")
         # only need to reprocess L2 once
-        reprocess_data(filenames[0], prefix, species, land_mask_source, rad_dist)
+        reprocess_data(filenames[0], prefix, species, land_mask_source, rad_dist, unortho_export)
 
 
 if __name__ == '__main__':
