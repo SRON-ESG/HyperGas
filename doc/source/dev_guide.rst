@@ -45,3 +45,23 @@ Below is an example of IME calibration for a point source detected by EMIT:
             alpha2: 0.43
             alpha3: 0.35
             resid: 0.05
+
+Build documentation
+===================
+
+HyperGas’s documentation is built using Sphinx.
+All documentation is in the ``doc/`` directory of the project repository.
+For building the documentation, additional packages are needed. These can be installed with
+
+.. code-block:: bash
+
+    pip install -e ".[all]"
+
+After editing the source files there, the documentation can be generated locally:
+
+.. code-block:: bash
+
+    cd doc
+    make html
+
+Your ``build`` directory should contain an ``index.html`` that you can open in your browser.
