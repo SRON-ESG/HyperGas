@@ -15,7 +15,7 @@ You can link the data to the ``hypergas`` directory using the following command:
 .. code-block:: bash
 
    cd <HyperGas_dir>/hypergas
-   ln -s /deos/xinz/hypergas_data ./
+   ln -s /deos/xinz/hypergas_data resources
 
 Non-SRON users
 --------------
