@@ -20,6 +20,7 @@ dependencies:
   - satpy
   - algotom
   - dem_stitcher
+  - importlib_metadata
   - aiohttp
   - tobac
   - streamlit

@@ -23,6 +23,7 @@ dependencies = [
 	"satpy",
 	"algotom",
 	"dem_stitcher",
+        "importlib_metadata",
 	"aiohttp",
         "matplotlib-scalebar",
 	"spacetrack",
