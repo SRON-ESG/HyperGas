@@ -2,25 +2,40 @@
 Installation Instructions
 =========================
 
-Clone the repository first and choose perferred installation method below.
+Follow the steps below to clone the repository and set up the environment for HyperGas.
+
+Step 1: Clone the repository
+============================
 
 .. code-block:: bash
 
     $ git clone git@github.com:zxdawn/HyperGas.git
     $ cd HyperGas
 
-Step 1: Create Env
-==================
+Step 2: Create an environment
+=============================
+
+We recommend creating a separate environment for your work with HyperGas.
+You can choose one of the following methods to create and set up your environment.
 
 Using Miniforge (recommended)
 -----------------------------
 
-Using `Miniforge <https://conda-forge.org/download/>`_ is the fastest way to install HyperGas:
+Miniforge is the quickest way to install HyperGas dependencies:
 
-.. code-block:: bash
+1. Install Miniforge from `here <https://conda-forge.org/download/>`_.
 
-    $ mamba env create -f environment.yml
-    $ mamba activate hypergas
+2. Create the environment using ``mamba`` (the fast package manager for ``conda``): 
+
+    .. code-block:: bash
+    
+        $ mamba env create -f environment.yml
+
+3. Activate the environment to ensure all future Python or conda commands use this environment:
+
+    .. code-block:: bash
+    
+        $ mamba activate hypergas
 
 .. hint::
 
@@ -30,15 +45,14 @@ Using `Miniforge <https://conda-forge.org/download/>`_ is the fastest way to ins
 Using Anaconda or Miniconda
 ---------------------------
 
-Default way (slow)
-^^^^^^^^^^^^^^^^^^
+Default method (slower)
+^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: bash
 
     $ conda config --add channels conda-forge
     $ conda env create -f environment.yml
     $ conda activate hypergas
-
 
 Using mamba (faster)
 ^^^^^^^^^^^^^^^^^^^^
@@ -59,28 +73,45 @@ Using mamba (faster)
 
         $ conda update -n base conda
 
-Step 2: Install HyperGas
+Step 3: Install HyperGas
 ========================
 
-Run ``pip install -e .`` inside the ``HyperGas`` folder.
+Once the environment is set up, run ``pip install -e .`` inside the ``HyperGas`` folder.
 
-Step 3: Update Satpy
+Step 4: Update Satpy
 ====================
 
-Because the Hyperspectral readers have not been merged, you need to update the satpy package after the basic installation.
+Because the hyperspectral readers are not yet merged into the official Satpy package,
+you will need to install the development version of Satpy:
 
 .. code-block:: bash
 
     $ pip install git+https://github.com/zxdawn/satpy.git@hyper
 
-Step 4: Fix Spectral Python (SPy)
+Step 5: Fix Spectral Python (SPy)
 =================================
 
-Edit ``spectral/algorithms/algorithms.py`` to prevent the ``np.linalg.inv`` singular matrix error
-(See this `issue <https://github.com/spectralpython/spectral/issues/159>`_).
+To prevent the ``np.linalg.inv`` singular matrix error,
+you'll need to make a small modification in the Spectral Python package.
+
+1. Locate your Spectral Python installation. You can find its path by running the following in Python:
+
 
 .. code-block:: python
 
-    # You can find the <spectral_path> like this:
     import spectral
     print(spectral.__file__)
+
+2. Open the file ``spectral/algorithms/algorithms.py`` and replace the line around 750:
+
+.. code-block:: python
+
+    np.linalg.inv(self._cov)
+
+with:
+
+.. code-block:: python
+
+    np.linalg.pinv(self._cov)
+
+For more details on this issue, refer to the `issue on GitHub <https://github.com/spectralpython/spectral/issues/159>`_.
