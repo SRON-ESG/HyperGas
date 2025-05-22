@@ -11,6 +11,22 @@ GUI
 
 The `NASA Earthdata Search <https://search.earthdata.nasa.gov/search?q=C2408009906-LPCLOUD>`_ website is the official EMIT L1B data source.
 You can browse RGB preview, direct download, and order data.
+For detailed instructions, refer to the `EMIT-Data-Resources guide <https://github.com/nasa/EMIT-Data-Resources/blob/main/guides/Getting_EMIT_Data_using_EarthData_Search.md>`_.
+A simple method is to click the ``Copy`` button at the final step and paste the links into a single ``links.txt`` file:
+
+.. image:: ../fig/emit_download.png
+
+After that you can run ``wget -i links.txt`` to download all data into the current directory.
+
+.. note ::
+   Using ``wget`` to download Earthdata files will read your account info from the ``~/.netrc`` file, which is like this:
+
+   .. code-block:: bash
+
+       machine urs.earthdata.nasa.gov
+           login <username>
+           password <password>
+
 
 CLI
 ^^^
