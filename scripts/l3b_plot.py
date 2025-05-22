@@ -402,7 +402,7 @@ if __name__ == '__main__':
     plot_csf = True
 
     # whether plot reproduced Carbon Mapper IME results
-    plot_cm = True
+    plot_cm = False
 
     # whether plot minimal image (only title (sitename+datetime+emission_rate) and plume)
     plot_minimal = False
