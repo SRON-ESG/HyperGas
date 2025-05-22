@@ -23,5 +23,5 @@ dependencies:
   - aiohttp
   - tobac
   - streamlit
+  - matplotlib-scalebar
   # - spacetrack  # pip install spacetrack
-  # - matplotlib-scalebar  # not necessary

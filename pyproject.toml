@@ -24,6 +24,7 @@ dependencies = [
 	"algotom",
 	"dem_stitcher",
 	"aiohttp",
+        "matplotlib-scalebar",
 	"spacetrack",
 ]
 
