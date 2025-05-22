@@ -1,7 +1,7 @@
 Downloading Data
 ================
 
-HyperGas supports 3 HSI L1 data: EMIT, EnMAP, and PRISMA.
+HyperGas supports three HSI L1 data: EMIT, EnMAP, and PRISMA.
 
 EMIT
 ----
