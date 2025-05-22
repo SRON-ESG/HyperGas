@@ -103,8 +103,10 @@ class Ortho():
     def _download_dem(self):
         """Download SRTMV3 DEM data."""
         LOG.debug('Downloading SRTMV3 using stitch_dem')
+
         # download DEM data and update config
-        self.file_dem = Path(self.data.attrs['filename'].replace('.', '_dem.')).with_suffix('.tif')
+        dem_path = Path(self.data.attrs['filename'])
+        self.file_dem = dem_path.with_name(dem_path.stem+'_dem.tif')
 
         if not os.path.exists(self.file_dem):
             dst_area_or_point = 'Point'
