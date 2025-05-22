@@ -5,6 +5,11 @@ doc/build
 eggs
 *.eggs
 
+# input data and cache
+hypergas/resources
+hypergas/version.py
+hypergas/__pycache__/
+
 # Sphinx
 doc/source/_build/*
 
