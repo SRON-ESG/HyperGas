@@ -5,6 +5,18 @@ Batch Processing
 HyperGas provides multiple Python scripts to process L1 data into L2 and L3/L4 products.
 You can find them in the ``<HyperGas_dir>/scripts/`` directory.
 
+.. hint ::
+
+   When dealing with large amounts of data, it's better to run the process in the background.
+   We recommend using `tmux <https://github.com/tmux/tmux/wiki>`_, which lets you run a program on your machine,
+   disconnect, and reconnect later to check the progress.
+   You can install tmux via conda or mamba:
+
+   .. code-block:: python
+
+      >>> conda install -c conda-forge tmux
+      >>> mamba install -c conda-forge tmux
+
 .. list-table::
    :header-rows: 1
 
