@@ -19,7 +19,7 @@ Local
 
 .. code-block:: bash
 
-    cd HyperGas
+    cd <HyperGas_dir>/app
     streamlit run About.py
 
 By default, the browser will automatically open the app.
@@ -30,7 +30,7 @@ Remote
 
 .. code-block:: bash
 
-    cd HyperGas
+    cd <HyperGas_dir>/app
     streamlit run About.py --server.headless true --server.port 8501
 
 For remote machines or servers, you can run the app on the server as above and access it via SSH:
