@@ -61,6 +61,7 @@ Using mamba (faster)
 
     $ conda config --add channels conda-forge
     $ conda install -n base mamba
+    $ (optional: initialize shell) mamba shell hook --shell bash
     $ mamba env create -f environment.yml
     $ conda activate hypergas
 
