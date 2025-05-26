@@ -215,11 +215,11 @@ Supported parameters:
 
 - ``azimuth_diff_max (float)``: The maximum of azimuth of minimum rotated rectangle.
   - keep this as default unless you find obvious wrong plume pixels
-    Refer to `:doc:plume_mask` for guidance on adjustments.
+    Refer to :doc:`plume_mask` for guidance on adjustments.
 
 - ``dist_max``: The maximum of dilation distance (meter)
   - keep this as default unless you find obvious wrong plume pixels
-    Refer to `:doc:plume_mask` for guidance on adjustments.
+    Refer to :doc:`plume_mask` for guidance on adjustments.
 
 
 Reprocessing (optional)
