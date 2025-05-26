@@ -39,6 +39,8 @@ For remote machines or servers, you can run the app on the server as above and a
 
     ssh -N -L localhost:8501:localhost:8501 <username>@<server_ip>
 
+Afterward, open your browser and navigate to ``http://localhost:8501/`` to access the app.
+
 .. note::
 
    If port `8501` is already in use, you can change Streamlit’s default port to avoid conflicts.

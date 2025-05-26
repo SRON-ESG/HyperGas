@@ -78,8 +78,9 @@ Here is an example of checking EMIT L1B data (2022~2023) for all locations in on
 EnMAP
 -----
 
-EnMAP L1 data is only available on the `EnMAP Instrument Planning Portal <https://www.enmap.org/data_access/>`_.
-Once you submit orders, you will get an email with multiple links per order.
+EnMAP L1B data is only available on the `EOWEB <https://eoweb.dlr.de/>`_.
+For guidance, refer to the screencasts on their `Data Access page <https://www.enmap.org/data_access/>`_.
+After submitting your order, you will receive an email containing multiple download links per request.
 
 Here is the quick way to download all tar.gz files in one order:
 
