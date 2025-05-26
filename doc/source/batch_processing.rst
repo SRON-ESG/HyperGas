@@ -211,15 +211,15 @@ Supported parameters:
 
 - ``land_only (boolean)``: Whether only to condiser land pixels
 
-- ``land_mask_source (str)``: Source for land classification. Options: "OSM", "GSHHS" or "Natural Earth".
-
-- ``wspd_manual (float or None)``: Manually override wind speed. If ``None``, the reanalysis wind speed from the CSV file is used.
+- ``wspd_manual (float or None)``: Manually override wind speed with zero uncertainty. If ``None``, the reanalysis wind speed from the CSV file is used.
 
 - ``azimuth_diff_max (float)``: The maximum of azimuth of minimum rotated rectangle.
   - keep this as default unless you find obvious wrong plume pixels
+    Refer to :doc:`plume_mask` for guidance on adjustments.
 
 - ``dist_max``: The maximum of dilation distance (meter)
   - keep this as default unless you find obvious wrong plume pixels
+    Refer to :doc:`plume_mask` for guidance on adjustments.
 
 
 Reprocessing (optional)

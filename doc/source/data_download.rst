@@ -1,7 +1,7 @@
 Downloading Data
 ================
 
-HyperGas supports 3 HSI L1 data: EMIT, EnMAP, and PRISMA.
+HyperGas supports three HSI L1 data: EMIT, EnMAP, and PRISMA.
 
 EMIT
 ----
@@ -11,6 +11,22 @@ GUI
 
 The `NASA Earthdata Search <https://search.earthdata.nasa.gov/search?q=C2408009906-LPCLOUD>`_ website is the official EMIT L1B data source.
 You can browse RGB preview, direct download, and order data.
+For detailed instructions, refer to the `EMIT-Data-Resources guide <https://github.com/nasa/EMIT-Data-Resources/blob/main/guides/Getting_EMIT_Data_using_EarthData_Search.md>`_.
+A simple method is to click the ``Copy`` button at the final step and paste the links into a single ``links.txt`` file:
+
+.. image:: ../fig/emit_download.png
+
+After that you can run ``wget -i links.txt`` to download all data into the current directory.
+
+.. note ::
+   Using ``wget`` to download Earthdata files will read your account info from the ``~/.netrc`` file, which is like this:
+
+   .. code-block:: bash
+
+       machine urs.earthdata.nasa.gov
+           login <username>
+           password <password>
+
 
 CLI
 ^^^
@@ -62,8 +78,9 @@ Here is an example of checking EMIT L1B data (2022~2023) for all locations in on
 EnMAP
 -----
 
-EnMAP L1 data is only available on the `EnMAP Instrument Planning Portal <https://www.enmap.org/data_access/>`_.
-Once you submit orders, you will get an email with multiple links per order.
+EnMAP L1B data is only available on the `EOWEB <https://eoweb.dlr.de/>`_.
+For guidance, refer to the screencasts on their `Data Access page <https://www.enmap.org/data_access/>`_.
+After submitting your order, you will receive an email containing multiple download links per request.
 
 Here is the quick way to download all tar.gz files in one order:
 
@@ -71,13 +88,18 @@ Here is the quick way to download all tar.gz files in one order:
 
     wget --no-check-certificate --user <username> --password <password> <http_link_dims_op_oc_oc-en_*.tar.gz>
 
+.. note::
+
+   If you are an SRON user, you must connect to the eduroam network;
+   otherwise, the download link will be blocked by WLAN_SRON.
+
 Because HyperGas can read the ZIP file directly, you just need to keep the ZIP file like this:
 
 .. code-block:: bash
 
     # unzip data and keep zip files
     for f in *.tar.gz; do tar xzf "$f"; done
-    mv **/*.ZIP .
+    mv **/**/*.ZIP .
     rm -rf dims_op_oc_oc-en_*
 
 It will move ZIP files to the root data dir and remove tar.gz files.
