@@ -74,6 +74,7 @@ If the same path is used later, a warning will be shown.
 
 .. image:: ../fig/app_plume_marker.jpg
 
+.. _plume_emission:
 
 2) Emission
 -----------
