@@ -23,4 +23,7 @@ doc/source/_build/*
 *.swp
 .DS_STORE
 
-
+# setuptools_scm files
+# this should be generated automatically when installed
+hypergas/version.py
+doc/source/api/*.rst
