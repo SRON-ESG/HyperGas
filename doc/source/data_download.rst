@@ -87,13 +87,18 @@ Here is the quick way to download all tar.gz files in one order:
 
     wget --no-check-certificate --user <username> --password <password> <http_link_dims_op_oc_oc-en_*.tar.gz>
 
+.. note::
+
+   If you are an SRON user, you must connect to the eduroam network;
+   otherwise, the download link will be blocked by WLAN_SRON.
+
 Because HyperGas can read the ZIP file directly, you just need to keep the ZIP file like this:
 
 .. code-block:: bash
 
     # unzip data and keep zip files
     for f in *.tar.gz; do tar xzf "$f"; done
-    mv **/*.ZIP .
+    mv **/**/*.ZIP .
     rm -rf dims_op_oc_oc-en_*
 
 It will move ZIP files to the root data dir and remove tar.gz files.
