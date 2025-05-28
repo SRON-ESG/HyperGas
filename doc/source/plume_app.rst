@@ -89,7 +89,7 @@ The Emission page includes a primary preview window and three panels:
 
 .. note::
 
-   These steps can also be automated using ``l3_process.py`` (see :ref:`l3_process`).
+   These steps can also be automated using ``l3b_process.py`` (see :ref:`l3b_process`).
 
 Load data
 ^^^^^^^^^

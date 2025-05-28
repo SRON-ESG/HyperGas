@@ -71,9 +71,9 @@ You can find them in the ``<HyperGas_dir>/scripts/`` directory.
 
   The complete workflow for generating plume data is as follows:
 
-    l2_process.py --> l2b_plot.py --> plume app --> l3_process.py --> l2_reprocess.py (optional) --> l3_reprocess.py (optional) --> l3_plot.py
+    l2_process.py --> l2b_plot.py --> plume app --> l3b_process.py --> l2_reprocess.py (optional) --> l3b_reprocess.py (optional) --> l3b_plot.py
 
-  The l3_process.py generates both L3 (NetCDF) and L4 (CSV) products.
+  The l3b_process.py generates both L3 (NetCDF) and L4 (CSV) products.
 
 Here are the key points of each script:
 
@@ -181,7 +181,7 @@ Wind arrows are positioned at the scene center and can be repositioned by clicki
   The colorbar limit for the denoised field is set automatically from the ``mean_value`` to the ``maximum value``,
   For the original field, it is hardcoded in ``<HyperGas_dir>/hypergas/folium_map.py`` to allow comparison across different days.
 
-.. _l3_process:
+.. _l3b_process:
 
 L2 --> L3/L4
 ============
@@ -194,16 +194,16 @@ To generate L3 and L4 products, users need to add the plume markers using :doc:`
 Step 2: Emission estimation
 ---------------------------
 
-Next, uesers can run ``l3_process.py`` or use the app (See :ref:`plume_emission`) to generate plume masks and estimate emission rates.
+Next, uesers can run ``l3b_process.py`` or use the app (See :ref:`plume_emission`) to generate plume masks and estimate emission rates.
 
 .. note::
 
    Time-saving tips:
 
-   - Running ``l3_process.py`` to generate the default plume masks and checking the app to adjust them if necessary.
+   - Running ``l3b_process.py`` to generate the default plume masks and checking the app to adjust them if necessary.
    - Running the emission estimation only when the plume mask is ready.
 
-Supported parameters of ``l3_process.py``:
+Supported parameters of ``l3b_process.py``:
 
 - ``root_dir (str)``: Root directory of L2 data.
 
@@ -231,7 +231,7 @@ Supported parameters of ``l3_process.py``:
 Step 3: Plot plume summary
 --------------------------
 
-Once the emission estimation is verified, users can run ``l3_plot.py`` to generate the scientific plot of the plume, as shown below:
+Once the emission estimation is verified, users can run ``l3b_plot.py`` to generate the scientific plot of the plume, as shown below:
 
 .. image:: ../fig/estimation_case.jpg
 
@@ -268,7 +268,7 @@ Supported parameters:
 Reprocessing L3 data
 --------------------
 
-To recalculate emission rates using the updated L2 data, users can either rerun the Plume App or execute the ``l3_reprocess.py`` script.
+To recalculate emission rates using the updated L2 data, users can either rerun the Plume App or execute the ``l3b_reprocess.py`` script.
 This script reads both L2 and existing L3 NetCDF files and generates updated L3 products according to the settings specified in the L3 CSV file.
 
 Supported parameters:
