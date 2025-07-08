@@ -23,6 +23,7 @@ Submodules
    hypergas.retrieve
    hypergas.tle
    hypergas.unit_spectrum
+   hypergas.version
    hypergas.wind
 
 Module contents

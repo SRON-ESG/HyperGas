@@ -186,8 +186,15 @@ Wind arrows are positioned at the scene center and can be repositioned by clicki
 L2 --> L3/L4
 ============
 
+Step 1: Mark plume source locations
+-----------------------------------
+
 To generate L3 and L4 products, users need to add the plume markers using :doc:`plume_app` (See :ref:`plume_marker`).
-After that, uesers can run ``l3_process.py`` or the app to generate plume masks and emission rates.
+
+Step 2: Emission estimation
+---------------------------
+
+Next, uesers can run ``l3_process.py`` or use the app (See :ref:`plume_emission`) to generate plume masks and estimate emission rates.
 
 .. note::
 
@@ -196,7 +203,7 @@ After that, uesers can run ``l3_process.py`` or the app to generate plume masks 
    - Running ``l3_process.py`` to generate the default plume masks and checking the app to adjust them if necessary.
    - Running the emission estimation only when the plume mask is ready.
 
-Supported parameters:
+Supported parameters of ``l3_process.py``:
 
 - ``root_dir (str)``: Root directory of L2 data.
 
@@ -221,6 +228,19 @@ Supported parameters:
 - ``dist_max``: The maximum of dilation distance (meter)
   - keep this as default unless you find obvious wrong plume pixels
 
+
+Step 3: Plot plume summary
+--------------------------
+
+Once the emission estimation is verified, users can run ``l3_plot.py`` to generate the scientific plot of the plume, as shown below:
+
+.. image:: ../fig/estimation_case.jpg
+
+.. hint::
+
+   The scientific images (``*L3*plume<plume_id>*png``) will be saved in the same directory as the data.
+   These images will also appear on the ``Emission`` page of the app,
+   where they can be downloaded by clicking the download button below the image.
 
 Reprocessing (optional)
 =======================
