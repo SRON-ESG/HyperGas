@@ -90,9 +90,24 @@ class Denoise():
         # Apply mask using xarray.where
         return image.where(mask)
 
+    def _copy_attrs(self, res):
+        """Copy data attributes to the denoised field"""
+        # create DataArray
+        res = xr.DataArray(res, coords=self.data.squeeze().coords, dims=self.data.squeeze().dims)
+
+        # copy attrs
+        res = res.rename(self.data.name+'_denoise')
+        res.attrs = self.data.attrs
+
+        description = f'denoised by the {self.method} method with weight={self.weight}'
+        if 'description' in res.attrs:
+            res.attrs['description'] = f"{res.attrs['description']} ({description})"
+
+        return res
+
     def tv_filter(self):
         """TV filter"""
-        noisy = self.data.squeeze().where(self.segmentation > 0)
+        noisy = self.data.squeeze().where(self.segmentation == self.seg_id)
         trim_mean = trimmed_mean(noisy.stack(z=('y', 'x')).dropna('z'), (1e-3, 1e-3))
         res = denoise_tv_chambolle(np.ma.masked_array(np.where(noisy.isnull(), trim_mean, noisy), noisy.isnull()),
                                    weight=self.weight
@@ -121,8 +136,7 @@ class Denoise():
         losses_tv : 1D numpy array (if return_loss == True)
             The losses of TV filter
         """
-        # filter out pixels over water
-        noisy = self.data.squeeze().where(self.segmentation > 0)
+        noisy = self.data.squeeze().where(self.segmentation == self.seg_id)
 
         # remove highest and lowest value
         noisy_mask = self._create_mask_from_quantiles(noisy)
@@ -161,22 +175,34 @@ class Denoise():
 
     def smooth(self):
         """Smooth data."""
-        if self.method == 'tv_filter':
-            res = self.tv_filter()
-        elif self.method == 'calibrated_tv_filter':
-            res = self.calibrated_tv_filter()
-        else:
-            raise ValueError(f'{self.method} is not supported yet.')
+        # create the empty list for denoised data
+        res_list = []
 
-        # create DataArray
-        res = xr.DataArray(res, coords=self.data.squeeze().coords, dims=self.data.squeeze().dims)
+        # denoising data by cluster
+        for seg_id in np.unique(self.segmentation):
+            LOG.info(f'Applying denoising to segmentation_id {seg_id} ...')
+            self.seg_id = seg_id
 
-        # copy attrs
-        res = res.rename(self.data.name+'_denoise')
-        res.attrs = self.data.attrs
+            if self.method == 'tv_filter':
+                res = self.tv_filter()
+            elif self.method == 'calibrated_tv_filter':
+                res = self.calibrated_tv_filter()
+            else:
+                raise ValueError(f'{self.method} is not supported yet.')
 
-        description = f'denoised by the {self.method} method with weight={self.weight}'
-        if 'description' in res.attrs:
-            res.attrs['description'] = f"{res.attrs['description']} ({description})"
+            # copy attributes
+            res = self._copy_attrs(res)
 
-        return res
+            # set values only for seg_id
+            res = res.where(self.segmentation == seg_id, 0)
+
+            # append to list
+            res_list.append(res)
+
+        # aggregate all results into one DataArray
+        res_sum = sum(res_list)
+
+        # copy attributes
+        res_sum = self._copy_attrs(res_sum)
+
+        return res_sum
