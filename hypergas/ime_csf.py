@@ -717,10 +717,10 @@ class IME_CSF():
             lon = ds_original['longitude']
             lat = ds_original['latitude']
             segmentation = Land_mask(lon.data, lat.data, source=self.land_mask_source)
-            ds_original[self.gas] = ds_original[self.gas].where(segmentation)
-            ds[self.gas] = ds[self.gas].where(segmentation)
-
-        IME_std = self._calc_random_err(ds_original[self.gas], ds[self.gas])
+            IME_std = self._calc_random_err(ds_original[self.gas].where(segmentation),
+                                            ds[self.gas].where(segmentation))
+        else:
+            IME_std = self._calc_random_err(ds_original[self.gas], ds[self.gas])
         err_random = u_eff / l_eff * IME_std
 
         # 2. wind error
