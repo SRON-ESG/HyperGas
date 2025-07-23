@@ -174,12 +174,7 @@ class Map():
                 #   we set the maximum value as vmax for checking plumes
                 cmap = 'plasma'
                 vmin = da_ortho.mean()
-                if 'segmentation' in self.ds.keys():
-                    # if the data is masked, we choose the data with label >=1
-                    #   which means "land" type or "not background" classification
-                    cmap_vmax = da_ortho.where(self.ds['segmentation'] >= 1).max()
-                else:
-                    cmap_vmax = da_ortho.max()
+                cmap_vmax = da_ortho.quantile(0.99)
 
                 # crop cmap_max to max(vmax, vmin+1)
                 if vmax is not None:
