@@ -445,6 +445,10 @@ class IME_CSF():
 
         ds = self.ds
 
+        # only moving around over land pixels
+        if self.land_only:
+            ds = ds.where(self.landmask)
+
         # get 1d array of plume data
         self.gas_valid = ds[self.gas].stack(z=('x', 'y')).dropna(dim='z')
 
@@ -716,9 +720,9 @@ class IME_CSF():
             # get lon and lat
             lon = ds_original['longitude']
             lat = ds_original['latitude']
-            segmentation = Land_mask(lon.data, lat.data, source=self.land_mask_source)
-            IME_std = self._calc_random_err(ds_original[self.gas].where(segmentation),
-                                            ds[self.gas].where(segmentation))
+            self.landmask = Land_mask(lon.data, lat.data, source=self.land_mask_source)
+            IME_std = self._calc_random_err(ds_original[self.gas].where(self.landmask),
+                                            ds[self.gas].where(self.landmask))
         else:
             IME_std = self._calc_random_err(ds_original[self.gas], ds[self.gas])
         err_random = u_eff / l_eff * IME_std
