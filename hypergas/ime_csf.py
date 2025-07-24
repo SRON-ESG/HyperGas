@@ -363,7 +363,8 @@ class IME_CSF():
         C_noplume = []
 
         for ch4_bkgd in self.ch4_bkgds:
-            ch4_bkgd_valid = ch4_bkgd.stack(z=("x", "y")).dropna(dim='z')
+            # reset coords to save memory for stacking
+            ch4_bkgd_valid = ch4_bkgd.reset_coords(drop=True).stack(z=("x", "y")).dropna(dim='z')
             ch4_bkgd_valid = ch4_bkgd_valid.where(ch4_bkgd_valid != -999)
             C_lines = []
             for match_list in match_lists:
