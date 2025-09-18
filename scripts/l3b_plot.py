@@ -32,6 +32,7 @@ from pyproj import CRS
 from pyproj.aoi import AreaOfInterest
 from pyproj.database import query_utm_crs_info
 from shapely.geometry.point import Point
+from matplotlib.colors import ListedColormap
 
 from utils import get_dirs
 
@@ -58,6 +59,15 @@ rcParams['ytick.labelsize'] = font_size - 2
 rcParams['legend.fontsize'] = font_size
 rcParams['figure.titlesize'] = font_size
 rcParams['figure.titleweight'] = 'bold'
+
+# Get the colormap colors
+cmap = plt.get_cmap('hot_r')
+my_cmap = cmap(np.arange(cmap.N))
+
+# Create new colormap
+slopen = 30
+my_cmap[:, -1][:slopen] = np.linspace(0.2, 1.0, slopen)
+my_cmap = ListedColormap(my_cmap)
 
 
 def replace_number_with_subscript(input_string):
@@ -120,7 +130,8 @@ def sron_ime(fig, ax, ds_all, ds, df, gas, proj, plot_minimal, pad=None):
     vmax = ds_all[gas].quantile(0.99)
     vmax = int(np.ceil(vmax / base)) * base
 
-    m = ds_all[gas].plot(x='longitude', y='latitude', vmin=0, vmax=vmax, cmap='plasma', add_colorbar=False,
+    m = ds_all[gas].plot(x='longitude', y='latitude', vmin=0, vmax=vmax, cmap=my_cmap,
+                         add_colorbar=False,
                          # cbar_kwargs={'label': 'CH$_4$ Enhancement (ppb)', 'orientation': 'horizontal', 'shrink': 0.7}
                          )
 
@@ -197,7 +208,7 @@ def sron_csf(fig, ax_ime, ax_csf, ds_csf, df):
     # plot csf lines
     ax_ime.plot(xr.concat([ds_csf['x_start'], ds_csf['x_end']], dim='loc'),
                 xr.concat([ds_csf['y_start'], ds_csf['y_end']], dim='loc'),
-                transform=transform, c='skyblue', alpha=0.3,
+                transform=transform, c='w', alpha=0.8,
                 )
 
     # plot centerline
@@ -226,7 +237,8 @@ def cm_ime(fig, ax, ds_all, ds, df, gas, proj, plot_minimal, extent, vmax):
 
     # plot rgb and gas data
     gas = gas+'_cm'
-    m = ds_all[gas].plot(x='longitude', y='latitude', vmin=0, vmax=vmax, cmap='plasma', add_colorbar=False,
+    m = ds_all[gas].plot(x='longitude', y='latitude', vmin=0, vmax=vmax,
+                         cmap=my_cmap, add_colorbar=False,
                          # cbar_kwargs={'label': 'CH$_4$ Enhancement (ppb)', 'orientation': 'horizontal', 'shrink': 0.7}
                          )
 
