@@ -39,7 +39,7 @@ def PCA_kmeans(radiance, pca_dim=3, ncluster=10, max_iterations=30):
     segmentation = kmeans(radiance_pca, nclusters=ncluster, max_iterations=max_iterations, distance='L1')[0]
 
     # save to DataArray
-    segmentation = xr.DataArray(segmentation, dims=['y', 'x'])
+    segmentation = xr.DataArray(segmentation, dims=['y', 'x']).astype('float32')
     segmentation.attrs['description'] = 'Kmeans cluster'
 
     return segmentation
