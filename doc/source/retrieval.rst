@@ -78,7 +78,7 @@ Matched filter
 --------------
 
 The matched filter (`Thompson et al. 2015 <https://doi.org/10.5194/amt-8-4383-2015>`_, `Foote et al. 2021 <https://doi.org/10.1016/j.rse.2021.112574>`_)
-assumes a spectrally flat background and models the background radiance spectrum as a Gaussian distribution
+treats the background spectral signature as a Gaussian distribution 
 with a mean vector :math:`\mu` and a covariance matrix :math:`\Sigma`.
 The radiance spectrum (:math:`L`) can be represented by two hypotheses: H0, which assumes the absence of plume, and H1, where the plume is present.
 
@@ -103,13 +103,14 @@ Thus, HyperGas provides the lognormal matched filter method (`Schaum et al. 2021
 which applies logarithms to both sides of the Beer-Lambert equation:
 
 .. math::
-    \alpha = \frac{(k-\mu)^T\Sigma^{-1}(ln(L)-ln(\mu))}{(k-\mu)^T\Sigma^{-1}(k-\mu)} 
+    \alpha = \frac{(k-\tilde{\mu})^T\tilde{\Sigma}^{-1}(\tilde{L}-\tilde{\mu})}{(k-\tilde{\mu})^T\tilde{\Sigma}^{-1}(k-\tilde{\mu})} 
 
-Here, the new :math:`\mu` is the mean log background radiance and :math:`\Sigma` is the covariance matrix of the log background radiance.
+Here, the new :math:`\tilde{\mu}` is the mean log background radiance and :math:`\tilde{\Sigma}` is the covariance matrix of the log background radiance,
+, and :math:`\tilde{L}` is the log radiance spectrum.
 
 Users can swtich to lognormal matched filter by passing ``rad_dist='lognormal'``:
 
-    >>> hyp.retrieve(species='ch4', rad_dist='normal')
+    >>> hyp.retrieve(species='ch4', rad_dist='lognormal')
 
 Cluster-tuned matched filter
 ----------------------------
@@ -162,7 +163,7 @@ GSHHG and Natural Earth
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 HyperGas also supports two other datasets available through the cartopy `feature interface <https://scitools.org.uk/cartopy/docs/latest/matplotlib/feature_interface.html>`_:
-GSHHG and the Natural Earth dataset at a scale of 1:10,000,000.
+GSHHG and the 10-m Natural Earth dataset.
 
 
 Comparisons
