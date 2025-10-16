@@ -20,8 +20,8 @@ You can link the data to the ``hypergas`` directory using the following command:
 Non-SRON users
 --------------
 
-If you are not a user at SRON, please download the input data manually from the shared repository (coming soon).
-Once you have the data, place it in the appropriate directory.
+If you are not a user at SRON, please download the input data manually from the `shared repository <https://doi.org/10.5281/zenodo.17369768>`_.
+After downloading the data, unzip it into the ``<HyperGas_dir>/hypergas`` directory.
 
 absorption_dir
 ^^^^^^^^^^^^^^
@@ -51,7 +51,7 @@ irradiance_dir
 ^^^^^^^^^^^^^^
 
 The directory where solar irradiance data is stored.
-Default path: ``resources/irradiance_dir``.
+Default path: ``resources/solar_irradiance``.
 
 .. code-block::
 
