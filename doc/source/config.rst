@@ -22,7 +22,8 @@ Non-SRON users
 
 If you are not a user at SRON, please download the input data manually from the `shared repository <https://doi.org/10.5281/zenodo.17369768>`_.
 After downloading the data, unzip it into the ``<HyperGas_dir>/hypergas`` directory.
-
+All extracted files will be stored in ``<HyperGas_dir>/hypergas/resources`` directory.
+ 
 absorption_dir
 ^^^^^^^^^^^^^^
 
@@ -138,7 +139,7 @@ The directory structure should be ``<yyyy>/<mm>/<dd>/GEOS.fp.asm.tavg1_2d_slv_Nx
 markers_filename
 ^^^^^^^^^^^^^^^^
 
-The csv file which saves pre-defined markers.
+The optional csv file saves pre-defined markers.
 It should contain at least two columns: *latitude* and *longitude*.
 The batch processing script ``l2b_plot.py`` will place CircleMarkers on the map.
 Clicking on a marker will display the correcponding DataFrame information.
