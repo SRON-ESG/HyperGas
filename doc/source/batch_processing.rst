@@ -122,10 +122,10 @@ If ``species = 'ch4'``, the output L2 file will contain the following variables:
       - 2D longitude
     * - ch4
       - | 2D ch4 enhancement field
-        | (retrieved by the strong absorption window)
+        | (2110--2450 nm for methane and 1930--2200 nm for CO$_2$)
     * - ch4_comb
       - | 2D ch4 enhancement field
-        | (retrieved by a wider absorption window to decrease background noise)
+        | (Retrieved gas enhancement using the full near-infrared spectral range (1300--2500 nm))
     * - ch4_denoise
       - denoised 2D ch4 field
     * - ch4_comb_denoise
@@ -250,8 +250,10 @@ HyperGas supports reprocessing L2 and L3 data by excluding L3 plume pixels from 
 Reprocessing L2 data
 --------------------
 
-Incorporating plumes into the matched filter statistics might break the sparsity assumption,
-potentially causing lower enhancements, particularly for highly-emitting (> 10 t/h) plumes.
+Since the matched filter assumes plume signals are sparse (i.e., present in only a small fraction of pixels),
+we exclude pixels within identified plume masks,
+so that background statistics are estimated only from non-plume pixels and the sparsity assumption remains valid.
+
 For example, a Norte III landfill emission was initially estimated at 13 t/h but was corrected to 20.7 t/h after reprocessing.
 Therefore, running ``l2_reprocess.py`` is essential to refine L2 results using L3 plume masks.
 

@@ -30,14 +30,21 @@ See :doc:`dev_guide` for more information.
 CSF
 ===
 
-Another method to calculate the emission rate is the CSF method, which provides a more physically-based approach.
-The source rate is the product of the cross-plume gas enhancement integral and a different effective wind speed :math:`U_{eff,CSF}`):
+Another method to calculate the emission rate is the CSF method.
+This method is especially useful if gaps in the detected plume,
+for example, caused by low albedo, make the estimate based on the total IME less reliable.
+
+The source rate is estimated as the product of the cross-plume gas enhancement integral
+and a different effective wind speed :math:`U_{eff,CSF}`):
 
 .. math::
    Q = U_{eff,CSF} \int_{a}^{b} {\Delta}X(x,y) \,dy
 
 Here, the x-axis aligns with the wind direction, while the y-axis is oriented perpendicular to it.
-The integral is evaluated between the plume boundaries [a, b], as defined by the plume mask.
+The integral is evaluated between the plume boundaries [a, b], as defined by the cross section in the plume mask.
+The spacing between CSF sections is set to 2.5 $\times$ pixel resolution, rather than 1 $\times$ pixel resolution,
+to reduce overlap between adjacent sections and ensure sufficient independence of sampled data.
+
 A centerline curve is fitted to the plume mask using the `ddeq <https://ddeq.readthedocs.io/>`_ library
 (`Kuhlmann et al. 2024 <https://doi.org/10.5194/gmd-17-4773-2024>`_),
 which constructs a two-dimensional curve based on the pixels within the plume area

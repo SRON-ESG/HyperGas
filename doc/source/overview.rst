@@ -7,8 +7,10 @@ All necessary details for performing these operations are internally configured 
 This means that users do not need to concern themselves with the specific implementation,
 but rather focus on their desired outcome.
 Most of the features offered by HyperGas can be customized using keyword arguments.
+
 The following sections describe the various components and concepts of HyperGas.
 Additionally, the :doc:`quickstart` guide presents straightforward example of HyperGas.
+After understanding each step, users can proceed to the :doc:`batch_processing` page for batch processing.
 
 .. image:: ../fig/workflow.jpg
    :alt: Mind map link: https://gitmind.com/app/docs/mwe3luac
