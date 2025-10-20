@@ -33,32 +33,37 @@ class MatchedFilter():
         Args:
             scn (Satpy Scene):
                 including at least one variable named "radiance"
-                    radiance (xarray DataArray):
-                        name: "radiance"
-                        dims: ['bands', 'y', 'x']
-                        units: mW m^-2 sr^-1 nm^-1,
-                        coordinates: at least 1) "wavelength" (nm) and 2) "fwhm" (nm).
-            wvl_intervals (list): The wavelength range [nm] used in matched filter. It can be one list or nested list.
-                e.g. [2110, 2450] or [[1600, 1750], [2110, 2450]]
-            species (str): The species to be retrieved
-                species defined in the config.yaml file
-                Default: 'ch4'
-            mode (str): the mode ("column" or "scene") to apply matched filter.
+                (:class:`~xarray.Dataset` ['bands', 'y', 'x'], units: mW m^-2 sr^-1 nm^-1),
+                and at least two coordinates: 1) "wavelength" (nm) and 2) "fwhm" (nm).
+            wvl_intervals (list):
+                The wavelength range (nm) used in matched filter. It can be one list or nested list.
+                e.g. ``[2110, 2450]`` or ``[[1600, 1750], [2110, 2450]]``.
+            species (str):
+                The species to be retrieved. Only species defined in the config.yaml file.
+                Default: 'ch4'.
+            mode (str):
+                The mode ("column" or "scene") to apply matched filter.
                 Default: 'column'. Be careful of noise if you apply the matched filter for the whole scene.
-            rad_dist (str): The assumed rads distribution ('normal' or 'lognormal')
-                Default: 'normal'
+            rad_dist (str):
+                The assumed rads distribution ("normal" or "lognormal").
+                Default: 'normal'.
             rad_source (str):
-                The data ('model' or 'lut') used for calculating rads or transmissions
+                The data ('model' or 'lut') used for calculating rads or transmissions.
                 Default: 'model'
-            land_mask (boolean): Whether apply the matched filter to continental and oceanic pixels seperately.
+            land_mask (boolean):
+                Whether apply the matched filter to continental and oceanic pixels seperately.
                 Default: True
-            land_mask_source (str): the data source of land mask ('OSM', 'GSHHS' or 'Natural Earth')
-                Default: OSM
-            cluster (boolean): Whether apply the pixel classification
-                Default: False
-            plume_mask (2d array): 0: neglected pixels, 1: plume pixels.
-                Default: None
-            scaling (float): The scaling factor for alpha to ensure numerical stability.
+            land_mask_source (str):
+                The data source of land mask ('OSM', 'GSHHS' or 'Natural Earth')
+                Default: "OSM".
+            cluster (boolean):
+                Whether apply the pixel classification.
+                Default: False.
+            plume_mask (2d :class:`numpy.ndarray`):
+                0: neglected pixels, 1: plume pixels.
+                Default: None.
+            scaling (float):
+                The scaling factor for alpha to ensure numerical stability.
         """
         # set the wavelength range for matched filter
         self.wvl_min = wvl_intervals[0]
@@ -131,10 +136,22 @@ class MatchedFilter():
     #     return scaler.transform(data)
 
     def col_matched_filter(self, radiance, segmentation, plume_mask, K):
-        """Calculate stats of data.
+        """Apply the matched filter by column.
 
-        Return
-            gas enhancement (ppm)
+        Args:
+            radiance for one column (:class:`~xarray.DataArray`):
+                The radiance DataArray.
+            segmentation (:class:`~xarray.DataArray` same shape as ``radiance``):
+                The segmentation of pixels (e.g., land and water mask).
+            plume_mask (:class:`~xarray.DataArray` same shape as ``radiance``):
+                Since the matched filter assumes plume signals are sparse (i.e., present in only a small fraction of pixels),
+                it is better to exclude pixels within identified plume masks,
+                so that background statistics are estimated only from non-plume pixels and the sparsity assumption remains valid.
+            K (:class:`numpy.ndarray`):
+                The Jacobian K (i.e, the change of the radiance (or its logarithm) for a +1 ppm methane concentration increase).
+
+        Returs:
+            Gas enhancement (ppm, :class:`~xarray.DataArray`)
         """
         if self.mode == 'column':
             # create empty alpha with shape: [nrows('y'), 1]
@@ -210,12 +227,12 @@ class MatchedFilter():
             return alpha * 1.25e-4
 
     def smf(self):
-        """Standard/Robust matched filter
+        """Standard/Robust matched filter.
 
-            Compute mean and covariance of set of each column and then run standard matched filter
+        Compute mean and covariance of set of each column and then run standard matched filter.
 
         Returns:
-            Trace gas enhancements (ppm)
+            Gas enhancement (:class:`~xarray.DataArray`, unit: ppm)
         """
         if self.mode == 'scene':
             # calculate the background of whole scene
