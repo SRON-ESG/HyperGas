@@ -39,8 +39,8 @@ grav = 9.8  # gravity (m s-2)
 
 class CustomControl(MacroElement):
     """Put any HTML on the map as a Leaflet Control.
-    Adopted from https://github.com/python-visualization/folium/pull/1662
 
+    Adopted from https://github.com/python-visualization/folium/pull/1662.
     """
 
     _template = Template(
@@ -79,7 +79,7 @@ class CustomControl(MacroElement):
 
 
 def plot_wind(m, wdir, wspd, arrow_img='./imgs/arrow.png'):
-    """Plot wind by rotate the north arrow"""
+    """Plot the wind arrow png by rotate the north arrow."""
     with open(arrow_img, "rb") as f:
         image_data = f.read()
         image_base64 = base64.b64encode(image_data).decode("utf-8")
@@ -95,6 +95,25 @@ def plot_wind(m, wdir, wspd, arrow_img='./imgs/arrow.png'):
 
 
 def get_wind_azimuth(u, v):
+    """
+    Calculate the wind azimuth angle based on the horizontal wind components.
+
+    The function computes the azimuth (direction) of the wind vector from 
+    its u (east-west) and v (north-south) components. The azimuth is measured 
+    in radians and degrees, following meteorological convention.
+
+    Args:
+        u (float):
+            Zonal wind component (positive toward the east).
+        v (float):
+            Meridional wind component (positive toward the north).
+
+    Returns:
+        azim_rad (float)
+            Wind azimuth in radians, measured clockwise from the north.
+        azim (float)
+            Wind azimuth in degrees, measured clockwise from the north.
+    """
     if (u > 0):
         azim_rad = (np.pi)/2. - np.arctan(v/u)
     elif (u == 0.):
@@ -112,27 +131,6 @@ def get_wind_azimuth(u, v):
     return azim_rad, azim
 
 
-def conish_2d(x, y, xc, yc, r):
-    xr = (x-xc)*np.cos(r) + (y-yc)*np.sin(r)
-    yr = -(x-xc)*np.sin(r) + (y-yc)*np.cos(r)
-
-    max_xr = np.max(np.abs(xr))
-    max_yr = np.max(np.abs(yr))
-
-    t = np.arctan2(yr, xr)
-
-    scale_dist = max(max_xr, max_yr)
-    orig_shift = -scale_dist/10.
-    t = np.arctan2(yr, xr-orig_shift)
-    sig = scale_dist/2.
-
-    open_ang = np.pi/3.5
-
-    out = np.exp(-((xr-orig_shift)**2 + (yr)**2)/sig**2 - (t/open_ang)**2)
-
-    return out
-
-
 def _azimuth(point1, point2):
     '''azimuth between 2 points (interval 0 - 180)
     # https://stackoverflow.com/a/66118219/7347925
@@ -147,7 +145,7 @@ def _dist(a, b):
 
 
 def azimuth_mrr(mrr):
-    '''azimuth of minimum_rotated_rectangle'''
+    '''Azimuth of plume's `minimum_rotated_rectangle <https://geopandas.org/en/latest/docs/reference/api/geopandas.GeoSeries.minimum_rotated_rectangle.html>`_.'''
     bbox = list(mrr.exterior.coords)
     axis1 = _dist(bbox[0], bbox[3])
     axis2 = _dist(bbox[0], bbox[1])
@@ -161,6 +159,20 @@ def azimuth_mrr(mrr):
 
 
 def get_index_nearest(lons, lats, lon_target, lat_target):
+    """Get the pixel index closest to the target.
+
+    Args:
+        lons (2D :class:`numpy.ndarray`):
+            Longitudes of pixels.
+        lats (2D :class:`numpy.ndarray`):
+            Latitudes of pixels.
+        lon_target (float):
+            The longitude of target.
+        lat_target (float):
+            The latitude of target.
+    Returns:
+        The nearest index: y_nearest (int), x_nearest (int).
+    """
     # define the areas for data and source point
     area_source = SwathDefinition(lons=lons, lats=lats)
     area_target = SwathDefinition(lons=np.array([lon_target]), lats=np.array([lat_target]))
@@ -177,7 +189,26 @@ def get_index_nearest(lons, lats, lon_target, lat_target):
 
 
 def target_inside_mask(ds, gas_mask_varname, y_target, x_target, lon_target, lat_target):
-    '''Make sure target is not inside the masks'''
+    """Move the target if it is not inside the mask.
+
+    Args:
+        ds (:class:`~xarray.Dataset`):
+            The dataset includes the gas field and geolocations.
+        gas_mask_varname (str):
+            The mask name of gas.
+        y_target (int):
+            The y index of target.
+        x_target (int):
+            The x index of target.
+        lon_target (float):
+            The longitude of target.
+        lat_target (float):
+            The latitude of target.
+
+    Returns:
+        y_target (int), x_target (int).
+        If the input target index is not included in the mask, it will be updated using the mask pixel closest to the target.
+    """
     if ds[gas_mask_varname][y_target, x_target] == 0:
         LOG.info('Picking the nearest mask pixel because the target is in the background.')
         lon_mask = ds['longitude'].where(ds[gas_mask_varname] > 0).data.flatten()
@@ -194,7 +225,27 @@ def target_inside_mask(ds, gas_mask_varname, y_target, x_target, lon_target, lat
 
 
 def plot_mask(filename, ds, gas, mask, lon_target, lat_target, pick_plume_name, only_plume=True):
-    """Plot masked data"""
+    """Plot masked data and export to L3 HTML file.
+
+    Args:
+        filename (str):
+            The L2 HTML file name.
+        ds (:class:`~xarray.Dataset`):
+            The dataset includes the gas field and RGB data.
+        gas (str):
+            The gas name to be plotted.
+        mask (:class:`numpy.ndarray`):
+            The plume boolean mask.
+        lon_target (float):
+            The longitude of target.
+        lat_target (float):
+            The latitude of target.
+        pick_plume_name (str):
+            Which plume to be plotted (e.g., "plume0", "plume1", ...).
+
+    Returns:
+        plume_html_filename (str): The plume html filename.
+    """
     # read gas data
     da_gas = ds[gas]
 
@@ -236,24 +287,24 @@ def plot_mask(filename, ds, gas, mask, lon_target, lat_target, pick_plume_name, 
 
 
 def select_connect_masks(masks, y_target, x_target, az_max=30, dist_max=180):
-    '''
-    Select connected masks by dilation and limit the minimum rectangle angle difference
+    """Select connected masks by dilation and limit the minimum rectangle angle difference
 
     Args:
-        masks (2D DataArray):
-            a priori mask from L2 data
+        masks (2D :class:`~xarray.DataArray`):
+            a priori mask from L2 data.
         y_target (float):
-            yindex of source target
+            yindex of source target.
         x_target (float):
-            xindex of source targeta
+            xindex of source target.
         az_max (float):
-            maximum of azimuth of minimum rotated rectangle. (Default: 30)
+            maximum of azimuth of minimum rotated rectangle. (Default: 30).
         dist_max (float):
-            maximum of dilation distance (meter)
+            maximum of dilation distance (meter).
 
-    Return:
-        plume masks (DataArray)
-    '''
+    Returns:
+        connected plume mask (:class:`~xarray.DataArray`).
+    """
+
     # get the source label of original mask
     mask_target = masks[y_target, x_target].item()
 
@@ -354,35 +405,41 @@ def a_priori_mask_data(ds, gas, lon_target, lat_target,
                        only_plume=True, az_max=30, dist_max=180,
                        filename=None
                        ):
-    '''Read a priori plume masks and connect them by conditions
+    '''Read a priori plume masks and connect them by conditions.
 
     Args:
-        ds (Dataset):
-            L2 data
+        ds (:class:`~xarray.Dataset`):
+            L2 dataset.
         gas (str):
-            The gas field to be masked
+            The gas field to be masked.
         lon_target (float):
-            The longitude of plume source
+            The longitude of plume source.
         lat_target (float):
-            The latitude of plume source
+            The latitude of plume source.
         pick_plume_name (str):
-            The plume name (plume0, plume1, ....)
+            The plume name (plume0, plume1, ....).
         wind_source (str):
-            'ERA5' or 'GEOS-FP'
+            "ERA5" or "GEOS-FP".
         az_max (float):
-            Maximum of azimuth of minimum rotated rectangle. (Default: 30)
+            Maximum of azimuth of minimum rotated rectangle. (Default: 30).
         dist_max (float):
-            Maximum of dilation distance (meter)
+            Maximum of dilation distance (meter).
         filename (str):
-            Input filename
+            Input filename.
 
-    Return:
-        mask (DataArray): Boolean mask (pixel)
-        lon_mask (DataArray): plume longitude
-        lat_mask (DataArray): plume latitude
-        lon_target (float): longitude of target
-        lat_target (float): latitude of target
-        plume_html_filename (str): exported plume html filename
+    Returns:
+        mask (:class:`~xarray.DataArray`)
+            The Boolean mask of pixels.
+        lon_mask (:class:`~xarray.DataArray`)
+            Plume longitude.
+        lat_mask (:class:`~xarray.DataArray`)
+            Plume latitude.
+        lon_target (float)
+            Longitude of target.
+        lat_target (float)
+            Latitude of target.
+        plume_html_filename (str)
+            Exported plume html filename.
         '''
     LOG.info('Selecting connected plume masks')
     # get the y/x index of the source location
@@ -415,6 +472,21 @@ def a_priori_mask_data(ds, gas, lon_target, lat_target,
 def crop_to_valid_region(da, y_target, x_target, data_crop_length, pixel_res):
     """Crop a DataArray around a target location to ensure a square result, centered on the target, 
     and adjusted to fit within bounds if necessary.
+
+    Args:
+        da (:class:`~xarray.DataArray`):
+            The to be cropped DataArray.
+        y_target (int):
+            The yindex of target.
+        x_target (int):
+            The xindex of target.
+        data_crop_length (float):
+            The crop radius (m).
+        pixel_res (float):
+            The pixel resolution (m).
+
+    Returns:
+        The cropping index: ymin, ymax, xmin, xmax.
     """
     crop_pixels = data_crop_length//pixel_res
 
@@ -439,12 +511,15 @@ def crop_to_valid_region(da, y_target, x_target, data_crop_length, pixel_res):
 
 def cm_mask_data(ds, gas, lon_target, lat_target,
                  data_crop_length=2500, limit_crop_length=1000, limit_percentile=90):
-    """Create plume mask using Carbon Mapper's method
+    """Create plume mask using `Carbon Mapper's method <https://assets.carbonmapper.org/documents/L3_L4%20Algorithm%20Theoretical%20Basis%20Document_formatted_10-24-24.pdf>`_.
 
     Args:
-        data_crop_length (m): the length for cropping data
-        limit_crop_length (m): the length for calculating the plume enhancement threshold
-        limit_percentile (%): the percentile for the plume enhancement threshold
+        data_crop_length (m):
+            The length for cropping data
+        limit_crop_length (m):
+            The length for calculating the plume enhancement threshold
+        limit_percentile (%):
+            The percentile for the plume enhancement threshold
     """
     LOG.info('Creating the CM plume mask')
 
@@ -500,6 +575,21 @@ def cm_mask_data(ds, gas, lon_target, lat_target,
 
 
 def create_circular_mask(h, w, center=None, radius=None):
+    """Create a circular mask.
+
+    Args:
+        h (int):
+            Height of data.
+        w (int):
+            Width of data.
+        center (tuple):
+            (w_coord, h_coord). Default: ``None`` for the center of data.
+        radius (float):
+            The radius of the mask. Default: ``None`` for the smallest distance between the center and image walls.
+
+    Returns:
+        mask (Boolean array)
+    """
     if center is None:
         # use the middle of the image
         center = (int(w/2), int(h/2))
@@ -516,6 +606,23 @@ def create_circular_mask(h, w, center=None, radius=None):
 
 
 def ime_radius(gas, da_gas, mask, sp, area):
+    """Calculate the total gas mass enhancement (kg) in the mask.
+
+    Args:
+        gas (str):
+            The gas field to be masked.
+        ds_gas (:class:`~xarray.DataArray`):
+            The gas enhancement DataArray.
+        mask (:class:`~xarray.DataArray`):
+            The boolean mask.
+        sp (float):
+            The mean surface pressure (Pa) in the mask.
+        area (float):
+            The pixel area (m2).
+   
+    Returns:
+        IME (float): The total gas mass enhancement (kg) in the mask.
+    """
     gas_mask = da_gas.where(mask)
     unit = gas_mask.attrs['units']
 
@@ -534,7 +641,7 @@ def ime_radius(gas, da_gas, mask, sp, area):
 
 
 def calc_wind_error(wspd, IME, l_eff, alpha):
-    """Calculate wind error with random distribution"""
+    """Calculate wind error with random distribution."""
     # Generate U10 distribution
     #   uncertainty = 50%, if wspd <= 3 m/s
     #   uncertainty = 1.5 m/s, if wspd > 3 m/s
@@ -559,7 +666,7 @@ def calc_wind_error(wspd, IME, l_eff, alpha):
 
 
 def calc_wind_error_fetch(wspd, ime_l_mean):
-    """Calculate wind error with random distribution for IME-fetch"""
+    """Calculate wind error with random distribution for IME-fetch."""
     # Generate U10 distribution
     #   uncertainty = 50%, if wspd <= 2 m/s
     #   uncertainty = 1.5 m/s, if wspd > 2 m/s
@@ -580,7 +687,7 @@ def calc_wind_error_fetch(wspd, ime_l_mean):
 
 
 def calc_random_err(gas, da_gas, gas_mask, area, sp):
-    """Calculate random error by moving plume around the whole scene"""
+    """Calculate random error by moving plume around the whole scene."""
     # crop gas field to valid region
     gas_mask_crop = gas_mask.where(~gas_mask.isnull()).dropna(dim='y', how='all').dropna(dim='x', how='all')
 
@@ -620,9 +727,7 @@ def calc_random_err(gas, da_gas, gas_mask, area, sp):
 
 
 def calc_calibration_error(wspd, IME, u_eff, l_eff, alpha_replace):
-    '''
-    Calculate wind calibration error by replacing alphas
-    '''
+    """Calculate wind calibration error by replacing alphas."""
     # Calculate Ueff
     u_eff_replace = alpha_replace['alpha1'] * np.log(wspd) + alpha_replace['alpha2'] + alpha_replace['alpha3'] * wspd
 
@@ -635,32 +740,55 @@ def calc_calibration_error(wspd, IME, u_eff, l_eff, alpha_replace):
 def calc_emiss(gas, f_gas_mask, pick_plume_name, alpha_replace, pixel_res=30,
                alpha={'alpha1': 0., 'alpha2': 0.81, 'alpha3': 0.38},
                wind_source='ERA5', wspd=None, land_only=True, land_mask_source='OSM'):
-    '''Calculate the emission rate (kg/h) using IME method
+    '''Calculate the emission rate (kg/h) using the `integrated mass enhancement (IME) method <https://doi.org/10.5194/amt-11-5673-2018>`_
+    
+    See :meth:`hypergas.ime_csf.IME_CSF.ime`.
 
     Args:
-        gas (str): the gas field to be masked
-        f_gas_mask: The NetCDF file of mask created by `mask_data` function
-        pick_plume_name (str): the plume name (plume0, plume1, ....)
-        alpha_replace (dict): alphas of different source type (Point or Area), {'alpha1': ...}
-        pixel_res (float): pixel resolution (meter)
-        alpha (dict): The coefficients for effective wind (U_eff)
-        wspd (float): overwritten wind speed
-        land_only (boolean): whether calculate random error only over land
+        gas (str):
+            The gas field to be masked
+        f_gas_mask (str):
+            The NetCDF file of mask created by `mask_data` function
+        pick_plume_name (str):
+            The plume name (plume0, plume1, ....)
+        alpha_replace (dict):
+            Alphas of different source type (Point or Area), {'alpha1': ...}
+        pixel_res (float):
+            Pixel resolution (meter)
+        alpha (dict):
+            The coefficients for effective wind (U_eff)
+        wspd (float):
+            Overwritten wind speed
+        land_only (boolean):
+            Whether calculate random error only over land
 
-    Return:
-        wspd: Mean wind speed (m/s)
-        wdir: Mean wind direction (deg)
-        wspd_all: List of available wind speed (m/s)
-        wdir_all: List of available wind direction (deg)
-        wind_source_all: List of wind source (str)
-        L_eff: Effctive length (m)
-        U_eff: Effective wind speed (m/s)
-        Q: Emission rate (kg/h)
-        Q_err: STD of Q  (kg/h)
-        err_random: random error (kg/h)
-        err_wind: wind error (kg/h)
-        err_calib: calibration error (kg/h)
-
+    Returns:
+        wspd (float)
+            The mean wind speed (m/s) in the plume mask.
+        wdir (float)
+            The mean wind direction (deg) in the plume mask.
+        wspd_all (list)
+            The list of available wind speed (m/s) data.
+        wdir_all (deg)
+            The list of available wind direction (deg) data.
+        wind_source_all (list):
+            The List of wind source (str).
+        l_eff (float)
+            The effctive plume length (m).
+        u_eff (float)
+            The effective wind speed (m/s).
+        IME (float)
+            The total gas mass enhancement (kg).
+        Q (float)
+            The emission rate (kg/h).
+        Q_err (float)
+            The total estimate error (kg/h).
+        err_random (float):
+            The uncertainty (kg/h) caused by the retrieval random error.
+        err_wind (float):
+            The uncertainty (kg/h) caused by the wind speed error.
+        err_calib (float):
+            The uncertainty (kg/h) caused by the wind calibration error.
     '''
     # read file and pick valid data
     file_original = f_gas_mask.replace('L3', 'L2').replace(f'_{pick_plume_name}.nc', '.nc')
@@ -747,20 +875,31 @@ def calc_emiss(gas, f_gas_mask, pick_plume_name, alpha_replace, pixel_res=30,
 
 
 def calc_emiss_fetch(gas, f_gas_mask, longitude, latitude, pixel_res=30, wind_source='ERA5', wspd=None):
-    """Calculate the emission rate (kg/h) using IME-fetch method
+    """Calculate the emission rate (kg/h) using the `IME-fetch method <https://www.nature.com/articles/s41586-019-1720-3>`_.
+
+    See :meth:`hypergas.ime_csf.IME_CSF.ime_fetch`.
 
     Args:
-        gas (str): the gas field to be masked
-        f_gas_mask: The NetCDF file of mask created by `mask_data` function
-        longitude (float): longitude of source
-        latitude (float): latitude of source
-        pixel_res (float): pixel resolution (meter)
+        gas (str):
+            The gas field to be masked.
+        f_gas_mask (str):
+            The NetCDF file of mask created by `mask_data` function.
+        longitude (float):
+            Longitude of source.
+        latitude (float):
+            Latitude of source.
+        pixel_res (float):
+            Pixel resolution (meter).
 
-    Return:
-        Q: Emission rate (kg/h)
-        Q_err: STD of Q  (kg/h)
-        err_ime: ime/r error (kg/h)
-        err_wind: wind error (kg/h)
+    Returns:
+        Q (float)
+            The emission rate (kg/h).
+        Q_err (float)
+            The total estimate error (kg/h).
+        err_ime (float):
+            The uncertainty (kg/h) caused by the IME error.
+        err_wind (float):
+            The uncertainty (kg/h) caused by the wind speed error.
     """
     # read file and pick valid data
     LOG.info('Reading data')

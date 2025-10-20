@@ -30,7 +30,9 @@ LOG = logging.getLogger(__name__)
 
 class Hyper():
     """The Hyper Class.
+
     Example usage::
+
         from hypergas import Hyper
 
         # create Hyper and open files
@@ -42,7 +44,7 @@ class Hyper():
         # retrieve ch4
         hyp.retrieve(self, wvl_intervals=[2110, 2450], species='ch4')
 
-        # orthorectification (EnMAP and EMIT)
+        # orthorectification
         hyp.terrain_corr(varname='rgb')
 
         # export to NetCDF file
@@ -53,13 +55,15 @@ class Hyper():
                  destrip=True):
         """Initialize Hyper.
 
-        To load Hyper data, `filename` and `reader` must be specified::
+        To load Hyper data, ``filename`` and ``reader`` must be specified::
 
             hyp = Hyper(filenames=glob('/path/to/hyper/files/*'), reader='hsi_l1b')
 
         Args:
-            filename (list): The files to be loaded.
-            reader (str): The name of the reader to use for loading the data.
+            filename (list):
+                The files to be loaded.
+            reader (str):
+                The name of the reader to use for loading the data.
         """
         self.filename = filename
         self.reader = reader
@@ -225,10 +229,11 @@ class Hyper():
         return scale
 
     def load(self, drop_waterbands=True):
-        """Load data into xarray Dataset using satpy
+        """Load data into xarray Dataset using Satpy.
 
         Args:
-            drop_waterbands (boolean): whether to drop bands affected by water. Default: True.
+            drop_waterbands (boolean):
+                whether to drop bands affected by water. Default: True.
         """
         # load available datasets
         scn = Scene(self.filename, reader=self.reader)
@@ -321,32 +326,37 @@ class Hyper():
                  algo='smf', mode='column', rad_dist='normal',
                  land_mask=True, land_mask_source='OSM',
                  cluster=False, plume_mask=None):
-        """Retrieve trace gas enhancements
+        """Retrieve trace gas enhancements.
 
         Args:
-            wvl_intervals (list): The wavelength range [nm] used in matched filter. It can be one list or nested list.
-                e.g. [2110, 2450] or [[1600, 1750], [2110, 2450]]
-                Deafult: [2110, 2450] for ch4 and [1930, 2200] for co2.
-            species (str): The species ('ch4', 'co2') to be retrieved.
-                Default: 'ch4'
-            algo (str): The matched filter algorithm, currently supporting these algorithms below:
-                1. smf: simple matched filter
-                        This is the original matched filter algorithm.
-                2. ctmf: cluster-tuned matched filter (not added yet)
-                        This algorithm clusters similar pixels to improve the mean and cov calculation.
-                Default: 'smf'
-            mode (str): The mode ("column" or "scene") to apply matched filter.
-                Default: 'column'. Be careful of noise if you apply the matched filter for the whole scene.
-            rad_dist (str): The assumed rads distribution ('normal' or 'lognormal')
-                Default: 'normal'
-            land_mask (boolean): Whether apply the matched filter to continental and oceanic pixels seperately.
-                Default: True
-            land_mask_source (str): the data source of land mask ('OSM', 'GSHHS' or 'Natural Earth')
-                Default: OSM
-            cluster (boolean): Whether apply the pixel classification
-                Default: False
-            plume_mask (2d array): Manual mask. 0: neglected pixels, 1: valid pixels.
-                Default: None
+            wvl_intervals (list):
+                The wavelength range [nm] used in matched filter. It can be one list or nested list.
+                e.g. ``[2110, 2450]`` or ``[[1600, 1750], [2110, 2450]]``.
+                Deafult: ``[2110, 2450]`` for ch4 and ``[1930, 2200]`` for co2.
+            species (str):
+                The species ("ch4", "co2") to be retrieved.
+                Default: "ch4".
+            algo (str):
+                The matched filter algorithm, currently supporting only one algorithm:
+                simple matched filter (smf). This is the original matched filter algorithm.
+            mode (str):
+                The mode ("column" or "scene") to apply matched filter.
+                Default: "column". Be careful of noise if you apply the matched filter for the whole scene.
+            rad_dist (str):
+                The assumed rads distribution ("normal" or "lognormal")
+                Default: "normal".
+            land_mask (boolean):
+                Whether apply the matched filter to continental and oceanic pixels seperately.
+                Default: True.
+            land_mask_source (str):
+                The data source of land mask ("OSM", "GSHHS" or "Natural Earth")
+                Default: OSM.
+            cluster (boolean):
+                Whether apply the pixel classification
+                Default: False.
+            plume_mask (2d :class:`numpy.ndarray`):
+                Manual mask. 0: neglected pixels, 1: valid pixels.
+                Default: ``None``.
         """
         rad_source = self.species_setting[species]['rad_source']
         if wvl_intervals is None:
@@ -397,12 +407,17 @@ class Hyper():
             self.scene[species].attrs['matched_filter'] = f'{rad_dist} matched filter'
 
     def terrain_corr(self, varname='rgb', rpcs=None, gcps=None, gcp_crs=None):
-        """Apply orthorectification
+        """Apply orthorectification using :class:`hypergas.orthorectification.Ortho`.
 
         Args:
-            varname (str): The variable to be orthorectified
-            rpcs: The Ground Control Points (gcps) or Rational Polynomial Coefficients (rpcs)
+            varname (str):
+                The variable to be orthorectified.
+            rpcs:
+                The Ground Control Points (gcps) or Rational Polynomial Coefficients (rpcs).
                 If `rpcs` is None, we look for glt_x/glt_y data automatically.
+
+        Returns:
+            da_ortho (:class:`~xarray.DataArray`): the orthorectified data.
         """
 
         da_ortho = Ortho(self.scene, varname, rpcs=rpcs, gcps=gcps, gcp_crs=gcp_crs).apply_ortho()
@@ -410,35 +425,39 @@ class Hyper():
         return da_ortho
 
     def denoise(self, varname='ch4', method='calibrated_tv_filter', weight=None):
-        """Denoise the random noise
+        """Denoise the random noise using :class:`hypergas.denoise.Denoise`.
 
         Args:
-            varname (str): The variable to be denoised
-            method (str): The filter to denoise data
-                Default: 'calibrated_tv_filter'
-            weight (int): The denoising weights for filter
-                Default: None
+            varname (str):
+                The variable to be denoised
+            method (str):
+                The denoising method: "tv_filter" and "calibrated_tv_filter" (default).
+            weight (int):
+                The weight for denoise_tv_chambolle.
+                It would be neglected if method is "calibrated_tv_filter".
+                If the weight is ``None`` (default), the denoise_tv_chambolle will use the default value (0.1) which is too low for hyperspectral noisy gas field.
+
+        Returns:
+            da_denoise (:class:`~xarray.DataArray`): Denoised data.
         """
         da_denoise = Denoise(self.scene, varname, method=method, weight=weight).smooth()
 
         return da_denoise
 
     def plume_mask(self, varname='ch4_comb_denoise', n_min_threshold=5, sigma_threshold=1):
-        """Create a priori plume masks
+        """Create a priori plume masks using :class:`hypergas.a_priori_mask.Mask`.
 
         Args:
             scn (Satpy Scene):
-                Scene including one variable named "segmentation" which is calculated by `Land_mask`
-                    segmentation (xarray DataArray):
-                        0: ocean, >0: land
+                Scene including one variable named ``segmentation`` which is calculated by :meth:`hypergas.landmask.Land_mask`.
+                segmentation (:class:`~xarray.DataArray`): 0: ocean, >0: land
             varname (str):
-                The variable used to create plume mask. (Recommend: <gas>_comb_denoise)
+                The variable used to create plume mask. (Recommend: ``<gas>_comb_denoise``)
             n_min_threshold (int):
-                The minimum number of points per threshold for detecting features.
-                Default: 5
+                The minimum number of points per threshold for detecting features. (Default: 5).
             sigma_threshold (int):
                 Gaussian filter sigma for smoothing field.
-                Default: 1. Because the <gas>_comb_denoise field is already smoothed, 1 should be high enough.
+                Default: 1. Because the ``<gas>_comb_denoise`` field is already smoothed, 1 should be high enough.
         """
         thresholds, features, da_plume_mask = Mask(self.scene, varname, n_min_threshold=n_min_threshold, sigma_threshold=sigma_threshold).get_feature_mask()
 

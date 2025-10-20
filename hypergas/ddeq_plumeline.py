@@ -5,7 +5,7 @@
 # This file is part of hypergas.
 #
 # hypergas is a library to retrieve trace gases from hyperspectral satellite data
-"""Modified CSF centerline definition from ddeq package"""
+"""Modified CSF centerline definition from the `ddeq package <https://ddeq.readthedocs.io/en/stable/>`_."""
 
 
 import numpy as np

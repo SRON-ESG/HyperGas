@@ -17,30 +17,24 @@ from scipy.interpolate import PchipInterpolator
 
 
 def Hsi2rgb(wY, HSI, ydim, xdim, d, threshold):
-    """Generate RGB using HSI image data
+    """Generate RGB from HSI image data using the `HSI2RGB method <https://doi.org/10.1109/IGARSS39084.2020.9323397>`_.
 
-    wY: wavelengths in nm
-    Y : HSI as a (#pixels x #bands) matrix,
-    dims: x & y dimension of image
-    d: 50, 55, 65, 75, determines the illuminant used, if in doubt use d65
-    thresholdRGB : True if thesholding should be done to increase contrast
+    Args:
+        wY (float):
+            wavelengths (nm).
+        HSI (:class:`numpy.ndarray`):
+            a [#pixels x #bands] matrix, e.g., ``da.stack(z=['y', 'x']).transpose(..., 'bands')``
+        ydim:
+            y dimension of image.
+        xdim:
+            x dimension of image.
+        d (int):
+            The number (50, 55, 65, or 75) used to determine the illuminant used, if in doubt use d65.
+        thresholdRGB (boolean):
+            ``True`` if thesholding should be done to increase contrast.
 
-
-    If you use this method, please cite the following paper:
-     M. Magnusson, J. Sigurdsson, S. E. Armansson, M. O. Ulfarsson,
-     H. Deborah and J. R. Sveinsson,
-     "Creating RGB Images from Hyperspectral Images Using a Color Matching Function",
-     IEEE International Geoscience and Remote Sensing Symposium, Virtual Symposium, 2020
-
-     @INPROCEEDINGS{hsi2rgb,
-     author={M. {Magnusson} and J. {Sigurdsson} and S. E. {Armansson}
-     and M. O. {Ulfarsson} and H. {Deborah} and J. R. {Sveinsson}},
-     booktitle={IEEE International Geoscience and Remote Sensing Symposium},
-     title={Creating {RGB} Images from Hyperspectral Images using a Color Matching Function},
-     year={2020}, volume={}, number={}, pages={}}
-
-    Paper is available at
-    https://www.researchgate.net/profile/Jakob_Sigurdsson
+    Returns:
+        rgb (3d :class:`numpy.ndarray`): dims: (ydim, xdim, 3), where the last dimension corresponds to the color channels (R, G, B).
     """
     # load settings
     _dirname = os.path.dirname(__file__)

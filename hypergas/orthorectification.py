@@ -34,9 +34,19 @@ class Ortho():
     def __init__(self, scene, varname, rpcs=None, gcps=None, gcp_crs=None):
         """Initialize ortho class.
 
+        See the reprojection page of `rasterio <https://rasterio.readthedocs.io/en/stable/topics/reproject.html>`_ for details.
+
         Args:
-            scene (object): the scene defined by hypergas
-            varname (str): the loaded var to be orthorectified
+            scene (object):
+                The scene defined by hypergas.
+            varname (str):
+                The loaded var to be orthorectified.
+            rpcs:
+                The Rational Polynomial Coefficients (rpcs).
+            gcps:
+                The Ground Control Points (gcps).
+            gcp_crs (EPSG code):
+                The CRS of the GCP data.
         """
         self.scene = scene
         self.varname = varname
@@ -189,7 +199,15 @@ class Ortho():
         da_ortho.attrs['area'] = target_area
 
     def apply_ortho(self):
-        """Apply orthorectification."""
+        """Apply orthorectification.
+
+        - EnMAP: using the RPC data from the L1 product;
+        - EMIT: using the glt table from the L1 product;
+        - PRISMA: using the manual gcp points from QGIS.
+
+        Returns:
+            da_ortho (:class:`~xarray.DataArray`): the orthorectified data.
+        """
         # read data and expand to 3d array with "band" dim for rioxarray
         data = self.scene[self.varname]
         data_name = data.name

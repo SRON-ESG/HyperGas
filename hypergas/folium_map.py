@@ -36,31 +36,35 @@ class Map():
         """Initialize Map class.
 
         Args:
-            dataset (xarray Dataset)
-            varnames (list): the list of varnames to be plotted
-            center_map (list): map center, [latitude, longitude]
+            dataset (:class:`~xarray.Dataset`):
+                The Xarray dataset which contains gas field and geolocations.
+            varnames (list):
+                The list of varnames to be plotted.
+            center_map (list):
+                The map center: [latitude, longitude]
 
-        Usage:
-            basic:
-                m = Map(ds, ['rgb', 'ch4'])
-                m.initialize()
-                m.plot()
-                m.export()
+        Usage::
 
-            full_params:
-                m = Map(ds, ['rgb', 'ch4'])
-                m.initialize()
-                m.plot(show_layers=[False, True], opacities=[0.9, 0.7])
-                m.export('full_params.html')
+            # basic
+            m = Map(ds, ['rgb', 'ch4'])
+            m.initialize()
+            m.plot()
+            m.export()
 
-            Multiple datasets on one map:
-                m = Map(ds1, ['rgb', 'ch4'])
-                m.initialize()
-                m.plot()
-                m.ds = ds2
-                m.varnames = varnames2
-                m.plot()
-                m.export()
+            # full_params
+            m = Map(ds, ['rgb', 'ch4'])
+            m.initialize()
+            m.plot(show_layers=[False, True], opacities=[0.9, 0.7])
+            m.export('full_params.html')
+
+            # Multiple datasets on one map:
+            m = Map(ds1, ['rgb', 'ch4'])
+            m.initialize()
+            m.plot()
+            m.ds = ds2
+            m.varnames = varnames2
+            m.plot()
+            m.export()
         """
         self.ds = dataset
         self.filename = dataset.attrs['filename']
@@ -152,7 +156,18 @@ class Map():
         self.map = m
 
     def plot_png(self, out_epsg=3857, vmax=None, export_dir=None, pre_suffix=''):
-        """Plot data and export to png files"""
+        """Plot data and export to png files.
+
+        Args:
+            out_epsg (int):
+                EPSG code of the output projection (3857 is the proj of folium Map).
+            vmax (float):
+                The cmap vmax for plotting species (unit is as same as species variable).
+            export_dir (str):
+                The directory to save plotted images (Default: the same path as filename attrs).
+            pre_suffix (str):
+                The suffix added to the png and html filename (Default: ""). 
+        """
 
         for varname in self.varnames:
             # load data
@@ -285,27 +300,27 @@ class Map():
     def plot(self, out_epsg=3857, vmax=None, show_layers=None, opacities=None,
              marker=None, df_marker=None, export_dir=None, draw_polygon=True,
              pre_suffix=''):
-        """Plot data, export to png files, plot folium map, and export to html files
+        """Plot data, export to png files, plot folium map, and export to html files.
 
         Args:
             out_epsg (int):
-                EPSG code of the output projection (3857 is the proj of folium Map)
+                EPSG code of the output projection (3857 is the proj of folium Map).
             vmax (float):
-                The cmap vmax for plotting species (unit is as same as species variable)
+                The cmap vmax for plotting species (unit is as same as species variable).
             show_layers (boolean list):
-                Whether the layers will be shown on opening (the length should be as same as varnames)
+                Whether the layers will be shown on opening (the length should be as same as varnames).
             opacities (float list):
-                The opacities of layer (the length should be as same as varnames)
+                The opacities of layer (the length should be as same as varnames).
             marker (list):
-                The coords ([lat, lon], deg) for a yellow circle marker
+                The coords ([lat, lon], deg) for a yellow circle marker.
             df_marker (DataFrame):
-                The DataFrame (columns: latitude, longitude) for adding blue circle markers
+                The DataFrame (columns: latitude, longitude) for adding blue circle markers.
             export_dir (str):
-                The directory to save plotted images (Default: the same path as filename attrs)
+                The directory to save plotted images (Default: the same path as filename attrs).
             draw_polygon (boolean):
-                Whether plot the scene boundary polygon (Default: True)
+                Whether plot the scene boundary polygon (Default: True).
             pre_suffix (str):
-                the string to be added before png and html suffix (Defalut: '')
+                The suffix added to the png and html filename (Default: ""). 
         """
         # check the length of self.
         if show_layers is None:
@@ -344,11 +359,13 @@ class Map():
         gc.collect()
 
     def plot_wind(self, source='ERA5', position='bottomright'):
-        """plot the wind as html element
+        """Plot the wind as html element.
 
         Args:
-            source (str): ERA5 or GEOS-FP
-            position (str)
+            source (str):
+                wind source: "ERA5" or "GEOS-FP".
+            position (str):
+                the position to add the wind marker.
         """
         # read data
         u10 = self.ds['u10'].sel(source=source).mean().item()
@@ -378,7 +395,12 @@ class Map():
         gplot.add_child(folium.Marker(self.center_map, icon=icon, draggable=True))
 
     def plot_folium(self, pre_suffix=''):
-        """Overlay plotted png images on folium map"""
+        """Overlay plotted png images on folium map.
+
+        Args:
+            pre_suffix (str):
+                The suffix added to the png and html filename. 
+        """
         # get the time string
         self.time_str = self.ds[self.varnames[0]].attrs['start_time']
         sensor_name = self.ds[self.varnames[0]].attrs['sensor']
@@ -449,7 +471,14 @@ class Map():
                                     ).add_to(self.map)
 
     def export(self, savename=None, pre_suffix=''):
-        """Export plotted folium map to html file"""
+        """Export plotted folium map to html file
+
+        Args:
+            savename (str):
+                The exported html filename.
+            pre_suffix (str):
+                The suffix added to the png and html filename. 
+        """
         layer_control = folium.LayerControl(collapsed=False, position='topleft', draggable=True)
         self.map.add_child(layer_control)
 

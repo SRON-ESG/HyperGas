@@ -13,15 +13,21 @@ from spectral import kmeans
 
 
 def PCA_kmeans(radiance, pca_dim=3, ncluster=10, max_iterations=30):
-    """Apply PCA and kmeans to classify pixels
+    """Apply PCA and kmeans to classify pixels.
 
         Args:
-            radiance (DataArray): y, x, bands
-            pca_dim: n_components for PCA
-            ncluster: number of clusters to create
-            max_iterations: max number of iterations to perform
-        Return:
-            segmentation (DataArray): y, x
+            radiance (:class:`~xarray.DataArray`):
+                dims: y, x, bands.
+            pca_dim (int):
+                n_components for PCA.
+            ncluster (int):
+                number of clusters to create.
+            max_iterations (int):
+                max number of iterations to perform.
+
+        Returns:
+            segmentation (:class:`~xarray.DataArray`)
+                Segmentation result with dimensions ``(y, x)``.
     """
     # initialize PCA model
     pca = PCA(n_components=pca_dim)

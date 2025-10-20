@@ -37,12 +37,12 @@ class Emiss():
         """Initialize Denoise.
 
         Args:
-            ds (Dataset):
+            ds (:class:`~xarray.Dataset`):
                 The level2 or level3 product
             gas (str):
-                The gas name (lowercase)
+                Gas name (lowercase, e.g., “ch4”).
             plume_name (str):
-                The plume index name (plume0, plume1, ....)
+                The plume index name ("plume0", "plume1", ....)
         """
         self.ds = ds
         self.gas = gas
@@ -83,7 +83,7 @@ class Emiss():
                   dist_max=180,
                   ):
         """
-        Create plume mask
+        Create plume mask using :class:`hypergas.plume_utils.a_priori_mask_data`.
         """
         l2b_html_filename = self.filename.replace('.nc', '.html')
         self.longitude = longitude
@@ -107,7 +107,7 @@ class Emiss():
 
     def export_plume_nc(self,):
         """
-        Export plume data to L3 NetCDF file
+        Export plume data to L3 NetCDF file with header attributes.
         """
         # mask data
         gas_mask = self.ds[self.gas].where(self.mask)
@@ -165,7 +165,7 @@ class Emiss():
 
     def estimate(self, ipcc_sector, sp_manual=None, wspd_manual=None, land_only=True, name=None):
         """
-        Calculate the gas emission rate
+        Calculate the gas emission rate using :class:`hypergas.ime_csf.IME_CSF`.
         """
         # init IME_CSF class
         ime_csf = IME_CSF(sensor=self.sensor, longitude_source=self.longitude, latitude_source=self.latitude,

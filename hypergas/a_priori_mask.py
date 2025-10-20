@@ -23,22 +23,20 @@ class Mask():
     """Create a priori plume mask from trace gas enhancement field."""
 
     def __init__(self, scn, varname, n_min_threshold=5, sigma_threshold=1):
-        '''
-        Initialize Mask.
+        '''Initialize Mask.
 
         Args:
-            scn (Satpy Scene):
-                Scene including one variable named "segmentation" which is calculated by `Land_mask`
-                    segmentation (xarray DataArray):
-                        0: ocean, >0: land
+            scn (:class:`~satpy.Scene`):
+                Satpy Scene including one variable named ``segmentation``,
+                which is calculated by :class:`hypergas.landmask.Land_mask`.
+                ``segmentation`` is a :class:`~xarray.DataArray`: 0 = ocean, >0 = land.
             varname (str):
-                The variable used to create plume mask. (Recommend: <gas>_comb_denoise)
+                The variable used to create plume mask. (recommend: ``<gas>_comb_denoise``)
             n_min_threshold (int):
-                The minimum number of points per threshold for detecting features.
-                Default: 5
+                The minimum number of points per threshold for detecting features. Default is 5.
             sigma_threshold (int):
                 Gaussian filter sigma for smoothing field.
-                Default: 1. Because the <gas>_comb_denoise field is already smoothed, 1 should be high enough.
+                Default is 1. Because the ``<gas>_comb_denoise`` field is already smoothed, 1 should be high enough.
         '''
         # read variable, pixel resolution, and segmentation
         self.data = scn[varname]
@@ -62,15 +60,15 @@ class Mask():
 
     def get_feature_mask(self):
         '''
-        Calculate max features and apply segmentation by tobac
-
-        Return:
-            thresholds (list):
-                thresholds for creating feature and mask
-            features (DataFrame):
-                detected fetures
-            masks (DataArray):
-                segmentations based on features
+        Calculate max features and apply segmentation by tobac.
+        
+        Returns:
+            thresholds (list)
+                Thresholds for creating feature and mask.
+            features (:class:`~pandas.DataFrame`)
+                Detected features.
+            masks (:class:`~xarray.DataArray`)
+                Segmentations based on features.
         '''
         feature_list = []
         mask_list = []
@@ -87,6 +85,7 @@ class Mask():
             trim_mean = trimmed_mean(gas_mask.stack(z=('y', 'x')).dropna('z'), (1e-3, 1e-3))
             trim_std = trimmed_std(gas_mask.stack(z=('y', 'x')).dropna('z'), (1e-3, 1e-3))
             thresholds = [trim_mean+2*trim_std, trim_mean+3*trim_std]
+            #thresholds = [trim_mean+1.3*trim_std, trim_mean+2*trim_std]
 
             # detect features
             data_mask = self.data.where(seg_mask)

@@ -77,7 +77,7 @@ class Wind():
         self.sp = sp
 
     def load_era5(self):
-        """Load ERA5 wind data."""
+        """Load local ERA5 wind data."""
         wind_file = os.path.join(self.era5_dir, self.obs_time.strftime('%Y/sl_%Y%m%d.grib'))
 
         # read the nearest ERA5 wind data
@@ -102,7 +102,7 @@ class Wind():
         return u10, v10
 
     def load_geosfp(self):
-        """Load GEOS-FP wind data."""
+        """Load local GEOS-FP wind data."""
         # read GEOS-FP by hour name
         geosfp_name = 'GEOS.fp.asm.tavg1_2d_slv_Nx.' + self.obs_time.strftime('%Y%m%d') \
             + '_' + '{:02d}{:02d}'.format(self.obs_time.hour, 30) + '.V01.nc4'

@@ -24,7 +24,20 @@ LOG = logging.getLogger(__name__)
 
 def find_tiles(lat_min, lat_max, lon_min, lon_max):
     """
-    Generate the list of filenames for the tiles that cover the given bounding box.
+    Generate the list of OSM filenames for the tiles that cover the given bounding box.
+
+    Args:
+        lat_min (float):
+            minimum latitude of the bounding box.
+        lat_max (float):
+            maximum latitude of the bounding box.
+        lon_min (float):
+            minimum longitude of the bounding box.
+        lon_max (float):
+            maximum longitude of the bounding box.
+
+    Returns:
+        tiles (list): The list of tif filenames.
     """
     lat_range = range(int(lat_min // 5 * 5), int((lat_max // 5 + 1) * 5), 5)
     lon_range = range(int(lon_min // 5 * 5), int((lon_max // 5 + 1) * 5), 5)
@@ -43,11 +56,15 @@ def find_tiles(lat_min, lat_max, lon_min, lon_max):
 def Land_mask(lons, lats, source='OSM'):
     """Create the segmentation for land and ocean/lake types
 
-        Args:
-            lons (2d array): longitude of pixels
-            lats (2d array): latitude of pixels
-        Return:
-            Land_mask (2D DataArray): 0: ocean/lake, 1: land
+    Args:
+            lons (2D :class:`numpy.ndarray`):
+                longitude of pixels
+            lats (2D :class:`numpy.ndarray`):
+                latitude of pixels
+            source (str):
+                the data source of land mask (“OSM”, “GSHHS” or “Natural Earth”), Default: “OSM”.
+    Returns:
+            Land_mask (2D :class:`~xarray.DataArray`): 0: ocean/lake, 1: land
     """
     # load land data
     LOG.info(f'Creating land mask using {source} data')

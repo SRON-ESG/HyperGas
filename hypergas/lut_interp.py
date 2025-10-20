@@ -5,8 +5,7 @@
 # This file is part of hypergas.
 #
 # hypergas is a library to retrieve trace gases from hyperspectral satellite data
-"""Some interp functions copied from mag1c"""
-# https://github.com/markusfoote/mag1c/blob/target-generation/mag1c/target_generation.py
+"""Some interp functions copied from `mag1c <https://github.com/markusfoote/mag1c/blob/target-generation/mag1c/target_generation.py>`_."""
 
 
 import numpy as np
