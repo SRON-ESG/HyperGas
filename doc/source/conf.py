@@ -27,7 +27,11 @@ author = 'The HyperGas Team'
 # sphinxcontrib.apidoc was added to sphinx in 8.2.0 as sphinx.etx.apidoc
 needs_sphinx = "8.2.0"
 
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.mathjax', "sphinx.ext.intersphinx", 'sphinx_rtd_theme', 'sphinx.ext.apidoc']
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.napoleon', 'sphinx.ext.mathjax', "sphinx.ext.intersphinx", 'sphinx_rtd_theme', 'sphinx.ext.apidoc']
+
+autoclass_content = "both"  # append class __init__ docstring to the class docstring
+
+napoleon_use_rtype = False
 
 # API docs
 apidoc_modules = [
@@ -75,6 +79,7 @@ intersphinx_mapping = {
     "dask": ("https://docs.dask.org/en/latest", None),
     "geoviews": ("https://geoviews.org", None),
     "numpy": ("https://numpy.org/doc/stable", None),
+    "pandas": ("https://pandas.pydata.org/docs", None),
     "pyproj": ("https://pyproj4.github.io/pyproj/dev", None),
     "pyresample": ("https://pyresample.readthedocs.io/en/stable", None),
     "pytest": ("https://docs.pytest.org/en/stable/", None),
