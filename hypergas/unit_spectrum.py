@@ -34,22 +34,23 @@ class Unit_spec():
         """Initialize unit_spec class.
 
         Args:
-            radiance (DataArray)
-            wvl_sensor (1D['bands'] or 2D['bands','x'] DataArray):
-                The central_wavelengths of sensor
+            radiance (:class:`~xarray.DataArray`):
+                The radiance dataarray.
+            wvl_sensor (1D['bands'] or 2D['bands','x'] :class:`~xarray.DataArray`):
+                The central_wavelengths of sensor.
             wvl_min (float):
-                The lower limit of wavelength [nm] for matched filter
+                The lower limit of wavelength (nm) for matched filter.
             wvl_max (float):
-                The upper limit of wavelength [nm] for matched filter
-            species (str): The species to be retrieved
-                'ch4', 'co2', or 'no2'
-                Default: 'ch4'
+                The upper limit of wavelength (nm) for matched filter.
+            species (str):
+                The species to be retrieved: 'ch4' or 'co2'.
+                Default: 'ch4'.
             rad_source (str):
-                The data ('model' or 'lut') used for calculating rads or transmissions
-                Default: 'model'
-                Refs:
-                    model: Gloudemans et al. (2008)
-                    lut: only supporting ch4 and co2; Foote et al. (2021) https://hive.utah.edu/concern/datasets/9w0323039
+                The data ('model' or 'lut') used for calculating rads or transmissions.
+                Default: 'model'.
+                References:
+                - model: `Gloudemans et al. (2008) <https://doi.org/10.5194/acp-8-3999-2008>`_
+                - lut: only supporting ch4 and co2; `Foote et al. (2021) <https://hive.utah.edu/concern/datasets/9w0323039>`_.
         """
         # load settings
         _dirname = os.path.dirname(__file__)
@@ -142,8 +143,8 @@ class Unit_spec():
         if len(df_atm.columns) == 11:
             # US standard atmosphere profile
             col_names = ['thickness', 'pressure', 'temperature', 'H2O', 'CO2', 'O3', 'N2O', 'CO', 'CH4', 'O2', 'NO2']
-        ## !!! test
-        #if len(df_atm.columns) == 12:
+        # !!! test
+        # if len(df_atm.columns) == 12:
         #    col_names = ['thickness', 'pressure', 'temperature', 'H2O', 'CO2', 'O3', 'N2O', 'CO', 'CH4', 'O2', 'NO2', 'O4']
 
         df_atm.columns = col_names
@@ -151,8 +152,8 @@ class Unit_spec():
         # fixme: set NO2 to 0 if the column is not existed.
         if 'NO2' not in col_names:
             df_atm['NO2'] = 0
-            ## !!! test
-            #df_atm['O4'] = 0
+            # !!! test
+            # df_atm['O4'] = 0
 
         # read solar irradiance data
         E_filename = 'solar_irradiance_0400-2600nm_highres_sparse.nc'
@@ -196,7 +197,7 @@ class Unit_spec():
         nCO = self.atm['CO'].copy().values
         nCH4 = self.atm['CH4'].copy().values
         nNO2 = self.atm['NO2'].copy().values
-        #nO4 = self.atm['O4'].copy().values
+        # nO4 = self.atm['O4'].copy().values
 
         # add species by "d_omega" [mol m-2] to the first layer
         nH2O[0] = nH2O[0] + del_omega['H2O'] * 6.023e+23 / 10000
@@ -206,7 +207,7 @@ class Unit_spec():
         nCO[0] = nCO[0] + del_omega['CO'] * 6.023e+23 / 10000
         nCH4[0] = nCH4[0] + del_omega['CH4'] * 6.023e+23 / 10000
         nNO2[0] = nNO2[0] + del_omega['NO2'] * 6.023e+23 / 10000
-        LOG.debug(f"RadianceCalc omega2 : {nCH4[0]}")
+        LOG.debug(f"RadianceCalc omega2: {nCH4[0]}")
 
         # crop solar irradiance and absorption data to the same wavelength range
         #   the numeric issue could lead to one or two offset
@@ -234,16 +235,16 @@ class Unit_spec():
             optd_NO2 = np.matmul(sigma_NO2_subset, nNO2)
             sigma_O3_subset = self.abs['abs_O3'].sel(wavelength=slice(self.wvl_min, self.wvl_max)).data
             optd_O3 = np.matmul(sigma_O3_subset, nO3)
-            ## !!! test
-            #sigma_O4_subset = self.abs['abs_O4'].sel(wavelength=slice(self.wvl_min, self.wvl_max)).data
-            #optd_O4 = np.matmul(sigma_O4_subset, nO4)
+            # !!! test
+            # sigma_O4_subset = self.abs['abs_O4'].sel(wavelength=slice(self.wvl_min, self.wvl_max)).data
+            # optd_O4 = np.matmul(sigma_O4_subset, nO4)
         else:
             optd_NO2 = 0
             optd_O3 = 0
-            ## !!! test
-            #optd_O4 = 0
+            # !!! test
+            # optd_O4 = 0
 
-        tau_vert = optd_H2O + optd_CO2 + optd_O3  + optd_N2O + optd_CO + optd_CH4 + optd_NO2 #+ optd_O4
+        tau_vert = optd_H2O + optd_CO2 + optd_O3 + optd_N2O + optd_CO + optd_CH4 + optd_NO2  # + optd_O4
 
         def f_young(za):
             za = radians(za)
@@ -304,8 +305,8 @@ class Unit_spec():
     def convolve_rads(self):
         """Calculate the convolved sensor-reaching rads or transmissions.
 
-        Return
-            convolved rads (2d array, [conc*wvl]): radiances or transmissions for `conc`
+        Returns:
+            convolved rads (2d array, [conc*wvl]): radiances or transmissions for ``conc`` defined in the ``config.yaml`` file.
         """
 
         # set the enhancement of multiple gases
@@ -339,7 +340,7 @@ class Unit_spec():
                                                'wvl_lut': self.wvl_lut,
                                                'rad_lut': rads_omega},
                                        exclude_dims=set(('bands',)),
-                                       input_core_dims=[['bands',]],
+                                       input_core_dims=[['bands', ]],
                                        output_core_dims=[['conc', 'bands']],
                                        vectorize=True,
                                        dask='parallelized',
@@ -357,8 +358,8 @@ class Unit_spec():
     def convolve_rads_lut(self):
         """Calculate the convolved sensor-reaching rads.
 
-        Return
-            convolved rads (2d array, [conc*wvl]): radiances or transmissions for `conc`
+        Returns:
+            convolved rads (2d array, [conc*wvl]): radiances for ``conc`` defined in the ``config.yaml`` file.
         """
         # set params for LUT
         sensor_altitude = 100
@@ -412,10 +413,11 @@ class Unit_spec():
         return K
 
     def fit_slope(self, scaling=None):
-        """Fit the slope for conc and rads
+        """Fit the slope for conc and rads.
 
         Args:
-            scaling: the scaling factor to ensure numerical stability
+            scaling (float):
+                The scaling factor to ensure numerical stability. Default: ``None``.
         """
         # calculate rads based on conc
         LOG.info(f'Convolving rads ({self.wvl_min}~{self.wvl_max} nm) ...')
@@ -439,7 +441,7 @@ class Unit_spec():
 
         if scaling is None:
             # auto calculation of scaling factor
-            K_negative_max = K[K<0].max()
+            K_negative_max = K[K < 0].max()
             if K_negative_max > -1:
                 scaling = round(-1/K_negative_max, 1)
             else:
