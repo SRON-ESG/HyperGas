@@ -30,8 +30,10 @@ class Denoise():
         """Initialize Denoise.
 
         Args:
-            data (:class:`~xarray.DataArray`):
-                The data to be smoothed.
+            scn (:class:`~satpy.Scene`):
+                Satpy Scene which includes a variable to be denoised.
+            varname (str):
+                The variable to be denoised.
             method (str):
                 The denoising method: "tv_filter" and "calibrated_tv_filter" (default).
             weight (int):
@@ -114,7 +116,7 @@ class Denoise():
 
     def calibrated_tv_filter(self, n_weights=50, return_loss=False):
         """
-        Apply TV filter with auto calibration.
+        Apply TV filter with `auto calibration <https://scikit-image.org/docs/0.25.x/auto_examples/filters/plot_j_invariant_tutorial.html>`_.
 
         Args:
             n_weights (int):
@@ -124,7 +126,7 @@ class Denoise():
 
         Returns:
             denoised_calibrated_tv (:class:`~xarray.DataArray`)
-                2D denoised gas field using calibrated parameters.
+                2D denoised data field using calibrated parameters.
             weights (:class:`numpy.ndarray`, optional)
                 1D array of weights tested for calibration. Returned only if ``return_loss == True``.
             losses_tv (:class:`numpy.ndarray`, optional)

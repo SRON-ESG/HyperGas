@@ -27,7 +27,7 @@ def PCA_kmeans(radiance, pca_dim=3, ncluster=10, max_iterations=30):
 
         Returns:
             segmentation (:class:`~xarray.DataArray`)
-                Segmentation result with dimensions ``(y, x)``.
+                Segmentation result with dimensions (y, x).
     """
     # initialize PCA model
     pca = PCA(n_components=pca_dim)

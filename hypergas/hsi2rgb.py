@@ -20,21 +20,21 @@ def Hsi2rgb(wY, HSI, ydim, xdim, d, threshold):
     """Generate RGB from HSI image data using the `HSI2RGB method <https://doi.org/10.1109/IGARSS39084.2020.9323397>`_.
 
     Args:
-        wY (float):
-            wavelengths (nm).
-        HSI (:class:`numpy.ndarray`):
-            a [#pixels x #bands] matrix, e.g., ``da.stack(z=['y', 'x']).transpose(..., 'bands')``
+        wY (1D :class:`numpy.ndarray`):
+            Band wavelengths (nm).
+        HSI (2D :class:`numpy.ndarray`):
+            Radiance matrix (npixels, nbands), e.g., ``da.stack(z=['y', 'x']).transpose(..., 'bands')``.
         ydim:
-            y dimension of image.
+            The y dimension size of image.
         xdim:
-            x dimension of image.
+            The x dimension size of image.
         d (int):
             The number (50, 55, 65, or 75) used to determine the illuminant used, if in doubt use d65.
         thresholdRGB (boolean):
             ``True`` if thesholding should be done to increase contrast.
 
     Returns:
-        rgb (3d :class:`numpy.ndarray`): dims: (ydim, xdim, 3), where the last dimension corresponds to the color channels (R, G, B).
+        rgb (3D :class:`numpy.ndarray`): dims: (ydim, xdim, 3), where the last dimension corresponds to the color channels (R, G, B).
     """
     # load settings
     _dirname = os.path.dirname(__file__)

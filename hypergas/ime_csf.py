@@ -75,7 +75,7 @@ class IME_CSF():
             gas (str):
                 the trace gas name.
             wind_source (str):
-                wind source name.
+                wind source name ("ERA5" or "GEOS-FP").
             wspd_manual (float):
                 Default: ``None`` (using the wspd from wind_source data), units: m/s.
             sp_manual (float):
@@ -164,7 +164,21 @@ class IME_CSF():
             IME_cm, l_cm, Q_cm, ds_csf, n_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf
 
     def _create_circular_mask(self, h, w, center=None, radius=None):
-        """Create circle mask by radius and center"""
+        """Create a circular mask.
+
+        Args:
+            h (int):
+                Height of data.
+            w (int):
+                Width of data.
+            center (tuple):
+                (w_coord, h_coord). Default: ``None`` for the center of data.
+            radius (float):
+                The radius of the mask. Default: ``None`` for the smallest distance between the center and image walls.
+
+        Returns:
+            mask (Boolean array)
+        """
         if center is None:
             # use the middle of the image
             center = (int(w/2), int(h/2))
@@ -413,9 +427,9 @@ class IME_CSF():
         """Define CSF lines for quantification
 
         Args:
-            npixel_interval: interval of CSF lines (unit: n*pixel_size)
+            npixel_interval: interval of CSF lines (unit: n*pixel_size).
 
-        Return:
+        Returns:
             center_curve
             csf_lines
             ds_csf (xarray Dataset):
@@ -599,7 +613,7 @@ class IME_CSF():
 
         Args:
             npixel_interval:
-                interval of CSF lines (unit: n*pixel_res)
+                interval of CSF lines (unit: n*pixel_res).
 
         Returns:
             ds_csf (:class:`~xarray.Dataset`)

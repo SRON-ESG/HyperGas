@@ -54,13 +54,13 @@ def find_tiles(lat_min, lat_max, lon_min, lon_max):
 
 
 def Land_mask(lons, lats, source='OSM'):
-    """Create the segmentation for land and ocean/lake types
+    """Create the segmentation for land and ocean/lake types.
 
     Args:
             lons (2D :class:`numpy.ndarray`):
-                longitude of pixels
+                longitude of pixels.
             lats (2D :class:`numpy.ndarray`):
-                latitude of pixels
+                latitude of pixels.
             source (str):
                 the data source of land mask (“OSM”, “GSHHS” or “Natural Earth”), Default: “OSM”.
     Returns:

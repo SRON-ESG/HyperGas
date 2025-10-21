@@ -34,10 +34,10 @@ class Unit_spec():
         """Initialize unit_spec class.
 
         Args:
-            radiance (:class:`~xarray.DataArray`):
-                The radiance dataarray.
+            radiance (3D :class:`~xarray.DataArray`):
+                The radiance dataarray (bands, y, x).
             wvl_sensor (1D['bands'] or 2D['bands','x'] :class:`~xarray.DataArray`):
-                The central_wavelengths of sensor.
+                The central wavelengths (nm) of sensor.
             wvl_min (float):
                 The lower limit of wavelength (nm) for matched filter.
             wvl_max (float):
@@ -306,7 +306,7 @@ class Unit_spec():
         """Calculate the convolved sensor-reaching rads or transmissions.
 
         Returns:
-            convolved rads (2d array, [conc*wvl]): radiances or transmissions for ``conc`` defined in the ``config.yaml`` file.
+            convolved rads (:class:`~xarray.DataArray`): 2D (conc*wvl) or 3D (bands*conc*wvl) radiances or transmissions for ``conc`` defined in the ``config.yaml`` file.
         """
 
         # set the enhancement of multiple gases
@@ -359,7 +359,7 @@ class Unit_spec():
         """Calculate the convolved sensor-reaching rads.
 
         Returns:
-            convolved rads (2d array, [conc*wvl]): radiances for ``conc`` defined in the ``config.yaml`` file.
+            convolved rads (:class:`~xarray.DataArray`): 2D (conc*wvl) radiances for ``conc`` defined in the ``config.yaml`` file.
         """
         # set params for LUT
         sensor_altitude = 100

@@ -33,28 +33,28 @@ class MatchedFilter():
         Args:
             scn (Satpy Scene):
                 including at least one variable named "radiance"
-                (:class:`~xarray.Dataset` ['bands', 'y', 'x'], units: mW m^-2 sr^-1 nm^-1),
-                and at least two coordinates: 1) "wavelength" (nm) and 2) "fwhm" (nm).
+                (:class:`~xarray.Dataset` ["bands", "y", "x"], units: mW m^-2 sr^-1 nm^-1),
+                and at least two coordinates: [1] "wavelength" (nm) and [2] "fwhm" (nm).
             wvl_intervals (list):
                 The wavelength range (nm) used in matched filter. It can be one list or nested list.
                 e.g. ``[2110, 2450]`` or ``[[1600, 1750], [2110, 2450]]``.
             species (str):
-                The species to be retrieved. Only species defined in the config.yaml file.
-                Default: 'ch4'.
+                The species to be retrieved. Only species defined in the ``config.yaml`` file.
+                Default: "ch4".
             mode (str):
                 The mode ("column" or "scene") to apply matched filter.
-                Default: 'column'. Be careful of noise if you apply the matched filter for the whole scene.
+                Default: "column". Be careful of noise if you apply the matched filter for the whole scene.
             rad_dist (str):
                 The assumed rads distribution ("normal" or "lognormal").
-                Default: 'normal'.
+                Default: "normal".
             rad_source (str):
                 The data ('model' or 'lut') used for calculating rads or transmissions.
-                Default: 'model'
+                Default: "model".
             land_mask (boolean):
                 Whether apply the matched filter to continental and oceanic pixels seperately.
-                Default: True
+                Default: True.
             land_mask_source (str):
-                The data source of land mask ('OSM', 'GSHHS' or 'Natural Earth')
+                The data source of land mask ("OSM", "GSHHS", or "Natural Earth").
                 Default: "OSM".
             cluster (boolean):
                 Whether apply the pixel classification.
@@ -139,11 +139,11 @@ class MatchedFilter():
         """Apply the matched filter by column.
 
         Args:
-            radiance for one column (:class:`~xarray.DataArray`):
-                The radiance DataArray.
-            segmentation (:class:`~xarray.DataArray` same shape as ``radiance``):
+            radiance (:class:`~xarray.DataArray`):
+                The radiance DataArray for one column.
+            segmentation (:class:`~xarray.DataArray`, same shape as ``radiance``):
                 The segmentation of pixels (e.g., land and water mask).
-            plume_mask (:class:`~xarray.DataArray` same shape as ``radiance``):
+            plume_mask (:class:`~xarray.DataArray`, same shape as ``radiance``):
                 Since the matched filter assumes plume signals are sparse (i.e., present in only a small fraction of pixels),
                 it is better to exclude pixels within identified plume masks,
                 so that background statistics are estimated only from non-plume pixels and the sparsity assumption remains valid.

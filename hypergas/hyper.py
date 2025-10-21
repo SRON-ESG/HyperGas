@@ -330,7 +330,7 @@ class Hyper():
 
         Args:
             wvl_intervals (list):
-                The wavelength range [nm] used in matched filter. It can be one list or nested list.
+                The wavelength range (nm) used in matched filter. It can be one list or nested list.
                 e.g. ``[2110, 2450]`` or ``[[1600, 1750], [2110, 2450]]``.
                 Deafult: ``[2110, 2450]`` for ch4 and ``[1930, 2200]`` for co2.
             species (str):
@@ -349,10 +349,10 @@ class Hyper():
                 Whether apply the matched filter to continental and oceanic pixels seperately.
                 Default: True.
             land_mask_source (str):
-                The data source of land mask ("OSM", "GSHHS" or "Natural Earth")
+                The data source of land mask ("OSM", "GSHHS" or "Natural Earth").
                 Default: OSM.
             cluster (boolean):
-                Whether apply the pixel classification
+                Whether apply the pixel classification.
                 Default: False.
             plume_mask (2d :class:`numpy.ndarray`):
                 Manual mask. 0: neglected pixels, 1: valid pixels.
@@ -425,17 +425,18 @@ class Hyper():
         return da_ortho
 
     def denoise(self, varname='ch4', method='calibrated_tv_filter', weight=None):
-        """Denoise the random noise using :class:`hypergas.denoise.Denoise`.
+        """Denoise the input data using :class:`hypergas.denoise.Denoise`.
 
         Args:
             varname (str):
-                The variable to be denoised
+                The variable to be denoised.
             method (str):
                 The denoising method: "tv_filter" and "calibrated_tv_filter" (default).
             weight (int):
                 The weight for denoise_tv_chambolle.
                 It would be neglected if method is "calibrated_tv_filter".
-                If the weight is ``None`` (default), the denoise_tv_chambolle will use the default value (0.1) which is too low for hyperspectral noisy gas field.
+                If ``weight`` is ``None`` (default) and ``method`` is "tv_filter",
+                the denoise_tv_chambolle will use the default value (0.1) which is too low for hyperspectral noisy gas field.
 
         Returns:
             da_denoise (:class:`~xarray.DataArray`): Denoised data.
@@ -454,7 +455,7 @@ class Hyper():
             varname (str):
                 The variable used to create plume mask. (Recommend: ``<gas>_comb_denoise``)
             n_min_threshold (int):
-                The minimum number of points per threshold for detecting features. (Default: 5).
+                The minimum number of pixels per threshold for detecting features. (Default: 5).
             sigma_threshold (int):
                 Gaussian filter sigma for smoothing field.
                 Default: 1. Because the ``<gas>_comb_denoise`` field is already smoothed, 1 should be high enough.

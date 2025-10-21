@@ -29,7 +29,7 @@ LOG = logging.getLogger(__name__)
 
 
 class Ortho():
-    """Apply orthorectification by DEM model data"""
+    """Apply orthorectification by DEM model data."""
 
     def __init__(self, scene, varname, rpcs=None, gcps=None, gcp_crs=None):
         """Initialize ortho class.
@@ -38,9 +38,9 @@ class Ortho():
 
         Args:
             scene (object):
-                The scene defined by hypergas.
+                The Satpy Scene defined by hypergas.
             varname (str):
-                The loaded var to be orthorectified.
+                The loaded variable to be orthorectified.
             rpcs:
                 The Rational Polynomial Coefficients (rpcs).
             gcps:

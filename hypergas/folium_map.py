@@ -5,7 +5,7 @@
 # This file is part of hypergas.
 #
 # hypergas is a library to retrieve trace gases from hyperspectral satellite data
-"""Plot orthorectified data and overlay images on folium maps"""
+"""Plot orthorectified data and overlay images on folium maps."""
 
 import base64
 import gc
@@ -30,18 +30,18 @@ LOG = logging.getLogger(__name__)
 
 
 class Map():
-    """Plot data on folium maps"""
+    """Plot data on folium maps."""
 
     def __init__(self, dataset, varnames, center_map=None):
         """Initialize Map class.
 
         Args:
             dataset (:class:`~xarray.Dataset`):
-                The Xarray dataset which contains gas field and geolocations.
+                The xarray dataset which contains gas fields and geolocations (longitude and latitude).
             varnames (list):
                 The list of varnames to be plotted.
             center_map (list):
-                The map center: [latitude, longitude]
+                The map center: [latitude, longitude].
 
         Usage::
 
@@ -119,7 +119,7 @@ class Map():
             raise ValueError(f'Expected a valid EPSG code. Got {epsg_code}.')
 
     def initialize(self):
-        """Set the basic folium map background"""
+        """Set the basic folium map background."""
         m = folium.Map(location=self.center_map, zoom_start=12, tiles=None, control_scale=True)
 
         openstreet_tile = folium.TileLayer('OpenStreetMap')
@@ -308,11 +308,11 @@ class Map():
             vmax (float):
                 The cmap vmax for plotting species (unit is as same as species variable).
             show_layers (boolean list):
-                Whether the layers will be shown on opening (the length should be as same as varnames).
+                Whether the layers will be shown on opening (the length should be as same as ``varnames``).
             opacities (float list):
-                The opacities of layer (the length should be as same as varnames).
+                The opacities of layer (the length should be as same as ``varnames``).
             marker (list):
-                The coords ([lat, lon], deg) for a yellow circle marker.
+                The coords [lat, lon] for a yellow circle marker.
             df_marker (DataFrame):
                 The DataFrame (columns: latitude, longitude) for adding blue circle markers.
             export_dir (str):
@@ -395,7 +395,7 @@ class Map():
         gplot.add_child(folium.Marker(self.center_map, icon=icon, draggable=True))
 
     def plot_folium(self, pre_suffix=''):
-        """Overlay plotted png images on folium map.
+        """Overlay png images on folium map.
 
         Args:
             pre_suffix (str):
@@ -471,13 +471,13 @@ class Map():
                                     ).add_to(self.map)
 
     def export(self, savename=None, pre_suffix=''):
-        """Export plotted folium map to html file
+        """Export plotted folium map to html file.
 
         Args:
             savename (str):
                 The exported html filename.
             pre_suffix (str):
-                The suffix added to the png and html filename. 
+                The suffix added to the html filename. 
         """
         layer_control = folium.LayerControl(collapsed=False, position='topleft', draggable=True)
         self.map.add_child(layer_control)

@@ -31,18 +31,18 @@ INSTITUTION = 'SRON Netherlands Institute for Space Research'
 
 
 class Emiss():
-    """The Emiss class"""
+    """The Emiss class."""
 
     def __init__(self, ds, gas, plume_name):
         """Initialize Denoise.
 
         Args:
             ds (:class:`~xarray.Dataset`):
-                The level2 or level3 product
+                The level2 or level3 product.
             gas (str):
                 Gas name (lowercase, e.g., “ch4”).
             plume_name (str):
-                The plume index name ("plume0", "plume1", ....)
+                The plume index name ("plume0", "plume1", ....).
         """
         self.ds = ds
         self.gas = gas
