@@ -274,8 +274,9 @@ class Map():
             # set png filename
             #   hard code for renaming EMIT RAD filename
             if export_dir is None:
-                output_png = Path(self.filename.replace(
-                    '.', f'_{varname}.').replace('_RAD', '').replace('L1', 'L2')).with_suffix('.png')
+                export_dir = os.path.dirname(self.filename)
+                basename = os.path.basename(self.filename)
+                output_png = Path(os.path.join(export_dir, basename.replace('.', f'_{varname}.')).replace('_RAD', '').replace('L1', 'L2')).with_suffix('.png')
             else:
                 output_png = Path(os.path.join(export_dir,
                                                os.path.basename(self.filename).replace('.', f'_{varname}.')
@@ -428,8 +429,9 @@ class Map():
             self.map.add_child(gplot)
 
             if self.export_dir is None:
-                output_png = Path(self.filename.replace(
-                    '.', f'_{varname}.').replace('_RAD', '').replace('L1', 'L2')).with_suffix('.png')
+                export_dir = os.path.dirname(self.filename)
+                basename = os.path.basename(self.filename)
+                output_png = Path(os.path.join(export_dir, basename.replace('.', f'_{varname}.')).replace('_RAD', '').replace('L1', 'L2')).with_suffix('.png')
             else:
                 output_png = Path(os.path.join(self.export_dir,
                                                os.path.basename(self.filename)
