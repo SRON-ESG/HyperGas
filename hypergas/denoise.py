@@ -39,7 +39,7 @@ class Denoise():
             weight (int):
                 The weight for denoise_tv_chambolle.
                 It would be neglected if method is "calibrated_tv_filter".
-                If the weight is ``None`` (default), the denoise_tv_chambolle will use the default value (0.1) which is too low for hyperspectral noisy gas field.
+                If the weight is ``None`` (default) and ``method`` is “tv_filter”, the denoise_tv_chambolle will use the default value (0.1) which is too low for hyperspectral noisy gas field.
         """
         self.data = scene[varname]
         self.segmentation = scene['segmentation']

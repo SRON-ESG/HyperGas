@@ -51,8 +51,7 @@ class Hyper():
         hyp.scene.save_datasets(datasets=['u10', 'v10', 'rgb', 'ch4'], filename='output.nc', writer='cf')
     """
 
-    def __init__(self, filename=None, reader=None,
-                 destrip=True):
+    def __init__(self, filename=None, reader=None):
         """Initialize Hyper.
 
         To load Hyper data, ``filename`` and ``reader`` must be specified::
@@ -67,7 +66,6 @@ class Hyper():
         """
         self.filename = filename
         self.reader = reader
-        self.destrip = destrip
 
         self.available_dataset_names = self._get_dataset_names()
 
