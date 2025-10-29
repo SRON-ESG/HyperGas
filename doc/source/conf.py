@@ -27,7 +27,7 @@ author = 'The HyperGas Team'
 # sphinxcontrib.apidoc was added to sphinx in 8.2.0 as sphinx.etx.apidoc
 needs_sphinx = "8.2.0"
 
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.napoleon', 'sphinx.ext.mathjax', "sphinx.ext.intersphinx", 'sphinx_rtd_theme', 'sphinx.ext.apidoc']
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.napoleon', 'sphinx.ext.viewcode', 'sphinx.ext.mathjax', "sphinx.ext.intersphinx", 'sphinx_rtd_theme', 'sphinx.ext.apidoc']
 
 autoclass_content = "both"  # append class __init__ docstring to the class docstring
 

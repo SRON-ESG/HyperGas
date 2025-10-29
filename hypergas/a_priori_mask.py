@@ -62,14 +62,15 @@ class Mask():
         '''
         Calculate max features and apply segmentation by `tobac <https://tobac.readthedocs.io/>`_.
         
-        Returns:
-            thresholds (list)
-                Thresholds for creating `feature <https://tobac.readthedocs.io/en/latest/feature_detection_overview.html>`_
-                and `mask <https://tobac.readthedocs.io/en/latest/segmentation.html>`_.
-            features (:class:`~pandas.DataFrame`)
-                Detected features.
-            masks (:class:`~xarray.DataArray`)
-                Segmentations based on features.
+        Returns
+        -------
+        thresholds : list
+            Thresholds for creating `feature <https://tobac.readthedocs.io/en/latest/feature_detection_overview.html>`_
+            and `mask <https://tobac.readthedocs.io/en/latest/segmentation.html>`_.
+        features : :class:`~pandas.DataFrame`
+            Detected features.
+        masks : :class:`~xarray.DataArray`
+            Segmentations based on features.
         '''
         feature_list = []
         mask_list = []
@@ -86,7 +87,6 @@ class Mask():
             trim_mean = trimmed_mean(gas_mask.stack(z=('y', 'x')).dropna('z'), (1e-3, 1e-3))
             trim_std = trimmed_std(gas_mask.stack(z=('y', 'x')).dropna('z'), (1e-3, 1e-3))
             thresholds = [trim_mean+2*trim_std, trim_mean+3*trim_std]
-            #thresholds = [trim_mean+1.3*trim_std, trim_mean+2*trim_std]
 
             # detect features
             data_mask = self.data.where(seg_mask)

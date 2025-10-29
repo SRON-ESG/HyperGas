@@ -9,7 +9,6 @@ Submodules
 
    hypergas.a_priori_mask
    hypergas.cluster
-   hypergas.ddeq_plumeline
    hypergas.denoise
    hypergas.emiss
    hypergas.folium_map
@@ -20,6 +19,7 @@ Submodules
    hypergas.lut_interp
    hypergas.orthorectification
    hypergas.plume_utils
+   hypergas.plumeline
    hypergas.retrieve
    hypergas.tle
    hypergas.unit_spectrum

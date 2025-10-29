@@ -29,17 +29,18 @@ class Denoise():
     def __init__(self, scene, varname, method='calibrated_tv_filter', weight=None):
         """Initialize Denoise.
 
-        Args:
-            scn (:class:`~satpy.Scene`):
-                Satpy Scene which includes a variable to be denoised.
-            varname (str):
-                The variable to be denoised.
-            method (str):
-                The denoising method: "tv_filter" and "calibrated_tv_filter" (default).
-            weight (int):
-                The weight for denoise_tv_chambolle.
-                It would be neglected if method is "calibrated_tv_filter".
-                If the weight is ``None`` (default) and ``method`` is “tv_filter”, the denoise_tv_chambolle will use the default value (0.1) which is too low for hyperspectral noisy gas field.
+        Parameters
+        ----------
+        scn : :class:`~satpy.Scene`
+            Satpy Scene which includes a variable to be denoised.
+        varname : str
+            The variable to be denoised.
+        method : str
+            The denoising method: "tv_filter" and "calibrated_tv_filter" (default).
+        weight : int
+            The weight for denoise_tv_chambolle.
+            It would be neglected if method is "calibrated_tv_filter".
+            If the weight is ``None`` (default) and ``method`` is “tv_filter”, the denoise_tv_chambolle will use the default value (0.1) which is too low for hyperspectral noisy gas field.
         """
         self.data = scene[varname]
         self.segmentation = scene['segmentation']
@@ -50,19 +51,21 @@ class Denoise():
         """
         Create a mask based on quantile values to exclude isolated extreme values.
 
-        Args:
-            image (2D :class:`~xarray.DataArray`):
-                Input image
-            lower_quantile (float):
-                Lower quantile threshold (0-1)
-            upper_quantile (float):
-                Upper quantile threshold (0-1)
-            min_cluster_size (int):
-                Minimum size of connected clusters to retain (in pixels)
+        Parameters
+        ----------
+        image : :class:`~xarray.DataArray`
+            Input 2D image.
+        lower_quantile : float
+            Lower quantile threshold (0-1).
+        upper_quantile : float
+            Upper quantile threshold (0-1).
+        min_cluster_size : int
+            Minimum size of connected clusters to retain (in pixels).
 
-        Returns:
-            mask (Masked 2D :class:`~xarray.DataArray`):
-                Masked image with isolated outliers removed
+        Returns
+        -------
+        mask : :class:`~xarray.DataArray`
+            Masked 2D image with isolated outliers removed.
         """
         # Compute quantile thresholds directly in xarray
         lower_thresh = image.quantile(lower_quantile)
@@ -118,19 +121,21 @@ class Denoise():
         """
         Apply TV filter with `auto calibration <https://scikit-image.org/docs/0.25.x/auto_examples/filters/plot_j_invariant_tutorial.html>`_.
 
-        Args:
-            n_weights (int):
-                Number of weights used for auto calibration.
-            return_loss (boolean):
-                Whether return the loss results.
+        Parameters
+        ----------
+        n_weights :int
+            Number of weights used for auto calibration.
+        return_loss : boolean
+            Whether return the loss results.
 
-        Returns:
-            denoised_calibrated_tv (:class:`~xarray.DataArray`)
-                2D denoised data field using calibrated parameters.
-            weights (:class:`numpy.ndarray`, optional)
-                1D array of weights tested for calibration. Returned only if ``return_loss == True``.
-            losses_tv (:class:`numpy.ndarray`, optional)
-                1D array of total variation (TV) filter losses. Returned only if ``return_loss == True``.
+        Returns
+        -------
+        denoised_calibrated_tv : :class:`~xarray.DataArray`
+            2D denoised data field using calibrated parameters.
+        weights : :class:`numpy.ndarray`, optional
+            1D array of weights tested for calibration. Returned only if ``return_loss == True``.
+        losses_tv : :class:`numpy.ndarray`, optional
+            1D array of total variation (TV) filter losses. Returned only if ``return_loss == True``.
         """
         noisy = self.data.squeeze().where(self.segmentation == self.seg_id)
 
