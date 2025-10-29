@@ -35,29 +35,33 @@ class Map():
     def __init__(self, dataset, varnames, center_map=None):
         """Initialize Map class.
 
-        Args:
-            dataset (:class:`~xarray.Dataset`):
-                The xarray dataset which contains gas fields and geolocations (longitude and latitude).
-            varnames (list):
-                The list of varnames to be plotted.
-            center_map (list):
-                The map center: [latitude, longitude].
+        Parameters
+        ----------
+        dataset : :class:`~xarray.Dataset`
+            The xarray dataset which contains gas fields and geolocations (longitude and latitude).
+        varnames : list
+            The list of varnames to be plotted.
+        center_map : list
+            The map center: [latitude, longitude].
 
-        Usage::
-
-            # basic
+        Examples
+        --------
+        Basic usage::
+        
             m = Map(ds, ['rgb', 'ch4'])
             m.initialize()
             m.plot()
             m.export()
-
-            # full_params
+        
+        Full parameters::
+        
             m = Map(ds, ['rgb', 'ch4'])
             m.initialize()
             m.plot(show_layers=[False, True], opacities=[0.9, 0.7])
             m.export('full_params.html')
-
-            # Multiple datasets on one map:
+        
+        Multiple datasets on one map::
+        
             m = Map(ds1, ['rgb', 'ch4'])
             m.initialize()
             m.plot()
@@ -158,15 +162,16 @@ class Map():
     def plot_png(self, out_epsg=3857, vmax=None, export_dir=None, pre_suffix=''):
         """Plot data and export to png files.
 
-        Args:
-            out_epsg (int):
-                EPSG code of the output projection (3857 is the proj of folium Map).
-            vmax (float):
-                The cmap vmax for plotting species (unit is as same as species variable).
-            export_dir (str):
-                The directory to save plotted images (Default: the same path as filename attrs).
-            pre_suffix (str):
-                The suffix added to the png and html filename (Default: ""). 
+        Parameters
+        ----------
+        out_epsg : int
+            EPSG code of the output projection (3857 is the proj of folium Map).
+        vmax : float
+            The cmap vmax for plotting species (unit is as same as species variable).
+        export_dir : str
+            The directory to save plotted images (Default: the same path as filename attrs).
+        pre_suffix : str
+            The suffix added to the png and html filename (Default: ""). 
         """
 
         for varname in self.varnames:
@@ -303,25 +308,26 @@ class Map():
              pre_suffix=''):
         """Plot data, export to png files, plot folium map, and export to html files.
 
-        Args:
-            out_epsg (int):
-                EPSG code of the output projection (3857 is the proj of folium Map).
-            vmax (float):
-                The cmap vmax for plotting species (unit is as same as species variable).
-            show_layers (boolean list):
-                Whether the layers will be shown on opening (the length should be as same as ``varnames``).
-            opacities (float list):
-                The opacities of layer (the length should be as same as ``varnames``).
-            marker (list):
-                The coords [lat, lon] for a yellow circle marker.
-            df_marker (DataFrame):
-                The DataFrame (columns: latitude, longitude) for adding blue circle markers.
-            export_dir (str):
-                The directory to save plotted images (Default: the same path as filename attrs).
-            draw_polygon (boolean):
-                Whether plot the scene boundary polygon (Default: True).
-            pre_suffix (str):
-                The suffix added to the png and html filename (Default: ""). 
+        Parameters
+        ----------
+        out_epsg : int
+            EPSG code of the output projection (3857 is the proj of folium Map).
+        vmax : float
+            The cmap vmax for plotting species (unit is as same as species variable).
+        show_layers : boolean list
+            Whether the layers will be shown on opening (the length should be as same as ``varnames``).
+        opacities : float list
+            The opacities of layer (the length should be as same as ``varnames``).
+        marker : list
+            The coords [lat, lon] for a yellow circle marker.
+        df_marker : DataFrame
+            The DataFrame (columns: latitude, longitude) for adding blue circle markers.
+        export_dir : str
+            The directory to save plotted images (Default: the same path as filename attrs).
+        draw_polygon : boolean
+            Whether plot the scene boundary polygon (Default: True).
+        pre_suffix : str
+            The suffix added to the png and html filename (Default: ""). 
         """
         # check the length of self.
         if show_layers is None:
@@ -362,11 +368,12 @@ class Map():
     def plot_wind(self, source='ERA5', position='bottomright'):
         """Plot the wind as html element.
 
-        Args:
-            source (str):
-                wind source: "ERA5" or "GEOS-FP".
-            position (str):
-                the position to add the wind marker.
+        Parameters
+        ----------
+        source : str
+            wind source: "ERA5" or "GEOS-FP".
+        position : str
+            the position to add the wind marker.
         """
         # read data
         u10 = self.ds['u10'].sel(source=source).mean().item()
@@ -398,9 +405,10 @@ class Map():
     def plot_folium(self, pre_suffix=''):
         """Overlay png images on folium map.
 
-        Args:
-            pre_suffix (str):
-                The suffix added to the png and html filename. 
+        Parameters
+        ----------
+        pre_suffix : str
+            The suffix added to the png and html filename. 
         """
         # get the time string
         self.time_str = self.ds[self.varnames[0]].attrs['start_time']
@@ -475,11 +483,12 @@ class Map():
     def export(self, savename=None, pre_suffix=''):
         """Export plotted folium map to html file.
 
-        Args:
-            savename (str):
-                The exported html filename.
-            pre_suffix (str):
-                The suffix added to the html filename. 
+        Parameters
+        ----------
+        savename : str
+            The exported html filename.
+        pre_suffix : str
+            The suffix added to the html filename. 
         """
         layer_control = folium.LayerControl(collapsed=False, position='topleft', draggable=True)
         self.map.add_child(layer_control)
