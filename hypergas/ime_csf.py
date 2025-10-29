@@ -23,7 +23,7 @@ from scipy.stats.mstats import trimmed_std
 from shapely.geometry import LineString, Point
 from shapely.strtree import STRtree
 
-from hypergas.ddeq_plumeline import Poly2D, compute_plume_coordinates
+from hypergas.plumeline import fit_polynomial_centerline, calculate_perpendicular_extent, compute_curve_arc_length_fine, get_x_at_arc_length, evaluate_polynomial_curve, create_perpendicular_lines_equal_arc
 from hypergas.landmask import Land_mask
 
 # set the logger level
@@ -141,7 +141,8 @@ class IME_CSF():
             self.alpha_replace = self.alpha
             self.beta_replace = self.beta
         else:
-            raise ValueError(f'{gas} is not supported by IME/CSF yet. Please update config.yaml and paras here to include it.')
+            raise ValueError(
+                f'{gas} is not supported by IME/CSF yet. Please update config.yaml and paras here to include it.')
 
     def calc_emiss(self):
         """Calculate emission rate (kg/h) using all available methods:
@@ -424,99 +425,121 @@ class IME_CSF():
         return error
 
     def _def_csf_lines(self, npixel_interval):
-        """Define CSF lines for quantification
+        """
+        Define CSF lines for quantification using polynomial-based centerline.
 
         Args:
-            npixel_interval: interval of CSF lines (unit: n*pixel_size).
+            npixel_interval: interval of CSF lines (unit: n*pixel_size)
 
         Returns:
-            center_curve
-            csf_lines
-            ds_csf (xarray Dataset):
-                yp (y, x): y coord of the plume coords
-                xp (y, x): x coord of the plume coords
-                center_line_y (plume_center): y coord (UTM) of the centerline
-                center_line_x (plume_center): x coord (UTM) of the centerline
-                csf_line (plume_center): the csf line (UTM)
+            center_curve : ndarray
+                Centerline coordinates in original space
+            csf_lines : list of LineString
+                CSF perpendicular lines in original space
         """
-        def create_perpendiculars(curve, interval, line_width):
-            line_length_shap = curve.length
-            start, end, stepsize, sign = 0, line_length_shap, interval, 1
-
-            transect_lines = []
-            initial_slope = None
-            for dist_along_line in np.arange(start, end, stepsize):
-                point = curve.interpolate(dist_along_line)
-                close_point = curve.interpolate(dist_along_line + sign * 0.2 * interval)
-                dx = close_point.x - point.x
-                if abs(dx) < 1.0e-8:  # Avoid rare cases of division by 0
-                    dx = 1.0e-8
-                dy = close_point.y - point.y
-                slope = dy / dx  # Slope of the spline
-
-                # dy and dx are perpendicular to the spline (hence the minus-slope)
-                dy = np.sign(slope) * np.sqrt((0.5 * line_width)**2 / (1 + slope**2))
-                dx = -slope * dy
-                if initial_slope is None:
-                    initial_slope = slope
-                perp_line = LineString([[point.x - dx, point.y - dy], [point.x + dx, point.y + dy]])
-                transect_lines.append(perp_line)
-            return transect_lines
-
         ds = self.ds
 
-        # only moving around over land pixels
+        # Only moving around over land pixels
         if self.land_only:
             ds = ds.where(self.landmask)
 
-        # get 1d array of plume data
+        # Get 1D array of plume data
         self.gas_valid = ds[self.gas].stack(z=('x', 'y')).dropna(dim='z')
 
-        # get plume source location in UTM projection
+        # Get plume source location in UTM projection
         transformer = Transformer.from_crs("EPSG:4326", ds.rio.crs, always_xy=True)
-        x_source, y_source = transformer.transform(ds.attrs['plume_longitude'],  ds.attrs['plume_latitude'])
-
-        # create the centerline through the plume
-        curve = Poly2D(
-            x=self.gas_valid.x,
-            y=self.gas_valid.y,
-            w=xr.full_like(self.gas_valid, 1),  # all pixels are inside plume
-            degree=2,
-            x_o=x_source,
-            y_o=y_source,
-            force_source=True
+        x_source, y_source = transformer.transform(
+            ds.attrs['plume_longitude'],
+            ds.attrs['plume_latitude']
         )
 
-        # calculate x and y in the plume coordinate
-        xp, yp, t_min, t_max = compute_plume_coordinates(ds[self.gas], curve, which="centers")
+        # Prepare data for polynomial fitting
+        x_data = self.gas_valid.x.values
+        y_data = self.gas_valid.y.values
 
-        # mask data
-        xp = xp.where(ds[self.gas].notnull())
-        yp = yp.where(ds[self.gas].notnull())
+        # Use gas values as weights to emphasize high-concentration areas
+        weights = self.gas_valid.values.copy()
+        weights[weights < 0] = 0  # Remove negative values if any
+        weights = weights / np.nanmax(weights)  # Normalize
 
-        # calculate plume length and set orientation for centerline
-        positive_num = xp.where(xp > 0).count()
-        negative_num = xp.where(xp < 0).count()
-        interval = self.pixel_res*npixel_interval
+        # Fit polynomial centerline
+        poly_order = 3
+        alpha = 0.1
 
-        if positive_num >= negative_num:
-            t = np.arange(curve.t_o, t_max, interval)
+        w, rotation_angle, x_offset, y_offset = fit_polynomial_centerline(
+            x_data, y_data, weights, x_source, y_source,
+            order=poly_order, alpha=alpha
+        )
+
+        # Rotate data to polynomial coordinate system for analysis
+        cos_theta = np.cos(-rotation_angle)
+        sin_theta = np.sin(-rotation_angle)
+        x_translated = x_data - x_source
+        y_translated = y_data - y_source
+        x_rotated = x_translated * cos_theta - y_translated * sin_theta
+        y_rotated = x_translated * sin_theta + y_translated * cos_theta
+
+        # Determine plume direction in rotated space
+        x_min_rot, x_max_rot = x_rotated.min(), x_rotated.max()
+
+        # Check which direction the plume extends from source (origin in rotated space)
+        x_left = np.sum((x_rotated < 0) & (weights > 0.1))
+        x_right = np.sum((x_rotated > 0) & (weights > 0.1))
+
+        if x_right >= x_left:
+            # Plume extends to the right
+            x_start = 0
+            x_end = x_max_rot
         else:
-            t = np.arange(curve.t_o, t_min, -interval)
+            # Plume extends to the left
+            x_start = x_min_rot
+            x_end = 0
 
-        t = t.astype('float')
+        # Calculate perpendicular extent
+        perp_extent = calculate_perpendicular_extent(
+            x_data, y_data, weights, w, rotation_angle, x_offset, y_offset,
+            x_start, x_end
+        )
 
-        # get the centerline
-        center_curve = np.vstack((curve(t=t)[0], curve(t=t)[1])).T.astype('float')
+        # Line width: 1.5 * perpendicular extent on each side
+        line_width = 2 * 1.5 * perp_extent
+
+        # Calculate number of lines based on arc length
+        cumulative_arc, x_samples = compute_curve_arc_length_fine(w, x_start, x_end, n_samples=10000)
+        total_arc_length = cumulative_arc[-1]
+
+        interval = self.pixel_res * npixel_interval
+        n_points = max(2, int(np.round(total_arc_length / interval)) + 1)
+
+        # Generate positions at equal arc-length intervals for verification
+        if n_points == 1:
+            arc_positions = np.array([total_arc_length / 2.0])
+        else:
+            arc_positions = np.linspace(0, total_arc_length, n_points)
+
+        # Get x coordinates in rotated space for each arc position
+        x_rot_centerline = np.array([get_x_at_arc_length(cumulative_arc, x_samples, arc_len)
+                                     for arc_len in arc_positions])
+
+        # Transform to original space
+        x_orig, y_orig = evaluate_polynomial_curve(w, rotation_angle, x_offset,
+                                                   y_offset, x_rot_centerline)
+        center_curve = np.column_stack([x_orig, y_orig])
 
         if center_curve.shape[0] > 1:
-            # get the csf line
-            length = (yp.max() - yp.min())*1.5  # make the CSF lines longer
-            csf_lines = create_perpendiculars(LineString(center_curve), interval=interval, line_width=length)
+            # Create CSF perpendicular lines in original space
+            csf_lines = create_perpendicular_lines_equal_arc(
+                w, rotation_angle, x_offset, y_offset,
+                x_start, x_end,
+                n_lines=n_points,
+                line_width=line_width
+            )
         else:
-            LOG.info('The plume is too short to create CSF lines.')
+            print('The plume is too short to create CSF lines.')
+            center_curve = None
             csf_lines = None
 
+        # Cleanup
         ds.close()
         del ds
         gc.collect()
