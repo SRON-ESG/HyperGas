@@ -123,9 +123,9 @@ class Denoise():
 
         Parameters
         ----------
-        n_weights :int
+        n_weights : int
             Number of weights used for auto calibration.
-        return_loss : boolean
+        return_loss : bool
             Whether return the loss results.
 
         Returns

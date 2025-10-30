@@ -102,17 +102,19 @@ def get_wind_azimuth(u, v):
     its u (east-west) and v (north-south) components. The azimuth is measured 
     in radians and degrees, following meteorological convention.
 
-    Args:
-        u (float):
-            Zonal wind component (positive toward the east).
-        v (float):
-            Meridional wind component (positive toward the north).
+    Parameters
+    ----------
+    u : float
+        Zonal wind component (positive toward the east).
+    v : float
+        Meridional wind component (positive toward the north).
 
-    Returns:
-        azim_rad (float)
-            Wind azimuth in radians, measured clockwise from the north.
-        azim (float)
-            Wind azimuth in degrees, measured clockwise from the north.
+    Returns
+    -------
+    azim_rad : float
+        Wind azimuth in radians, measured clockwise from the north.
+    azim : float
+        Wind azimuth in degrees, measured clockwise from the north.
     """
     if (u > 0):
         azim_rad = (np.pi)/2. - np.arctan(v/u)
@@ -161,17 +163,23 @@ def azimuth_mrr(mrr):
 def get_index_nearest(lons, lats, lon_target, lat_target):
     """Get the pixel index closest to the target.
 
-    Args:
-        lons (2D :class:`numpy.ndarray`):
-            Longitudes of pixels.
-        lats (2D :class:`numpy.ndarray`):
-            Latitudes of pixels.
-        lon_target (float):
-            The longitude of target.
-        lat_target (float):
-            The latitude of target.
-    Returns:
-        The nearest index: y_nearest (int), x_nearest (int).
+    Parameters
+    ----------
+    lons : :class:`numpy.ndarray`
+        2D longitudes of pixels.
+    lats : :class:`numpy.ndarray`
+        2D latitudes of pixels.
+    lon_target : float
+        The longitude of target.
+    lat_target : float
+        The latitude of target.
+
+    Returns
+    -------
+    y_nearest : int
+        The nearest y index.
+    x_nearest : int
+        The nearest x index.
     """
     # define the areas for data and source point
     area_source = SwathDefinition(lons=lons, lats=lats)
@@ -191,23 +199,26 @@ def get_index_nearest(lons, lats, lon_target, lat_target):
 def target_inside_mask(ds, gas_mask_varname, y_target, x_target, lon_target, lat_target):
     """Move the target if it is not inside the mask.
 
-    Args:
-        ds (:class:`~xarray.Dataset`):
-            The dataset includes the gas field and geolocations.
-        gas_mask_varname (str):
-            The mask name of gas.
-        y_target (int):
-            The y index of target.
-        x_target (int):
-            The x index of target.
-        lon_target (float):
-            The longitude of target.
-        lat_target (float):
-            The latitude of target.
+    Parameters
+    ----------
+    ds : :class:`~xarray.Dataset`
+        The dataset includes the gas field and geolocations.
+    gas_mask_varname : str
+        The mask name of gas.
+    y_target : int
+        The y index of target.
+    x_target : int
+        The x index of target.
+    lon_target : float
+        The longitude of target.
+    lat_target : float
+        The latitude of target.
 
-    Returns:
-        y_target (int), x_target (int).
-        If the input target index is not included in the mask, it will be updated using the mask pixel closest to the target.
+    Returns
+    -------
+        y_target : int
+        x_target : int
+            If the input target index is not included in the mask, it will be updated using the mask pixel closest to the target.
     """
     if ds[gas_mask_varname][y_target, x_target] == 0:
         LOG.info('Picking the nearest mask pixel because the target is in the background.')
@@ -227,24 +238,27 @@ def target_inside_mask(ds, gas_mask_varname, y_target, x_target, lon_target, lat
 def plot_mask(filename, ds, gas, mask, lon_target, lat_target, pick_plume_name, only_plume=True):
     """Plot masked data and export to L3 HTML file.
 
-    Args:
-        filename (str):
-            The L2 HTML file name.
-        ds (:class:`~xarray.Dataset`):
-            The dataset includes the gas field and RGB data.
-        gas (str):
-            The gas name to be plotted.
-        mask (:class:`numpy.ndarray`):
-            The plume boolean mask.
-        lon_target (float):
-            The longitude of target.
-        lat_target (float):
-            The latitude of target.
-        pick_plume_name (str):
-            Which plume to be plotted (e.g., "plume0", "plume1", ...).
+    Parameters
+    ----------
+    filename : str
+        The L2 HTML file name.
+    ds : :class:`~xarray.Dataset`
+        The dataset includes the gas field and RGB data.
+    gas : str
+        The gas name to be plotted.
+    mask : :class:`numpy.ndarray`
+        The plume boolean mask.
+    lon_target : float
+        The longitude of target.
+    lat_target : float
+        The latitude of target.
+    pick_plume_name : str
+        Which plume to be plotted (e.g., "plume0", "plume1", ...).
 
-    Returns:
-        plume_html_filename (str): The plume html filename.
+    Returns
+    -------
+    plume_html_filename : str
+        The plume html filename.
     """
     # read gas data
     da_gas = ds[gas]
@@ -289,20 +303,22 @@ def plot_mask(filename, ds, gas, mask, lon_target, lat_target, pick_plume_name, 
 def select_connect_masks(masks, y_target, x_target, az_max=30, dist_max=180):
     """Select connected masks by dilation and limit the minimum rectangle angle difference
 
-    Args:
-        masks (2D :class:`~xarray.DataArray`):
-            a priori mask from L2 data.
-        y_target (float):
-            yindex of source target.
-        x_target (float):
-            xindex of source target.
-        az_max (float):
-            maximum of azimuth of minimum rotated rectangle. (Default: 30).
-        dist_max (float):
-            maximum of dilation distance (meter).
+    Parameters
+    ----------
+    masks : :class:`~xarray.DataArray`
+        2D a priori mask from L2 data.
+    y_target : float
+        yindex of source target.
+    x_target : float
+        xindex of source target.
+    az_max : float
+        maximum of azimuth of minimum rotated rectangle. (Default: 30).
+    dist_max : float
+        maximum of dilation distance (meter).
 
-    Returns:
-        connected plume mask (:class:`~xarray.DataArray`).
+    Returns
+    -------
+    Connected plume mask : :class:`~xarray.DataArray`.
     """
 
     # get the source label of original mask
@@ -407,40 +423,42 @@ def a_priori_mask_data(ds, gas, lon_target, lat_target,
                        ):
     '''Read a priori plume masks and connect them by conditions.
 
-    Args:
-        ds (:class:`~xarray.Dataset`):
-            L2 dataset.
-        gas (str):
-            The gas field to be masked.
-        lon_target (float):
-            The longitude of plume source.
-        lat_target (float):
-            The latitude of plume source.
-        pick_plume_name (str):
-            The plume name (plume0, plume1, ....).
-        wind_source (str):
-            "ERA5" or "GEOS-FP".
-        az_max (float):
-            Maximum of azimuth of minimum rotated rectangle. (Default: 30).
-        dist_max (float):
-            Maximum of dilation distance (meter).
-        filename (str):
-            The L2 HTML filename.
+    Parameters
+    ----------
+    ds : :class:`~xarray.Dataset`
+        L2 dataset.
+    gas : str
+        The gas field to be masked.
+    lon_target : float
+        The longitude of plume source.
+    lat_target : float
+        The latitude of plume source.
+    pick_plume_name : str
+        The plume name (plume0, plume1, ....).
+    wind_source : str
+        "ERA5" or "GEOS-FP".
+    az_max : float
+        Maximum of azimuth of minimum rotated rectangle. (Default: 30).
+    dist_max : float
+        Maximum of dilation distance (meter).
+    filename : str
+        The L2 HTML filename.
 
-    Returns:
-        mask (:class:`~xarray.DataArray`)
-            The Boolean mask of pixels.
-        lon_mask (:class:`~xarray.DataArray`)
-            Plume longitude.
-        lat_mask (:class:`~xarray.DataArray`)
-            Plume latitude.
-        lon_target (float)
-            Longitude of target.
-        lat_target (float)
-            Latitude of target.
-        plume_html_filename (str)
-            Exported plume html filename.
-        '''
+    Returns
+    -------
+    mask : :class:`~xarray.DataArray`
+        The Boolean mask of pixels.
+    lon_mask : :class:`~xarray.DataArray`
+        Plume longitude.
+    lat_mask : :class:`~xarray.DataArray`
+        Plume latitude.
+    lon_target : float
+        Longitude of target.
+    lat_target : float
+        Latitude of target.
+    plume_html_filename : str
+        Exported plume html filename.
+    '''
     LOG.info('Selecting connected plume masks')
     # get the y/x index of the source location
     y_target, x_target = get_index_nearest(ds['longitude'], ds['latitude'], lon_target, lat_target)
@@ -473,20 +491,22 @@ def crop_to_valid_region(da, y_target, x_target, data_crop_length, pixel_res):
     """Crop a DataArray around a target location to ensure a square result, centered on the target, 
     and adjusted to fit within bounds if necessary.
 
-    Args:
-        da (:class:`~xarray.DataArray`):
-            The to be cropped DataArray.
-        y_target (int):
-            The yindex of target.
-        x_target (int):
-            The xindex of target.
-        data_crop_length (float):
-            The crop radius (m).
-        pixel_res (float):
-            The pixel resolution (m).
+    Parameters
+    ----------
+    da : :class:`~xarray.DataArray`
+        The to be cropped DataArray.
+    y_target : int
+        The yindex of target.
+    x_target : int
+        The xindex of target.
+    data_crop_length : float
+        The crop radius (m).
+    pixel_res : float
+        The pixel resolution (m).
 
-    Returns:
-        The cropping index: ymin, ymax, xmin, xmax.
+    Returns
+    -------
+        The cropping index : ymin, ymax, xmin, xmax.
     """
     crop_pixels = data_crop_length//pixel_res
 
@@ -513,13 +533,14 @@ def cm_mask_data(ds, gas, lon_target, lat_target,
                  data_crop_length=2500, limit_crop_length=1000, limit_percentile=90):
     """Create plume mask using `Carbon Mapper's method <https://assets.carbonmapper.org/documents/L3_L4%20Algorithm%20Theoretical%20Basis%20Document_formatted_10-24-24.pdf>`_.
 
-    Args:
-        data_crop_length (m):
-            The length for cropping data
-        limit_crop_length (m):
-            The length for calculating the plume enhancement threshold
-        limit_percentile (%):
-            The percentile for the plume enhancement threshold
+    Parameters
+    ----------
+    data_crop_length : float
+        The length (m) for cropping data.
+    limit_crop_length: float
+        The length (m) for calculating the plume enhancement threshold.
+    limit_percentile : float
+        The percentile (%) for the plume enhancement threshold.
     """
     LOG.info('Creating the CM plume mask')
 

@@ -36,17 +36,18 @@ class Ortho():
 
         See the reprojection page of `rasterio <https://rasterio.readthedocs.io/en/stable/topics/reproject.html>`_ for details.
 
-        Args:
-            scene (object):
-                The Satpy Scene defined by hypergas.
-            varname (str):
-                The loaded variable to be orthorectified.
-            rpcs:
-                The Rational Polynomial Coefficients (rpcs).
-            gcps:
-                The Ground Control Points (gcps).
-            gcp_crs (EPSG code):
-                The CRS of the GCP data.
+        Parameters
+        ----------
+        scene : object
+            The Satpy Scene defined by hypergas.
+        varname : str
+            The loaded variable to be orthorectified.
+        rpcs:
+            The Rational Polynomial Coefficients (rpcs).
+        gcps:
+            The Ground Control Points (gcps).
+        gcp_crs : EPSG code
+            The CRS of the GCP data.
         """
         self.scene = scene
         self.varname = varname
@@ -164,7 +165,8 @@ class Ortho():
     def _assign_coords(self, data):
         """Calculate and assign the UTM coords
 
-        Args:
+        Parameters
+        ----------
             data (DataArray): it should has the transform info.
         """
         # assign coords from AreaDefinition
@@ -182,9 +184,12 @@ class Ortho():
     def _assign_area(self, da_ortho, dst_transform):
         """Assign the area attrs
 
-        Args:
-            da_ortho (DataArray): the orthorectified data
-            dst_transform (Affine): the target transform (Affine order)
+        Parameters
+        ----------
+        da_ortho : DataArray
+            The orthorectified data.
+        dst_transform : Affine
+            The target transform (Affine order).
         """
         if self.ortho_res is not None:
             target_area = AreaDefinition.from_ul_corner(area_id=f"{self.scene[self.varname].attrs['sensor']}_utm",
@@ -205,8 +210,10 @@ class Ortho():
         - EMIT: using the glt table from the L1 product;
         - PRISMA: using the manual gcp points from QGIS.
 
-        Returns:
-            da_ortho (:class:`~xarray.DataArray`): the orthorectified data.
+        Returns
+        -------
+        da_ortho : :class:`~xarray.DataArray`
+            The orthorectified data.
         """
         # read data and expand to 3d array with "band" dim for rioxarray
         data = self.scene[self.varname]

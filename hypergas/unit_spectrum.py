@@ -33,22 +33,25 @@ class Unit_spec():
                  species='ch4', rad_source='model'):
         """Initialize unit_spec class.
 
-        Args:
-            radiance (3D :class:`~xarray.DataArray`):
-                The radiance dataarray (bands, y, x).
-            wvl_sensor (1D['bands'] or 2D['bands','x'] :class:`~xarray.DataArray`):
-                The central wavelengths (nm) of sensor.
-            wvl_min (float):
-                The lower limit of wavelength (nm) for matched filter.
-            wvl_max (float):
-                The upper limit of wavelength (nm) for matched filter.
-            species (str):
-                The species to be retrieved: 'ch4' or 'co2'.
-                Default: 'ch4'.
-            rad_source (str):
-                The data ('model' or 'lut') used for calculating rads or transmissions.
-                Default: 'model'.
-                References:
+        Parameters
+        ----------
+
+        radiance : :class:`~xarray.DataArray`
+            3D radiance dataarray (bands, y, x).
+        wvl_sensor : :class:`~xarray.DataArray`
+            1D ['bands'] or 2D['bands','x'].
+            The central wavelengths (nm) of sensor.
+        wvl_min : float
+            The lower limit of wavelength (nm) for matched filter.
+        wvl_max : float
+            The upper limit of wavelength (nm) for matched filter.
+        species : str
+            The species to be retrieved: 'ch4' or 'co2'.
+            Default: 'ch4'.
+        rad_source : str
+            The data ('model' or 'lut') used for calculating rads or transmissions.
+            Default: 'model'.
+            References:
                 - model: `Gloudemans et al. (2008) <https://doi.org/10.5194/acp-8-3999-2008>`_
                 - lut: only supporting ch4 and co2; `Foote et al. (2021) <https://hive.utah.edu/concern/datasets/9w0323039>`_.
         """
@@ -176,17 +179,24 @@ class Unit_spec():
         """Function to calculate spectral radiance over selected band range
         based on trace gas del_omega (mol/m2) added to the first layer of atmosphere
 
-        Args:
-            del_omega (float):
-                Trace gas column enhancement [mol/m2]
-            albedo (float):
-                albedo. This is cancelled out in the matched filter.
-            return_type (str):
-                returned data type: 'transmission' or 'radiance'
+        Parameters
+        ----------
 
-        Return:
-            Wavelength range [nm] in the solar_irradiance data
-            Transmission (if return_type is 'transmission') or spectral radiance [1/(s*cm^2*sr*nm), if return_type is 'radiance'] for the band range,
+        del_omega : float
+            Trace gas column enhancement [mol/m2].
+        albedo : float
+            Albedo. This is cancelled out in the matched filter.
+        return_type : str
+            Returned data type: 'transmission' or 'radiance'.
+
+        Returns
+        -------
+        Wavelength : array
+            The wavelength range (nm) in the solar_irradiance data.
+
+        Transmission or spectral radiance: array
+            If return_type is 'transmission', Transmission is returned.
+            If return_type is 'radiance', spectral radiance [1/(s*cm^2*sr*nm) is returned.
         """
         # column number density [cm^-2]
         # we need to assign the copied data, otherwise it will be overwrited in each loop
@@ -305,8 +315,10 @@ class Unit_spec():
     def convolve_rads(self):
         """Calculate the convolved sensor-reaching rads or transmissions.
 
-        Returns:
-            convolved rads (:class:`~xarray.DataArray`): 2D (conc*wvl) or 3D (bands*conc*wvl) radiances or transmissions for ``conc`` defined in the ``config.yaml`` file.
+        Returns
+        -------
+        convolved rads : :class:`~xarray.DataArray`
+            2D (conc*wvl) or 3D (bands*conc*wvl) radiances or transmissions for ``conc`` defined in the ``config.yaml`` file.
         """
 
         # set the enhancement of multiple gases
@@ -358,8 +370,11 @@ class Unit_spec():
     def convolve_rads_lut(self):
         """Calculate the convolved sensor-reaching rads.
 
-        Returns:
-            convolved rads (:class:`~xarray.DataArray`): 2D (conc*wvl) radiances for ``conc`` defined in the ``config.yaml`` file.
+        Returns
+        -------
+
+        convolved rads : :class:`~xarray.DataArray`
+            2D (conc*wvl) radiances for ``conc`` defined in the ``config.yaml`` file.
         """
         # set params for LUT
         sensor_altitude = 100
@@ -415,9 +430,10 @@ class Unit_spec():
     def fit_slope(self, scaling=None):
         """Fit the slope for conc and rads.
 
-        Args:
-            scaling (float):
-                The scaling factor to ensure numerical stability. Default: ``None``.
+        Parameters
+        ----------
+        scaling : float
+            The scaling factor to ensure numerical stability. Default: ``None``.
         """
         # calculate rads based on conc
         LOG.info(f'Convolving rads ({self.wvl_min}~{self.wvl_max} nm) ...')

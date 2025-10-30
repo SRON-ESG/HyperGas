@@ -38,14 +38,16 @@ class TLE():
     def get_tle(self, start_date, end_date):
         """Get the TLE content as list.
 
-        Args:
-            start_date (datetime):
-                Beginning of observation datatime.
-            end_date (datetime):
-                End of observation datatime.
+        Parameters
+        ----------
+        start_date : datetime
+            Beginning of observation datatime.
+        end_date : datetime
+            End of observation datatime.
 
-        Returns:
-            tles (TLE data in lines).
+        Returns
+        -------
+        tles : TLE data in lines.
         """
         # create epoch
         epoch = op.inclusive_range(start_date, end_date)

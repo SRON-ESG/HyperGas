@@ -314,7 +314,7 @@ class Map():
             EPSG code of the output projection (3857 is the proj of folium Map).
         vmax : float
             The cmap vmax for plotting species (unit is as same as species variable).
-        show_layers : boolean list
+        show_layers : bool list
             Whether the layers will be shown on opening (the length should be as same as ``varnames``).
         opacities : float list
             The opacities of layer (the length should be as same as ``varnames``).
@@ -324,7 +324,7 @@ class Map():
             The DataFrame (columns: latitude, longitude) for adding blue circle markers.
         export_dir : str
             The directory to save plotted images (Default: the same path as filename attrs).
-        draw_polygon : boolean
+        draw_polygon : bool
             Whether plot the scene boundary polygon (Default: True).
         pre_suffix : str
             The suffix added to the png and html filename (Default: ""). 
