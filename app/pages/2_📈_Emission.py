@@ -19,6 +19,7 @@ import streamlit.components.v1 as components
 import xarray as xr
 from hypergas.plume_utils import a_priori_mask_data, cm_mask_data
 from hypergas.emiss import Emiss
+from hypergas import __version__, __author_email__
 
 sys.path.append('..')
 
@@ -31,10 +32,6 @@ st.set_page_config(
 
 col1, col2 = st.columns([6, 3])
 
-# set global attrs for exported NetCDF file
-AUTHOR = 'Xin Zhang'
-EMAIL = 'xin.zhang@sron.nl; xinzhang1215@gmail.com'
-INSTITUTION = 'SRON Netherlands Institute for Space Research'
 
 with col2:
     # --- Load data and plot it over background map --- #
@@ -308,9 +305,7 @@ with col3:
                     ds_merge.attrs = ''
 
                     # set global attributes
-                    header_attrs = {'author': AUTHOR,
-                                    'email': EMAIL,
-                                    'institution': INSTITUTION,
+                    header_attrs = {'version': hypergas.__name__+'_'+hypergas.__version__,
                                     'filename': ds.attrs['filename'],
                                     'start_time': start_time,
                                     'sza': sza,

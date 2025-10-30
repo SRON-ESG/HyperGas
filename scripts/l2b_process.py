@@ -34,11 +34,6 @@ logging.basicConfig(level=logging.INFO,
                     datefmt='%Y/%m/%d %H:%M:%S')
 LOG = logging.getLogger(__name__)
 
-# set global attrs for exported NetCDF file
-AUTHOR = 'Xin Zhang'
-EMAIL = 'xin.zhang@sron.nl; xinzhang1215@gmail.com'
-INSTITUTION = 'SRON Netherlands Institute for Space Research'
-
 
 class L2B():
     """The L2B Class."""
@@ -274,9 +269,7 @@ class L2B():
         LOG.info(f'Exporting to {self.savename}')
 
         # set global attributes
-        header_attrs = {'author': AUTHOR,
-                        'email': EMAIL,
-                        'institution': INSTITUTION,
+        header_attrs = {'version': hypergas.__name__+'_'+hypergas.__version__,
                         # 'description': 'Orthorectified L2B data',
                         }
 

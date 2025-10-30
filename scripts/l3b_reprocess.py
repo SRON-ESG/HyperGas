@@ -26,14 +26,8 @@ logging.basicConfig(level=logging.INFO,
                     datefmt='%Y/%m/%d %H:%M:%S')
 LOG = logging.getLogger(__name__)
 
-# set global attrs for exported NetCDF file
-AUTHOR = 'Xin Zhang'
-EMAIL = 'xin.zhang@sron.nl; xinzhang1215@gmail.com'
-INSTITUTION = 'SRON Netherlands Institute for Space Research'
-
 # set filename pattern to load data automatically
 PATTERNS = ['ENMAP01-____L3B*.csv', 'EMIT_L3B*.csv', 'PRS_L3_*.csv']
-
 
 def reprocess_data(filename, wind_data):
     LOG.info('Reading csv and nc files ...')

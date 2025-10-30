@@ -24,11 +24,6 @@ logging.basicConfig(level=logging.INFO,
                     datefmt='%Y/%m/%d %H:%M:%S')
 LOG = logging.getLogger(__name__)
 
-# set global attrs for exported NetCDF file
-AUTHOR = 'Xin Zhang'
-EMAIL = 'xin.zhang@sron.nl; xinzhang1215@gmail.com'
-INSTITUTION = 'SRON Netherlands Institute for Space Research'
-
 
 class Emiss():
     """The Emiss class."""
@@ -149,9 +144,7 @@ class Emiss():
         ds_merge.attrs = ''
 
         # set global attributes
-        header_attrs = {'author': AUTHOR,
-                        'email': EMAIL,
-                        'institution': INSTITUTION,
+        header_attrs = {'version': hypergas.__name__+'_'+hypergas.__version__,
                         'filename': self.l1_filename,
                         'start_time': start_time,
                         'sza': sza,
@@ -272,6 +265,7 @@ class Emiss():
                    'dist_max': self.dist_max,
                    'land_only': self.land_only,
                    'land_mask_source': self.land_mask_source,
+                   'version': hypergas.__name__+'_'+hypergas.__version__,
                    }
 
         # convert to DataFrame and export data as csv file

@@ -7,4 +7,11 @@
 # hypergas is a library to retrieve trace gases from hyperspectral satellite data
 """HyperGas package initializer"""
 
+try:
+    from hypergas.version import version as __version__
+except ModuleNotFoundError:
+    raise ModuleNotFoundError(
+        "No module named hypergas.version. This could mean "
+        "you didn't install 'hypergas' properly.")
+
 from hypergas.hyper import Hyper
