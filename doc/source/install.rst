@@ -2,24 +2,37 @@
 Installation Instructions
 =========================
 
+Conda-based Installation
+========================
+
+TBD
+
+Pip-based Installation
+======================
+
+TBD
+
+Installation from source
+========================
+
 Follow the steps below to clone the repository and set up the environment for HyperGas.
 
 Step 1: Clone the repository
-============================
+----------------------------
 
 .. code-block:: bash
 
-    $ git clone git@github.com:zxdawn/HyperGas.git
+    $ git clone git@github.com/SRON-ESG/HyperGas.git
     $ cd HyperGas
 
 Step 2: Create an environment
-=============================
+-----------------------------
 
 We recommend creating a separate environment for your work with HyperGas.
 You can choose one of the following methods to create and set up your environment.
 
 Using Miniforge (recommended)
------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Miniforge is the quickest way to install HyperGas dependencies:
 
@@ -43,10 +56,9 @@ Miniforge is the quickest way to install HyperGas dependencies:
    you can add the activating line to your ``~/.bashrc``.
 
 Using Anaconda or Miniconda
----------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default method (slower)
-^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: bash
 
@@ -55,7 +67,6 @@ Default method (slower)
     $ conda activate hypergas
 
 Using mamba (faster)
-^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: bash
 
@@ -75,12 +86,12 @@ Using mamba (faster)
         $ conda update -n base conda
 
 Step 3: Install HyperGas
-========================
+------------------------
 
 Once the environment is set up, run ``pip install -e .`` inside the ``HyperGas`` folder.
 
 Step 4: Update Satpy
-====================
+--------------------
 
 Because the hyperspectral readers are not yet merged into the official Satpy package,
 you will need to install the development version of Satpy:
@@ -90,7 +101,7 @@ you will need to install the development version of Satpy:
     $ pip install git+https://github.com/zxdawn/satpy.git@hyper
 
 Step 5: Fix Spectral Python (SPy)
-=================================
+---------------------------------
 
 To prevent the ``np.linalg.inv`` singular matrix error,
 you'll need to make a small modification in the Spectral Python package.
