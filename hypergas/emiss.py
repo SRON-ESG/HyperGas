@@ -15,6 +15,7 @@ import pandas as pd
 import xarray as xr
 from geopy.geocoders import Nominatim
 
+import hypergas
 from hypergas.ime_csf import IME_CSF
 from hypergas.plume_utils import a_priori_mask_data, cm_mask_data
 
