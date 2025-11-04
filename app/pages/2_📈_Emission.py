@@ -17,9 +17,10 @@ import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 import xarray as xr
+
+import hypergas
 from hypergas.plume_utils import a_priori_mask_data, cm_mask_data
 from hypergas.emiss import Emiss
-from hypergas import __version__, __author_email__
 
 sys.path.append('..')
 
