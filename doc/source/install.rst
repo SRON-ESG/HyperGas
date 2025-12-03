@@ -2,34 +2,29 @@
 Installation Instructions
 =========================
 
+HyperGas can be installed through conda-forge (using conda), PyPI (using pip), or directly from source (using pip with Git).
+The instructions below cover installing stable releases of HyperGas.
+For guidance on installing the development or unstable version, see :doc:`dev_guide`.
+
 Conda-based Installation
 ========================
 
-TBD
+You can set up HyperGas in a conda environment by pulling the package from the conda-forge channel.
+If you don’t already have conda installed, the simplest option is to install Miniconda, which provides a lightweight base system.
 
-Pip-based Installation
-======================
-
-TBD
-
-Installation from source
-========================
-
-Follow the steps below to clone the repository and set up the environment for HyperGas.
-
-Step 1: Clone the repository
-----------------------------
+The examples below use `-c conda-forge` to ensure that all packages come specifically from the conda-forge repository.
+If you prefer to make conda-forge your default source, you can run:
 
 .. code-block:: bash
 
-    $ git clone git@github.com/SRON-ESG/HyperGas.git
-    $ cd HyperGas
+   $ conda config --add channels conda-forge
 
-Step 2: Create an environment
------------------------------
+In a new conda environment
+--------------------------
 
-We recommend creating a separate environment for your work with HyperGas.
-You can choose one of the following methods to create and set up your environment.
+We suggest setting up a dedicated environment for working with HyperGas.
+Creating an environment with HyperGas (and any other packages you want) right away is
+typically quicker than creating the environment first and installing packages afterward.
 
 Using Miniforge (recommended)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -39,16 +34,17 @@ Miniforge is the quickest way to install HyperGas dependencies:
 1. Install Miniforge from `here <https://conda-forge.org/download/>`_.
 
 2. Create the environment using ``mamba`` (the fast package manager for ``conda``): 
+   You can create a fresh environment and install HyperGas in a single step by running:
+
+    .. code-block:: bash
+
+        $ mamba create -c conda-forge -n hypergas_env python hypergas
+
+3. After the environment is created, make sure to activate it so that any future Python or conda commands use the correct setup:
 
     .. code-block:: bash
     
-        $ mamba env create -f environment.yml
-
-3. Activate the environment to ensure all future Python or conda commands use this environment:
-
-    .. code-block:: bash
-    
-        $ mamba activate hypergas
+        $ conda activate hypergas_env
 
 .. hint::
 
@@ -62,19 +58,17 @@ Default method (slower)
 
 .. code-block:: bash
 
-    $ conda config --add channels conda-forge
-    $ conda env create -f environment.yml
-    $ conda activate hypergas
+    $ conda create -c conda-forge -n hypergas_env python hypergas
+    $ conda activate hypergas_env
 
 Using mamba (faster)
 
 .. code-block:: bash
 
-    $ conda config --add channels conda-forge
     $ conda install -n base mamba
     $ (optional: initialize shell) mamba shell hook --shell bash
-    $ mamba env create -f environment.yml
-    $ conda activate hypergas
+    $ mamba create -c conda-forge -n hypergas_env python hypergas
+    $ conda activate hypergas_env
 
 .. note::
 
@@ -85,13 +79,29 @@ Using mamba (faster)
 
         $ conda update -n base conda
 
-Step 3: Install HyperGas
-------------------------
+In an existing environment
+--------------------------
 
-Once the environment is set up, run ``pip install -e .`` inside the ``HyperGas`` folder.
+If you already have a conda environment active and want to add HyperGas to it, you can install it with:
 
-Step 4: Update Satpy
---------------------
+.. code-block:: bash
+
+    $ conda install -c conda-forge hypergas
+
+Pip-based Installation
+======================
+
+HyperGas can be installed directly from the Python Package Index (PyPI).
+If you’d like to set up an isolated environment for working with HyperGas, you can use virtualenv.
+
+To install the core HyperGas package along with its essential Python dependencies, run:
+
+.. code-block:: bash
+
+    $ pip install hypergas
+
+!! Note 1: Update Satpy
+=======================
 
 Because the hyperspectral readers are not yet merged into the official Satpy package,
 you will need to install the development version of Satpy:
@@ -100,14 +110,13 @@ you will need to install the development version of Satpy:
 
     $ pip install git+https://github.com/zxdawn/satpy.git@hyper
 
-Step 5: Fix Spectral Python (SPy)
----------------------------------
+!! Note 2: Fix Spectral Python (SPy)
+====================================
 
 To prevent the ``np.linalg.inv`` singular matrix error,
 you'll need to make a small modification in the Spectral Python package.
 
 1. Locate your Spectral Python installation. You can find its path by running the following in Python:
-
 
 .. code-block:: python
 
