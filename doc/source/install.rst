@@ -98,15 +98,21 @@ To install the core HyperGas package along with its essential Python dependencie
 
     $ pip install hypergas
 
-.. note::
 
-    The `EnPT <https://git.gfz-potsdam.de/EnMAP/GFZ_Tools_EnMAP_BOX/EnPT>`_ package is not installed by default via PyPI,
-    because GDAL can cause installation errors.
-    Please check the `EnPT doc <https://enmap.git-pages.gfz-potsdam.de/GFZ_Tools_EnMAP_BOX/EnPT/doc/installation.html>`_
-    for installation instructions if you are using PyPI to install hypergas.
+Note 1: Dependencies Requiring Manual Installation
+==================================================
 
-!! Note 1: Update Satpy
-=======================
+Users must install two dependencies manually due to installation constraints.
+The `tobac <https://github.com/tobac-project/tobac>`_ package is not avaliable on PyPI.
+Please check the `tobac documentation <https://tobac.readthedocs.io/en/latest/>`_
+for installation instructions.
+The `EnPT <https://git.gfz-potsdam.de/EnMAP/GFZ_Tools_EnMAP_BOX/EnPT>`_ package is not installed by default via PyPI,
+because GDAL can cause installation errors.
+Please check the `EnPT documentation <https://enmap.git-pages.gfz-potsdam.de/GFZ_Tools_EnMAP_BOX/EnPT/doc/installation.html>`_
+for installation instructions.
+
+Note 2: Update Satpy
+====================
 
 Because the hyperspectral readers are not yet merged into the official Satpy package,
 you will need to install the development version of Satpy:
@@ -115,8 +121,8 @@ you will need to install the development version of Satpy:
 
     $ pip install git+https://github.com/zxdawn/satpy.git@hyper
 
-!! Note 2: Fix Spectral Python (SPy)
-====================================
+Note 3: Fix Spectral Python (SPy)
+=================================
 
 To prevent the ``np.linalg.inv`` singular matrix error,
 you'll need to make a small modification in the Spectral Python package.
