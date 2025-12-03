@@ -19,11 +19,11 @@ dependencies = [
     "pyresample",
     "contextily",
     "folium",
-    "enpt>=0.21.1",
     "satpy",
     "dem_stitcher",
-    "tobac",
+    "tobac @ git+https://github.com/tobac-project/tobac.git",
     "streamlit",
+    "spacetrack",
     "matplotlib-scalebar",
 ]
 readme = "README.rst"
@@ -69,6 +69,7 @@ packages = ["hypergas"]
 
 [tool.hatch.version]
 source = "vcs"
+raw-options = { local_scheme = "no-local-version" }
 
 [tool.hatch.build.hooks.vcs]
 version-file = "hypergas/version.py"
