@@ -10,9 +10,9 @@ Conda-based Installation
 ========================
 
 You can set up HyperGas in a conda environment by pulling the package from the conda-forge channel.
-If you don’t already have conda installed, the simplest option is to install Miniconda, which provides a lightweight base system.
+If you don’t already have conda installed, the simplest option is to install `Miniforge <https://conda-forge.org/download/>`_, which provides a lightweight base system.
 
-The examples below use `-c conda-forge` to ensure that all packages come specifically from the conda-forge repository.
+The examples below use ``-c conda-forge`` to ensure that all packages come specifically from the conda-forge repository.
 If you prefer to make conda-forge your default source, you can run:
 
 .. code-block:: bash
@@ -31,16 +31,14 @@ Using Miniforge (recommended)
 
 Miniforge is the quickest way to install HyperGas dependencies:
 
-1. Install Miniforge from `here <https://conda-forge.org/download/>`_.
-
-2. Create the environment using ``mamba`` (the fast package manager for ``conda``): 
+1. Create the environment using ``mamba`` (the fast package manager for ``conda``): 
    You can create a fresh environment and install HyperGas in a single step by running:
 
     .. code-block:: bash
 
         $ mamba create -c conda-forge -n hypergas_env python hypergas
 
-3. After the environment is created, make sure to activate it so that any future Python or conda commands use the correct setup:
+2. After the environment is created, make sure to activate it so that any future Python or conda commands use the correct setup:
 
     .. code-block:: bash
     
@@ -99,6 +97,13 @@ To install the core HyperGas package along with its essential Python dependencie
 .. code-block:: bash
 
     $ pip install hypergas
+
+.. note::
+
+    The `EnPT <https://git.gfz-potsdam.de/EnMAP/GFZ_Tools_EnMAP_BOX/EnPT>`_ package is not installed by default via PyPI,
+    because GDAL can cause installation errors.
+    Please check the `EnPT doc <https://enmap.git-pages.gfz-potsdam.de/GFZ_Tools_EnMAP_BOX/EnPT/doc/installation.html>`_
+    for installation instructions if you are using PyPI to install hypergas.
 
 !! Note 1: Update Satpy
 =======================
