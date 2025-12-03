@@ -32,10 +32,13 @@ license = "Apache-2.0"
 license-files = ["LICENSE.txt"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Education",
     "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
     "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Atmospheric Science",
 ]
 
 [project.optional-dependencies]
