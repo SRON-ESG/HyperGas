@@ -21,7 +21,7 @@ dependencies = [
     "folium",
     "satpy",
     "dem_stitcher",
-    "tobac @ git+https://github.com/tobac-project/tobac.git",
+    # "tobac",
     "streamlit",
     "spacetrack",
     "matplotlib-scalebar",
