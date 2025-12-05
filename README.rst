@@ -1,4 +1,6 @@
-.. image:: ./doc/fig/logo.png
+.. image:: https://raw.githubusercontent.com/SRON-ESG/HyperGas/main/doc/fig/logo.png
+   :alt: HyperGas Logo
+   :width: 500
 
 ========
 HyperGas
@@ -10,4 +12,4 @@ HyperGas also supports generating plume masks and calculating gas emission rates
 Installation
 ============
 
-The documentation is available at https://hypergas.netlify.app/install.
+The documentation is available at https://hypergas.readthedocs.io/.
