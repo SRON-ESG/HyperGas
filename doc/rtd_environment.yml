@@ -20,7 +20,6 @@ dependencies:
   - satpy
   - dem_stitcher
   - streamlit
-  - spacetrack
   - matplotlib-scalebar
   - setuptools
   - setuptools_scm
@@ -28,3 +27,5 @@ dependencies:
   - sphinx_rtd_theme
   - sphinx-autodoc-typehints
   - sphinxcontrib-apidoc
+  - pip:
+      - spacetrack
