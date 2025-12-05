@@ -21,6 +21,8 @@ dependencies:
   - cartopy
   - dem_stitcher
   - streamlit
+  - tobac
+  - enpt
   - matplotlib-scalebar
   - setuptools
   - setuptools_scm
