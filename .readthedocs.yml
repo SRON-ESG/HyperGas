@@ -21,7 +21,7 @@ build:
     post_checkout:
       - git fetch --tags
     pre_install:
-      - git update-index --assume-unchanged doc/rtd_environment.yml doc/source/conf.py
+      - git update-index --assume-unchanged rtd_environment.yml doc/source/conf.py
 
 conda:
   environment: rtd_environment.yml
