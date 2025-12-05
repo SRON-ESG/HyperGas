@@ -51,9 +51,11 @@ class Unit_spec():
         rad_source : str
             The data ('model' or 'lut') used for calculating rads or transmissions.
             Default: 'model'.
-            References:
-                - model: `Gloudemans et al. (2008) <https://doi.org/10.5194/acp-8-3999-2008>`_
-                - lut: only supporting ch4 and co2; `Foote et al. (2021) <https://hive.utah.edu/concern/datasets/9w0323039>`_.
+
+        References
+        ----------
+            - rad_source (model): `Gloudemans et al. (2008) <https://doi.org/10.5194/acp-8-3999-2008>`_.
+            - rad_source (lut): only supporting ch4 and co2; `Foote et al. (2021) <https://hive.utah.edu/concern/datasets/9w0323039>`_.
         """
         # load settings
         _dirname = os.path.dirname(__file__)
