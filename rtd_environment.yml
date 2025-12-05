@@ -18,6 +18,7 @@ dependencies:
   - contextily
   - folium
   - satpy
+  - cartopy
   - dem_stitcher
   - streamlit
   - matplotlib-scalebar
