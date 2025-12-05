@@ -29,4 +29,5 @@ dependencies:
   - sphinxcontrib-apidoc
   - pip:
       - spacetrack
+      - spectral
       - . # relative path to the hypergas project
