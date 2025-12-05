@@ -13,6 +13,17 @@ from datetime import datetime
 sys.path.append(os.path.abspath("../../"))
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
+import hypergas  # noqa: E402
+
+# The version info for the project you're documenting, acts as replacement for
+# |version| and |release|, also used in various other places throughout the
+# built documents.
+#
+# get version using setuptools-scm
+release = hypergas.__version__
+# The full version, including alpha/beta/rc tags.
+# for example take major/minor
+version = ".".join(release.split(".")[:2])
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
