@@ -9,6 +9,7 @@ dependencies = [
     "matplotlib>=3.8.0",
     "numpy",
     "pandas",
+    "cartopy",
     "scikit-learn",
     "scikit-image>=0.24.0",
     "scipy",
@@ -52,6 +53,9 @@ Homepage = "https://github.com/SRON-ESG/HyperGas"
 Documentation = "https://hypergas.readthedocs.io/en/stable/"
 "Source Code" = "https://github.com/SRON-ESG/HyperGas"
 "Release Notes" = "https://github.com/SRON-ESG/HyperGas/blob/main/CHANGELOG.md"
+
+[project.scripts]
+hyperapp = "hypergas.app.__main__:main"
 
 [build-system]
 requires = ["hatchling", "hatch-vcs"]
