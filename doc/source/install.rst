@@ -12,13 +12,6 @@ Conda-based Installation
 You can set up HyperGas in a conda environment by pulling the package from the conda-forge channel.
 If you don’t already have conda installed, the simplest option is to install `Miniforge <https://conda-forge.org/download/>`_, which provides a lightweight base system.
 
-The examples below use ``-c conda-forge`` to ensure that all packages come specifically from the conda-forge repository.
-If you prefer to make conda-forge your default source, you can run:
-
-.. code-block:: bash
-
-   $ conda config --add channels conda-forge
-
 In a new conda environment
 --------------------------
 
@@ -29,7 +22,7 @@ typically quicker than creating the environment first and installing packages af
 Using Miniforge (recommended)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Miniforge is the quickest way to install HyperGas dependencies:
+`Miniforge <https://conda-forge.org/download/>`_ is the quickest way to install HyperGas dependencies:
 
 1. Create the environment using ``mamba`` (the fast package manager for ``conda``): 
    You can create a fresh environment and install HyperGas in a single step by running:
@@ -42,7 +35,7 @@ Miniforge is the quickest way to install HyperGas dependencies:
 
     .. code-block:: bash
     
-        $ conda activate hypergas_env
+        $ mamba activate hypergas_env
 
 .. hint::
 
@@ -51,6 +44,13 @@ Miniforge is the quickest way to install HyperGas dependencies:
 
 Using Anaconda or Miniconda
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The examples below use ``-c conda-forge`` to ensure that all packages come specifically from the conda-forge repository.
+If you prefer to make conda-forge your default source, you can run:
+
+.. code-block:: bash
+
+   $ conda config --add channels conda-forge
 
 Default method (slower)
 
@@ -84,6 +84,8 @@ If you already have a conda environment active and want to add HyperGas to it, y
 
 .. code-block:: bash
 
+    $ mamba install -c conda-forge hypergas
+    or
     $ conda install -c conda-forge hypergas
 
 Pip-based Installation
@@ -102,7 +104,11 @@ To install the core HyperGas package along with its essential Python dependencie
 Note 1: Dependencies Requiring Manual Installation
 ==================================================
 
-Users must install two dependencies manually due to installation constraints.
+.. note::
+
+    If you installed HyperGas by mamba or conda, all dependencies have been installed by default.
+    For PyPI users, you need to install two dependencies (tobac and EnPT) manually due to installation constraints.
+
 The `tobac <https://github.com/tobac-project/tobac>`_ package is not avaliable on PyPI.
 Please check the `tobac documentation <https://tobac.readthedocs.io/en/latest/>`_
 for installation instructions.
@@ -146,4 +152,4 @@ with:
 
     np.linalg.pinv(self._cov)
 
-For more details on this issue, refer to the `issue on GitHub <https://github.com/spectralpython/spectral/issues/159>`_.
+For more details on this issue, refer to the `PR on GitHub <https://github.com/spectralpython/spectral/pull/180>`_.
