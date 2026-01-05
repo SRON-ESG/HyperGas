@@ -38,7 +38,7 @@ LOG = logging.getLogger(__name__)
 class L2B():
     """The L2B Class."""
 
-    def __init__(self, filename, species, skip_exist=True, plume_mask=None):
+    def __init__(self, filename, species, skip_exist=True, plume_mask=None, drop_waterbands=True):
         """Init class."""
         if 'ENMAP' in filename:
             reader = 'hsi_l1b'
@@ -76,11 +76,11 @@ class L2B():
             self.skip = False
 
         if not self.skip:
-            self.load()
+            self.load(drop_waterbands=drop_waterbands)
         else:
             LOG.info(f'Skipped processing {self.filename}, because L2 data is already existed.')
 
-    def load(self):
+    def load(self, drop_waterbands=True):
         """Load L1 data."""
         if self.reader == 'emit_l1b':
             # read both RAD and OBS data
@@ -91,7 +91,7 @@ class L2B():
         hyp = Hyper(filename, reader=self.reader)
 
         LOG.info('Loading L1 data')
-        hyp.load()
+        hyp.load(drop_waterbands=drop_waterbands)
 
         self.hyp = hyp
 
@@ -325,6 +325,9 @@ def main():
     #   list of gas names, e.g. ['ch4', 'co2']
     species = 'ch4'
 
+    # whether drop the waterband
+    drop_waterbands = True
+
     # root directory of input data
     data_dir = '../hypergas/resources/test_data/ch4_cases/'
     # ---- settings --- #
@@ -345,7 +348,7 @@ def main():
 
     for filename in filelist:
         LOG.info(f'Processing {filename}')
-        l2b_scene = L2B(filename, species, skip_exist)
+        l2b_scene = L2B(filename, species, skip_exist, drop_waterbands)
 
         if not l2b_scene.skip:
             # rad_dist: 'normal', 'lognormal'
