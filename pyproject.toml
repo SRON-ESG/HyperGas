@@ -54,8 +54,8 @@ Documentation = "https://hypergas.readthedocs.io/en/stable/"
 "Source Code" = "https://github.com/SRON-ESG/HyperGas"
 "Release Notes" = "https://github.com/SRON-ESG/HyperGas/blob/main/CHANGELOG.md"
 
-[project.scripts]
-hyperapp = "hypergas.app.__main__:main"
+# [project.scripts]
+# hyperapp = "hypergas.app.__main__:main"
 
 [build-system]
 requires = ["hatchling", "hatch-vcs"]
