@@ -19,7 +19,7 @@ sys.path.append('..')
 
 st.set_page_config(
     page_title="PlumeMarker",
-    page_icon="📍",
+    page_icon=":round_pushpin:",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -28,7 +28,7 @@ col1, col2 = st.columns([7, 3])
 
 with col2:
     # --- Load data and plot it over background map --- #
-    st.info('Load data and check the quickview of map and CH$_4$', icon="1️⃣")
+    st.info('Load data and check the quickview of map and CH$_4$', icon=":one:")
 
     # set the folder path
     folderPath = st.text_input('**Enter L2 folder path:**')
@@ -53,7 +53,7 @@ with col2:
         filename = html_list[index]
 
         # upload file if you are using remote server
-        st.info('Add markers on the left, click Export button, and then upload the geojson file', icon="2️⃣")
+        st.info('Add markers on the left, click Export button, and then upload the geojson file', icon=":two:")
         uploaded_file = st.file_uploader("Upload the corresponding geojson file to the folder path above",
                                          accept_multiple_files=False,
                                          )

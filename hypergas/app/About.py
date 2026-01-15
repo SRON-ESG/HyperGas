@@ -3,7 +3,7 @@ import streamlit as st
 
 st.set_page_config(
     page_title="HyperCH4",
-    page_icon="🛰️",
+    page_icon="	:artificial_satellite:",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -12,7 +12,7 @@ st.set_page_config(
 st.write('<style>div.block-container{padding-top:2rem;}</style>', unsafe_allow_html=True)
 
 # set title
-st.title('👋 :orange[Hello, Hyper User!]')
+st.title(':wave: :orange[Hello, Hyper User!]')
 
 st.markdown('### Introduction')
 st.markdown('Methane (CH$_4$) has a global warming potential 84 times greater than that of carbon dioxide over a 20 year period.\
@@ -34,11 +34,7 @@ st.markdown('### Steps')
 
 st.markdown('- Run `l2_process.py` to process L1 data into L2 NetCDF files.')
 st.markdown('- Run `l2_plot.py` to visualize L2 data and export plots to HTML files.')
-st.markdown('- Go to the **📍PlumeMarker** page to create source markers.')
-st.markdown('- Explore the interactive images and calculate emission rates on the **📈Emission** page.')
+st.markdown('- Go to the **PlumeMarker** page to create source markers.')
+st.markdown('- Explore the interactive images and calculate emission rates on the **Emission** page.')
 
 st.markdown('See the [doc]() page for more details.')
-
-# want_to_contribute = st.button("🛰 Quickview page")
-# if want_to_contribute:
-#     switch_page("Overview")
