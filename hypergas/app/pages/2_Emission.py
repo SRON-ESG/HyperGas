@@ -36,7 +36,7 @@ col1, col2 = st.columns([6, 3])
 
 with col2:
     # --- Load data and plot it over background map --- #
-    st.info('Load data and check the quickview of map and trace gases', icon=":one:")
+    st.info('Load data and check the quickview of map and trace gases', icon="1️⃣")
 
     # set the folder path
     folderPath = st.text_input('**Enter L2 folder path:**')
@@ -157,9 +157,9 @@ with col3:
         # --- Create plume mask --- #
         with st.form("mask_form"):
             # --- Generate plume mask by submitting the center location --- #
-            st.info("Create gas plume mask from selected plume marker.", icon=":two:")
+            st.info("Create gas plume mask from selected plume marker.", icon="2️⃣")
             st.warning(
-                'Don\'t need to run this again, if you already have the plume HTML file.', icon=":beers:")
+                'Don\'t need to run this again, if you already have the plume HTML file.', icon="☕️")
 
             # form of submitting the center of plume mask
             st.markdown('**Form for creating plume mask**')
@@ -234,7 +234,7 @@ with col3:
                         if os.path.exists(file_mask):
                             os.remove(file_mask)
 
-                st.success('Removed all mask files.', icon=":wastebasket:")
+                st.success('Removed all mask files.', icon="🗑️")
 
             if submitted:
                 with st.spinner('Wait for it...'):
@@ -342,7 +342,7 @@ with col3:
                 st.success(f'HTML file is exported to: \n \n {plume_html_filename} \
                             \n \n Mask setting is exported to: \n \n {mask_filename} \
                             \n \n You can type "R" to refresh this page for checking/modifying the plume mask, if you are loading a plume html. \
-                            \n \n Otherwise, please select the L3 HTML file manually from the right side, and then go to the next step.', icon=":white_check_mark:")
+                            \n \n Otherwise, please select the L3 HTML file manually from the right side, and then go to the next step.', icon="✅")
     else:
         # update variables by passing existed csv file content
         for name, value in params.items():
@@ -352,7 +352,7 @@ with col3:
 with col3:
     with st.form("emiss_form"):
         # --- Create emission rate --- #
-        st.info('Estimating the gas emission rate using IME method', icon=":three:")
+        st.info('Estimating the gas emission rate using IME method', icon="3️⃣")
 
         # sitename for csv export
         name = st.text_input('Sitename (any name you like)', value=params['name'])
@@ -464,21 +464,21 @@ with col3:
                                err_wind: {err_wind:.2f} kg/h,
                                err_calibration: {err_calib:.2f} kg/h,
                                ]
-                           ''', icon=":fire:")
+                           ''', icon="🔥")
                 st.warning(f'''**IME (Carbon Mapper v2):**
                                The {gas.upper()} emission rate is {Q_cm:.2f} kg/h.
                                [
                                IME: {IME_cm:.2f} kg,
                                L: {l_cm:.2f} m,
                                ]
-                           ''', icon=":fire:")
+                           ''', icon="🔥")
                 st.warning(f'''**IME-fetch (U10):**
                                The {gas.upper()} emission rate is {Q_fetch:.2f} kg/h $\pm$ {Q_fetch_err/Q_fetch*100:.2f}% ({Q_fetch_err:.2f} kg/h).
                                [
                                err_wind: {err_wind_fetch:.2f} kg/h,
                                err_ime: {err_ime_fetch:.2f} kg/h,
                                ]
-                           ''', icon=":fire:")
+                           ''', icon="🔥")
                 st.warning(f'''**CSF (Ueff):**
                                The {gas.upper()} emission rate is {Q_csf:.2f} kg/h $\pm$ {Q_csf_err/Q_csf*100:.2f}% ({Q_csf_err:.2f} kg/h).
                                [
@@ -488,4 +488,4 @@ with col3:
                                err_wind: {err_wind_csf:.2f} kg/h,
                                err_calibration: {err_calib_csf:.2f} kg/h,
                                ]
-                           ''', icon=":fire:")
+                           ''', icon="🔥")
