@@ -168,15 +168,18 @@ class Hyper():
         """Calculate the VAA and VZA from TLE file"""
         # get the TLE info
         delta_day = timedelta(days=1)
-        tles = TLE(self.platform_name).get_tle(self.start_time-delta_day, self.start_time+delta_day)
-
-        while len(tles) == 0:
-            # in case tle file is not available for three days
+        closest_tle = TLE(self.platform_name).get_tle(self.start_time-delta_day,
+                                                      self.start_time+delta_day,
+                                                      overpass_time=self.start_time)
+        while closest_tle is None:
+            # in case tle file is not available for the initial time window
             delta_day += timedelta(days=1)
-            tles = TLE(self.platform_name).get_tle(self.start_time-delta_day, self.start_time+delta_day)
+            closest_tle = TLE(self.platform_name).get_tle(self.start_time-delta_day,
+                                                          self.start_time+delta_day,
+                                                          overpass_time=self.start_time)
 
         # pass tle to Orbital
-        orbit = orbital.Orbital(self.platform_name, line1=tles[0], line2=tles[1])
+        orbit = orbital.Orbital(self.platform_name, line1=closest_tle[0], line2=closest_tle[1])
 
         # calculate the lon and lat center
         lons, lats = self.area.get_lonlats()
@@ -366,7 +369,8 @@ class Hyper():
             wvl_intervals = self.species_setting[species]['wavelength']
 
         if rad_source not in ['model', 'lut']:
-            raise ValueError(f"The rad_source in the config.yaml file should be 'model' or 'lut'. {rad_source} is not supported.")
+            raise ValueError(
+                f"The rad_source in the config.yaml file should be 'model' or 'lut'. {rad_source} is not supported.")
 
         units = self.species_setting[species]['units']
         unit_scale = self._scale_units(units)
@@ -374,7 +378,8 @@ class Hyper():
         if (rad_source == 'lut') and (species not in ['ch4', 'co2']):
             raise ValueError(f"Please input a correct species name (ch4 or co2). {species} is not supported by LUT.")
 
-        mf = MatchedFilter(self.scene, wvl_intervals, species, mode, rad_dist, rad_source, land_mask, land_mask_source, cluster, plume_mask)
+        mf = MatchedFilter(self.scene, wvl_intervals, species, mode, rad_dist,
+                           rad_source, land_mask, land_mask_source, cluster, plume_mask)
         segmentation = mf.segmentation
         enhancement = getattr(mf, algo)()
 
@@ -470,6 +475,7 @@ class Hyper():
             Gaussian filter sigma for smoothing field.
             Default: 1. Because the ``<gas>_comb_denoise`` field is already smoothed, 1 should be high enough.
         """
-        thresholds, features, da_plume_mask = Mask(self.scene, varname, n_min_threshold=n_min_threshold, sigma_threshold=sigma_threshold).get_feature_mask()
+        thresholds, features, da_plume_mask = Mask(
+            self.scene, varname, n_min_threshold=n_min_threshold, sigma_threshold=sigma_threshold).get_feature_mask()
 
         return da_plume_mask
