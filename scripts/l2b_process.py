@@ -148,6 +148,13 @@ class L2B():
         self.hyp.scene['segmentation'] = self.segmentation_corr
         self.hyp.scene['radiance_2100'] = self.radiance_2100_corr
 
+        self.hyp.scene['sza'] = self.sza_corr
+        self.hyp.scene['saa'] = self.saa_corr
+        self.hyp.scene['vza'] = self.vza_corr
+        self.hyp.scene['vaa'] = self.vaa_corr
+        self.hyp.scene['raa'] = self.raa_corr
+        self.hyp.scene['sga'] = self.sga_corr
+
         for species in self.species:
             self.hyp.scene[f'{species}'] = getattr(self, f'{species}_corr')
             self.hyp.scene[f'{species}_comb'] = getattr(self, f'{species}_comb_corr')
@@ -188,6 +195,20 @@ class L2B():
         self.radiance_2100_corr = self.hyp.terrain_corr(varname='radiance_2100', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
             bands_swir=mean_wvl, method='nearest').item())
 
+        # angles
+        self.sza_corr = self.hyp.terrain_corr(varname='sza', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
+            bands_swir=mean_wvl, method='nearest').item())
+        self.saa_corr = self.hyp.terrain_corr(varname='saa', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
+            bands_swir=mean_wvl, method='nearest').item())
+        self.vza_corr = self.hyp.terrain_corr(varname='vza', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
+            bands_swir=mean_wvl, method='nearest').item())
+        self.vaa_corr = self.hyp.terrain_corr(varname='vaa', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
+            bands_swir=mean_wvl, method='nearest').item())
+        self.raa_corr = self.hyp.terrain_corr(varname='raa', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
+            bands_swir=mean_wvl, method='nearest').item())
+        self.sga_corr = self.hyp.terrain_corr(varname='sga', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
+            bands_swir=mean_wvl, method='nearest').item())
+
         if self.hyp.wind:
             self.u10_corr = self.hyp.terrain_corr(varname='u10', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
                 bands_swir=mean_wvl, method='nearest').item())
@@ -208,6 +229,12 @@ class L2B():
         # orthorectification
         self.rgb_corr = self.hyp.terrain_corr(varname='rgb', rpcs=rpcs, gcps=gcps, gcp_crs=gcp_crs)
         self.segmentation_corr = self.hyp.terrain_corr(varname='segmentation', rpcs=rpcs, gcps=gcps, gcp_crs=gcp_crs)
+        self.sza_corr = self.hyp.terrain_corr(varname='sza', rpcs=rpcs, gcps=gcps, gcp_crs=gcp_crs)
+        self.saa_corr = self.hyp.terrain_corr(varname='saa', rpcs=rpcs, gcps=gcps, gcp_crs=gcp_crs)
+        self.vza_corr = self.hyp.terrain_corr(varname='vza', rpcs=rpcs, gcps=gcps, gcp_crs=gcp_crs)
+        self.vaa_corr = self.hyp.terrain_corr(varname='vaa', rpcs=rpcs, gcps=gcps, gcp_crs=gcp_crs)
+        self.raa_corr = self.hyp.terrain_corr(varname='raa', rpcs=rpcs, gcps=gcps, gcp_crs=gcp_crs)
+        self.sga_corr = self.hyp.terrain_corr(varname='sga', rpcs=rpcs, gcps=gcps, gcp_crs=gcp_crs)
 
         if self.hyp.wind:
             self.u10_corr = self.hyp.terrain_corr(varname='u10', rpcs=rpcs, gcps=gcps, gcp_crs=gcp_crs)
@@ -278,7 +305,7 @@ class L2B():
         for species in self.species:
             species_vnames.extend([species, f'{species}_comb', f'{species}_denoise',
                                   f'{species}_comb_denoise', f'{species}_mask'])
-        vnames = ['u10', 'v10', 'sp', 'rgb', 'segmentation', 'radiance_2100']
+        vnames = ['u10', 'v10', 'sp', 'rgb', 'segmentation', 'radiance_2100', 'sza', 'saa', 'vza', 'vaa','raa', 'sga']
         vnames.extend(species_vnames)
         loaded_names = [x['name'] for x in self.hyp.scene.keys()]
 

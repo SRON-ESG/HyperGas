@@ -13,9 +13,9 @@ import os
 import yaml
 import numpy as np
 import xarray as xr
-from pyorbital import orbital
 from satpy import DataQuery, Scene
 
+from .angles import Angle2D, compute_raa, compute_sga
 from .denoise import Denoise
 from .hsi2rgb import Hsi2rgb
 from .orthorectification import Ortho
@@ -87,7 +87,7 @@ class Hyper():
                              'rpc_coef_vnir', 'rpc_coef_swir']
         elif self.reader == 'emit_l1b':
             # EMIT L1B
-            dataset_names = ['glt_x', 'glt_y', 'radiance', 'sza', 'vza']
+            dataset_names = ['glt_x', 'glt_y', 'radiance', 'sza', 'vza', 'saa', 'vaa']
         elif self.reader == 'hyc_l1':
             swir_rad_id = DataQuery(name='swir', calibration='radiance')
             vnir_rad_id = DataQuery(name='vnir', calibration='radiance')
@@ -178,24 +178,40 @@ class Hyper():
                                                           self.start_time+delta_day,
                                                           overpass_time=self.start_time)
 
-        # pass tle to Orbital
-        orbit = orbital.Orbital(self.platform_name, line1=closest_tle[0], line2=closest_tle[1])
-
         # calculate the lon and lat center
         lons, lats = self.area.get_lonlats()
-        lon_centre = lons.mean()
-        lat_centre = lats.mean()
 
-        # get sensor angle and elevation
-        vaa, satel = orbit.get_observer_look(self.start_time,
-                                             lon=lon_centre,
-                                             lat=lat_centre,
-                                             alt=0)
+        # Create angle calculator
+        angle_calc = Angle2D(
+            start_time=self.start_time,
+            end_time=self.end_time,
+            lons=lons,
+            lats=lats,
+            tle1=closest_tle[0],
+            tle2=closest_tle[1],
+        )
 
-        # get VZA
-        vza = 90 - satel
+        # Compute all angles as xarray.Dataset
+        angle_ds = angle_calc.compute_all()
 
-        return vaa, vza
+        # Copy the attrs
+        for name in angle_ds.data_vars:
+            attrs = self._extract_attrs(angle_ds[name])
+            angle_ds[name] = self._copy_attrs(angle_ds[name], attrs)
+
+        return angle_ds
+
+        # Copy the attrs
+        # for var_name in angle_ds.data_vars:
+        #    print(f'Copy attrs for {var_name}')
+        #    attrs_dict = {
+        #        key: angle_ds[var_name].attrs[key]
+        #        for key in ['standard_name', 'long_name', 'units', 'description']
+        #        if key in angle_ds[var_name].attrs
+        #    }
+        #    angle_ds[var_name] = self._copy_attrs(angle_ds[var_name], attrs_dict)
+
+        # return angle_ds
 
     def _copy_attrs(self, new_data, new_attrs_dict):
         """Copy the radiance attrs to new DataArray
@@ -205,7 +221,7 @@ class Hyper():
         new_data : DataArray
         new_attrs_dict : dict
             dict of new attributes
-            the dict should include these keys: 'long_name', 'description', 'units'
+            the dict should include these keys: 'standard_name', 'long_name', 'description', 'units'
         """
         # copy attrs and add units
         new_data.attrs = self.scene['radiance'].attrs
@@ -216,6 +232,16 @@ class Hyper():
             del new_data.attrs['calibration']
 
         return new_data
+
+    def _extract_attrs(self, da):
+        """Extract only angle-related attrs from a DataArray."""
+        _ATTR_KEYS = ('standard_name', 'long_name', 'units', 'description')
+
+        return {
+            k: da.attrs[k]
+            for k in _ATTR_KEYS
+            if k in da.attrs
+        }
 
     def _scale_units(self, units):
         """Scale units from ppm"""
@@ -273,23 +299,12 @@ class Hyper():
 
         # get attrs
         self.start_time = scn['radiance'].attrs['start_time']
+        self.end_time = scn['radiance'].attrs['end_time']
         self.platform_name = scn['radiance'].attrs['platform_name']
         self.area = scn['radiance'].attrs['area']
 
-        # make sure the mean "sza" and "vza" are set as attrs of `scn['radiance']`
-        #   we need these for radianceCalc later
+        # get loaded variables
         loaded_names = [x['name'] for x in scn.keys()]
-        if 'sza' not in scn['radiance'].attrs:
-            scn['radiance'].attrs['sza'] = scn['sza'].mean().load().item()
-
-        if 'vza' not in scn['radiance'].attrs:
-            if 'vza' in loaded_names:
-                scn['radiance'].attrs['vza'] = scn['vza'].mean().load().item()
-            else:
-                # vza is not saved in the PRISMA L1 product
-                vaa, vza = self._calc_sensor_angle()
-                scn['radiance'].attrs['vza'] = vza
-                scn['radiance'].attrs['vaa'] = vaa
 
         if drop_waterbands:
             # drop water vapor bands
@@ -322,8 +337,46 @@ class Hyper():
         if len(coords) > 0:
             scn['radiance_2100'] = scn['radiance_2100'].drop_vars(coords)
 
-        # save into scene and generate RGB composite
+        # save into scene
         self.scene = scn
+
+        # calculate 2d angles if they are available from L1 data (e.g., EnMAP and PRISMA)
+        if 'sza' not in loaded_names:
+            ds_angles = self._calc_sensor_angle()
+
+            # Add each angle as a separate dataset to the Scene
+            scn['sza'] = ds_angles['sza']
+            scn['saa'] = ds_angles['saa']
+            scn['vza'] = ds_angles['vza']
+            scn['vaa'] = ds_angles['vaa']
+            scn['raa'] = ds_angles['raa']
+            scn['sga'] = ds_angles['sga']
+
+        # Compute only what is missing from L2 data (e.g., EMIT)
+        # raa
+        if 'raa' not in scn:
+            da = compute_raa(scn['saa'], scn['vaa'])
+            attrs = self._extract_attrs(da)
+            scn['raa'] = self._copy_attrs(da, attrs)
+
+        # sga
+        if 'sga' not in scn:
+            da = compute_sga(
+                scn['sza'], scn['saa'],
+                scn['vza'], scn['vaa'],
+            )
+            attrs = self._extract_attrs(da)
+            scn['sga'] = self._copy_attrs(da, attrs)
+
+        # make sure the mean "sza" and "vza" are set as attrs of `scn['radiance']`
+        #   we need these for radianceCalc later
+        if 'sza' not in scn['radiance'].attrs:
+            scn['radiance'].attrs['sza'] = scn['sza'].mean().load().item()
+
+        if 'vza' not in scn['radiance'].attrs:
+            scn['radiance'].attrs['vza'] = scn['vza'].mean().load().item()
+
+        # generate RGB composite
         LOG.info('Generating RGB')
         self._rgb_composite()
 
