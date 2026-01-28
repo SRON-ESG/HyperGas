@@ -27,10 +27,9 @@ data:
     #   the `l2b_plot.py` will add CircleMarkers on Map and click it to see correcponding DataFrame info
     resources/markers/markers.csv
   spacetrack_usename:
-    # only useful for PRISMA
+    # for calculating 2D angles for satellite instruments such as PRISMA and EnMAP
     <username>
   spacetrack_password:
-    # only useful for PRISMA
     <password>
 
 species:
@@ -88,51 +87,51 @@ ime_calibration: # ueff = alpha1*log(wspd) + alpha2 + alpha3*wspd
       EMIT:
         alpha1: 0.
         alpha2: 0.43
-        alpha3: 0.35
+        alpha3: 0.36
         resid: 0.05
       EnMAP:
         alpha1: 0.
-        alpha2: 0.45
-        alpha3: 0.32
-        resid: 0.05
+        alpha2: 0.44
+        alpha3: 0.33
+        resid: 0.04
       PRISMA:
         alpha1: 0.
         alpha2: 0.43
-        alpha3: 0.31
-        resid: 0.06
+        alpha3: 0.32
+        resid: 0.08
     area-source:
       EMIT:
         alpha1: 0.
-        alpha2: 0.63
+        alpha2: 0.64
         alpha3: 0.39
-        resid: 0.12
+        resid: 0.11
       EnMAP:
         alpha1: 0.
-        alpha2: 0.68
+        alpha2: 0.67
         alpha3: 0.37
-        resid: 0.21
+        resid: 0.18
       PRISMA:
         alpha1: 0.
-        alpha2: 0.69
-        alpha3: 0.37
-        resid: 0.33
+        alpha2: 0.66
+        alpha3: 0.38
+        resid: 0.25
   co2:
     point-source:
       EMIT:
         alpha1: 0.
         alpha2: 0.44
-        alpha3: 0.34
-        resid: 0.05
+        alpha3: 0.35
+        resid: 0.04
       EnMAP:
         alpha1: 0.
         alpha2: 0.46
-        alpha3: 0.31
+        alpha3: 0.32
         resid: 0.04
       PRISMA:
         alpha1: 0.
-        alpha2: 0.44
-        alpha3: 0.32
-        resid: 0.07
+        alpha2: 0.43
+        alpha3: 0.33
+        resid: 0.05
 
 csf_calibration: # ueff = beta1*wspd + beta2
   ch4:
@@ -140,39 +139,39 @@ csf_calibration: # ueff = beta1*wspd + beta2
       EMIT:
         beta1: 1.12
         beta2: 0
-        resid: -0.04
-      EnMAP:
-        beta1: 1.15
-        beta2: 0.
-        resid: -0.01
-      PRISMA:
-        beta1: 1.13
-        beta2: 0.
-        resid: 0.0005
-    area-source:
-      EMIT:
-        beta1: 1.22
-        beta2: 0.
-        resid: 0.05
-      EnMAP:
-        beta1: 1.30
-        beta2: 0.
-        resid: 0.18
-      PRISMA:
-        beta1: 1.29
-        beta2: 0.
-        resid: 0.28
-  co2:
-    point-source:
-      EMIT:
-        beta1: 1.10
-        beta2: 0.
         resid: -0.03
       EnMAP:
         beta1: 1.15
         beta2: 0.
         resid: -0.01
       PRISMA:
+        beta1: 1.12
+        beta2: 0.
+        resid: 0.01
+    area-source:
+      EMIT:
+        beta1: 1.21
+        beta2: 0.
+        resid: 0.04
+      EnMAP:
+        beta1: 1.29
+        beta2: 0.
+        resid: 0.12
+      PRISMA:
+        beta1: 1.26
+        beta2: 0.
+        resid: 0.16
+  co2:
+    point-source:
+      EMIT:
+        beta1: 1.11
+        beta2: 0.
+        resid: -0.03
+      EnMAP:
+        beta1: 1.14
+        beta2: 0.
+        resid: -0.01
+      PRISMA:
         beta1: 1.13
         beta2: 0.
-        resid: 0.004
+        resid: -0.03
