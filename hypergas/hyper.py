@@ -14,6 +14,8 @@ import yaml
 import numpy as np
 import xarray as xr
 from satpy import DataQuery, Scene
+from pyresample.geometry import SwathDefinition
+from rasterio.transform import RPCTransformer
 
 from .angles import Angle2D, compute_raa, compute_sga
 from .denoise import Denoise
@@ -258,6 +260,34 @@ class Hyper():
 
         return scale
 
+    def _rpc_transform(self, scn, rpc):
+        # Create RPCTransformer
+        transformer = RPCTransformer(rpc)
+
+        # Create 2D coordinate grids for image of shape (1024, 1000)
+        height, width = scn['radiance'].sizes['y'], scn['radiance'].sizes['x']
+
+        # Create meshgrid of pixel coordinates
+        rows, cols = np.mgrid[0:height, 0:width]
+
+        # Flatten to 1D arrays
+        cols_flat = cols.ravel()  # sample/column coordinates (x)
+        rows_flat = rows.ravel()  # line/row coordinates (y)
+        heights_flat = np.zeros_like(cols_flat, dtype=float)  # elevation (ground level = 0)
+
+        # Transform from image coordinates to lon, lat
+        # Try xy() method instead - it transforms pixel to geographic
+        lons_flat, lats_flat = transformer.xy(rows_flat, cols_flat, heights_flat)
+
+        # Reshape back to 2D arrays
+        lons = np.array(lons_flat).reshape(height, width)
+        lats = np.array(lats_flat).reshape(height, width)
+
+        area = SwathDefinition(lons, lats)
+        area.name = '_'.join([scn['radiance'].attrs['platform_name'], str(scn['radiance'].attrs['start_time'])])
+
+        return area
+
     def load(self, drop_waterbands=True):
         """Load data into xarray Dataset using Satpy.
 
@@ -296,6 +326,16 @@ class Hyper():
         #   this is the case for PRISMA
         scn['radiance'] = scn['radiance'].drop_duplicates(dim='bands')
         scn['radiance'] = scn['radiance'].sortby('bands').sel(bands=slice(1e-7, None))
+
+        # recalculate the lon and lat for EnMAP
+        #   because the default yc and xc coords of TIFF files are not accurate
+        if self.reader == 'hsi_l1b':
+            rpc_swir = scn['rpc_coef_swir'].isel(bands_swir=0).item()
+            new_area = self._rpc_transform(scn, rpc_swir)
+            for key in scn.keys():
+                if 'area' in scn[key].attrs:
+                    # Replace with the new area definition
+                    scn[key].attrs['area'] = new_area
 
         # get attrs
         self.start_time = scn['radiance'].attrs['start_time']
@@ -383,7 +423,7 @@ class Hyper():
     def retrieve(self, wvl_intervals=None, species='ch4',
                  algo='smf', mode='column', rad_dist='normal',
                  land_mask=True, land_mask_source='OSM',
-                 cluster=False, plume_mask=None):
+                 cluster=False, skip_water=True, plume_mask=None):
         """Retrieve trace gas enhancements.
 
         Parameters
@@ -413,6 +453,9 @@ class Hyper():
         cluster : bool
             Whether apply the pixel classification.
             Default: False.
+        skip_water : bool
+            Whether skip retrieval for water pixels, whose segmentation value is zero if cluster is False.
+            Default: True.
         plume_mask : :class:`numpy.ndarray`
             2D manual mask. 0: neglected pixels, 1: valid pixels.
             Default: ``None``.
@@ -432,7 +475,7 @@ class Hyper():
             raise ValueError(f"Please input a correct species name (ch4 or co2). {species} is not supported by LUT.")
 
         mf = MatchedFilter(self.scene, wvl_intervals, species, mode, rad_dist,
-                           rad_source, land_mask, land_mask_source, cluster, plume_mask)
+                           rad_source, land_mask, land_mask_source, cluster, skip_water, plume_mask)
         segmentation = mf.segmentation
         enhancement = getattr(mf, algo)()
 

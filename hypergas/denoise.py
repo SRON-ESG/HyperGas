@@ -26,7 +26,7 @@ LOG = logging.getLogger(__name__)
 class Denoise():
     """The Denoise Class."""
 
-    def __init__(self, scene, varname, method='calibrated_tv_filter', weight=None):
+    def __init__(self, scene, varname, method='calibrated_tv_filter', weight=None, skip_water=True):
         """Initialize Denoise.
 
         Parameters
@@ -41,11 +41,15 @@ class Denoise():
             The weight for denoise_tv_chambolle.
             It would be neglected if method is "calibrated_tv_filter".
             If the weight is ``None`` (default) and ``method`` is “tv_filter”, the denoise_tv_chambolle will use the default value (0.1) which is too low for hyperspectral noisy gas field.
+        skip_water : bool
+            Whether skip retrieval for water pixels, whose segmentation value is zero if cluster is False.
+            Default: True.
         """
         self.data = scene[varname]
         self.segmentation = scene['segmentation']
         self.weight = weight
         self.method = method
+        self.skip_water = skip_water
 
     def _create_mask_from_quantiles(self, image, lower_quantile=0.01, upper_quantile=0.99, min_cluster_size=10):
         """
@@ -179,8 +183,15 @@ class Denoise():
         # create the empty list for denoised data
         res_list = []
 
+        # drop water from segmentation labels if skip_water is True
+        #   and cluster is False (only two seg: land [1] and water [0])
+        segmentation_labels = np.unique(self.segmentation)
+        if self.skip_water and len(segmentation_labels) == 2:
+            LOG.debug('Skip denoising for the water pixels.')
+            segmentation_labels = [1]
+
         # denoising data by cluster
-        for seg_id in np.unique(self.segmentation):
+        for seg_id in segmentation_labels:
             LOG.info(f'Applying denoising to segmentation_id {seg_id} ...')
             self.seg_id = seg_id
 

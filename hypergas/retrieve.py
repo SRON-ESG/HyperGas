@@ -26,7 +26,7 @@ class MatchedFilter():
     def __init__(self, scn, wvl_intervals, species='ch4',
                  mode='column', rad_dist='normal', rad_source='model',
                  land_mask=True, land_mask_source='OSM', cluster=False,
-                 plume_mask=None, scaling=None,
+                 skip_water=True, plume_mask=None, scaling=None,
                  ):
         """Initialize MatchedFilter.
 
@@ -60,6 +60,9 @@ class MatchedFilter():
         cluster : bool
             Whether apply the pixel classification.
             Default: False.
+        skip_water : bool
+            Whether skip retrieval for water pixels, whose segmentation value is zero if cluster is False.
+            Default: True.
         plume_mask : :class:`numpy.ndarray`
             2D array, 0: neglected pixels, 1: plume pixels.
             Default: None.
@@ -88,24 +91,25 @@ class MatchedFilter():
             # calculate K by column because we have central wavelength per column
             central_wavelengths = scn['central_wavelengths'].where(wvl_mask, drop=True)
             K, self.scaling = Unit_spec(self.radiance, central_wavelengths,
-                          self.wvl_min, self.wvl_max, self.species, self.rad_source).fit_slope(scaling=scaling)
+                                        self.wvl_min, self.wvl_max, self.species, self.rad_source).fit_slope(scaling=scaling)
             self.K = xr.DataArray(K, dims=['bands', 'x'],
                                   coords={'bands': self.radiance.coords['bands']})
         else:
             # calculate K using the default dim named 'bands'
             K, self.scaling = Unit_spec(self.radiance, self.radiance.coords['bands'],
-                          self.wvl_min, self.wvl_max, self.species, self.rad_source).fit_slope(scaling=scaling)
+                                        self.wvl_min, self.wvl_max, self.species, self.rad_source).fit_slope(scaling=scaling)
             self.K = xr.DataArray(K, dims='bands', coords={'bands': self.radiance.coords['bands']})
 
         # calculate the land/ocean segmentation
         self.land_mask = land_mask
+        self.skip_water = skip_water
 
         if cluster:
             segmentation = PCA_kmeans(self.radiance)
         elif land_mask:
             # get lon and lat from area attrs
             lons, lats = self.radiance.attrs['area'].get_lonlats()
-            # create land mask from 10-m Natural Earth data
+            # create land mask
             segmentation = Land_mask(lons, lats, land_mask_source)
         else:
             # set all pixels as the same type
@@ -161,8 +165,17 @@ class MatchedFilter():
             # create empty alpha with shape: [nrows('y'), 1]
             alpha = np.full((radiance.shape[0], 1), fill_value=np.nan, dtype=float)
 
+            # get segmentation labels
+            segmentation_labels = np.unique(segmentation)
+
+            # drop water from segmentation labels if skip_water is True
+            #   and cluster is False (only two seg: land [1] and water [0])
+            if self.skip_water and len(segmentation_labels) == 2:
+                LOG.debug('Skip retrieval for the water pixels.')
+                segmentation_labels = [1]
+
             # iterate unique label to apply the matched filter
-            for label in np.unique(segmentation):
+            for label in segmentation_labels:
                 # create nan*label mask
                 segmentation_mask = segmentation == label
                 mask = ~np.isnan(radiance).any(axis=-1)
@@ -179,9 +192,11 @@ class MatchedFilter():
                         background = algo.calc_stats(lograds, mask=mask_exclude_plume, index=None, allow_nan=True)
 
                         # apply the matched filter
+                        LOG.debug(f'Running lognormal matched filter for seg_id: {label}')
                         a = matched_filter(lograds, K, background)
                     elif self.rad_dist == 'normal':
                         # linearized MF
+                        LOG.debug(f'Running matched filter for seg_id: {label}')
                         if sum(mask_exclude_plume) > 1:
                             background = algo.calc_stats(radiance, mask=mask_exclude_plume, index=None, allow_nan=True)
                         else:
@@ -197,7 +212,8 @@ class MatchedFilter():
                         # apply the matched filter
                         a = matched_filter(radiance, target, background)
                     else:
-                        raise ValueError(f"{self.rad_dist} is not supported. Please use 'normal' or 'lognormal' as rad_dist.")
+                        raise ValueError(
+                            f"{self.rad_dist} is not supported. Please use 'normal' or 'lognormal' as rad_dist.")
 
                     # concat data
                     alpha[:, 0][mask] = a[:, 0][mask]
@@ -274,9 +290,9 @@ class MatchedFilter():
         alpha = alpha.transpose(*self.radiance.dims)
 
         # fill nan values by interpolation
-        #   this usually happens for pixels with only one segmentation labels in a specific column.
-        #   if data is not available for the whole row, then the row values should still be nan.
-        alpha = alpha.interpolate_na(dim='y', method='linear')
+        # this usually happens for pixels with only one segmentation labels in a specific column.
+        # if data is not available for the whole row, then the row values should still be nan.
+        # alpha = alpha.interpolate_na(dim='y', method='linear')
 
         return alpha*self.scaling
 

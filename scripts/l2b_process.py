@@ -95,7 +95,7 @@ class L2B():
 
         self.hyp = hyp
 
-    def retrieve(self, land_mask=True, plume_mask=None, land_mask_source='OSM', cluster=False, rad_dist='normal'):
+    def retrieve(self, land_mask=True, plume_mask=None, land_mask_source='OSM', cluster=False, skip_water=True, rad_dist='normal'):
         """run retrieval"""
         # retrieve trace gas
         for species in self.species:
@@ -107,6 +107,7 @@ class L2B():
                               plume_mask=plume_mask,
                               land_mask_source=land_mask_source,
                               cluster=cluster,
+                              skip_water=skip_water,
                               rad_dist=rad_dist,
                               species=species,
                               )
@@ -117,6 +118,7 @@ class L2B():
                               plume_mask=plume_mask,
                               land_mask_source=land_mask_source,
                               cluster=cluster,
+                              skip_water=skip_water,
                               rad_dist=rad_dist,
                               species=species,
                               )
@@ -355,6 +357,9 @@ def main():
     # whether drop the waterband
     drop_waterbands = True
 
+    # whether skip water pixels in the retrieval
+    skip_water = True
+
     # root directory of input data
     data_dir = '../hypergas/resources/test_data/ch4_cases/'
     # ---- settings --- #
@@ -380,7 +385,7 @@ def main():
         if not l2b_scene.skip:
             # rad_dist: 'normal', 'lognormal'
             # land_mask_source: 'OSM', 'GSHHS', 'Natural Earth'
-            l2b_scene.retrieve(rad_dist='normal', cluster=False, land_mask_source='OSM')
+            l2b_scene.retrieve(rad_dist='normal', cluster=False, land_mask_source='OSM', skip_water=skip_water)
 
             if unortho_export:
                 # output unortho data
