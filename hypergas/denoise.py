@@ -115,9 +115,7 @@ class Denoise():
         """Call TV filter"""
         noisy = self.data.squeeze().where(self.segmentation == self.seg_id)
         trim_mean = trimmed_mean(noisy.stack(z=('y', 'x')).dropna('z'), (1e-3, 1e-3))
-        res = denoise_tv_chambolle(np.ma.masked_array(np.where(noisy.isnull(), trim_mean, noisy), noisy.isnull()),
-                                   weight=self.weight
-                                   )
+        res = denoise_tv_chambolle(noisy.fillna(trim_mean), weight=self.weight)
 
         return res
 
@@ -145,10 +143,11 @@ class Denoise():
 
         # remove highest and lowest value
         noisy_mask = self._create_mask_from_quantiles(noisy)
-        m = noisy_mask.isnull()
         trim_mean = trimmed_mean(noisy_mask.stack(z=('y', 'x')).dropna('z'), (1e-3, 1e-3))
-        noisy_mask = np.ma.masked_array(np.where(m, trim_mean, noisy_mask), m)
-        noise_std = np.std(noisy_mask)
+
+        noisy_mask = noisy_mask.fillna(trim_mean)
+        noise_std = noisy_mask.std().item()
+
         weight_range = (noise_std/10, noise_std*3)
         weights = np.linspace(weight_range[0], weight_range[1], n_weights)
 
@@ -164,12 +163,12 @@ class Denoise():
         LOG.debug(f'Minimum self-supervised loss TV: {np.min(losses_tv):.3f}')
 
         best_parameters_tv = parameters_tested_tv[np.argmin(losses_tv)]
-        LOG.debug(f'best_parameters_tv: {best_parameters_tv}')
+        LOG.info(f'best_parameters_tv: {best_parameters_tv}')
 
         self.weight = np.round(best_parameters_tv['weight'], 1)
 
         denoised_calibrated_tv = denoise_invariant(
-            np.ma.masked_array(np.where(noisy.isnull(), trim_mean, noisy), noisy.isnull()),
+            noisy_mask,
             denoise_tv_chambolle, denoiser_kwargs=best_parameters_tv,
         )
 
