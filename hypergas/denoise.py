@@ -168,7 +168,7 @@ class Denoise():
         self.weight = np.round(best_parameters_tv['weight'], 1)
 
         denoised_calibrated_tv = denoise_invariant(
-            noisy_mask,
+            noisy.fillna(trim_mean),
             denoise_tv_chambolle, denoiser_kwargs=best_parameters_tv,
         )
 
