@@ -112,8 +112,8 @@ class Ortho():
         self.ortho_res = abs(self.default_dst_transform.a)
 
     def _download_dem(self):
-        """Download SRTMV3 DEM data."""
-        LOG.debug('Downloading SRTMV3 using stitch_dem')
+        """Download GLO-30 DEM data."""
+        self.dem_name = 'glo_30'
 
         # download DEM data and update config
         dem_path = Path(self.data.attrs['filename'])
@@ -122,30 +122,20 @@ class Ortho():
         if not os.path.exists(self.file_dem):
             dst_area_or_point = 'Point'
             dst_ellipsoidal_height = False
-            dem_names = ['srtm_v3', 'glo_30']
 
-            # get the DEM data 1) SRTM V3 2) Copernicus GLO-30
-            try:
-                print(self.bounds, dem_names[0], dst_ellipsoidal_height, dst_area_or_point)
-                self.dem_name = dem_names[0]
-                X, p = stitch_dem(self.bounds,
-                                  dem_name=self.dem_name,
-                                  dst_ellipsoidal_height=dst_ellipsoidal_height,
-                                  dst_area_or_point=dst_area_or_point)
-            except Exception as error:
-                LOG.info(error)
-                LOG.info('Downloading GLO-30 instead of SRTMV3')
-                self.dem_name = dem_names[1]
-                X, p = stitch_dem(self.bounds,
-                                  dem_name=self.dem_name,
-                                  dst_ellipsoidal_height=dst_ellipsoidal_height,
-                                  dst_area_or_point=dst_area_or_point)
+            # get the DEM data (Copernicus GLO-30)
+            LOG.debug('Downloading GLO-30 DEM data using stitch_dem')
+            X, p = stitch_dem(self.bounds,
+                              dem_name=self.dem_name,
+                              dst_ellipsoidal_height=dst_ellipsoidal_height,
+                              dst_area_or_point=dst_area_or_point)
 
             # export to tif file
             with rasterio.open(self.file_dem, 'w', **p) as ds:
                 ds.write(X, 1)
                 ds.update_tags(AREA_OR_POINT=dst_area_or_point, source=self.dem_name)
         else:
+            LOG.debug(f'Reading the existed {self.file_dem}')
             with rasterio.open(self.file_dem) as ds:
                 self.dem_name = ds.tags().get('source')
 
