@@ -126,22 +126,29 @@ class Ortho():
 
             # get the DEM data 1) SRTM V3 2) Copernicus GLO-30
             try:
+                print(self.bounds, dem_names[0], dst_ellipsoidal_height, dst_area_or_point)
+                self.dem_name = dem_names[0]
                 X, p = stitch_dem(self.bounds,
-                                  dem_name=dem_names[0],
+                                  dem_name=self.dem_name,
                                   dst_ellipsoidal_height=dst_ellipsoidal_height,
                                   dst_area_or_point=dst_area_or_point)
             except Exception as error:
                 LOG.info(error)
                 LOG.info('Downloading GLO-30 instead of SRTMV3')
+                self.dem_name = dem_names[1]
                 X, p = stitch_dem(self.bounds,
-                                  dem_name=dem_names[1],
+                                  dem_name=self.dem_name,
                                   dst_ellipsoidal_height=dst_ellipsoidal_height,
                                   dst_area_or_point=dst_area_or_point)
 
             # export to tif file
             with rasterio.open(self.file_dem, 'w', **p) as ds:
                 ds.write(X, 1)
-                ds.update_tags(AREA_OR_POINT=dst_area_or_point)
+                ds.update_tags(AREA_OR_POINT=dst_area_or_point, source=self.dem_name)
+        else:
+            with rasterio.open(self.file_dem) as ds:
+                self.dem_name = ds.tags().get('source')
+
 
     def _utm_epsg(self):
         """Find the suitable UTM epsg code based on lons and lats
@@ -323,6 +330,8 @@ class Ortho():
         da_ortho.attrs = self.scene[self.varname].attrs
 
         ortho_description = f'orthorectified by the {self.ortho_source} method'
+        if self.ortho_source == 'rpc':
+            ortho_description += f' using {self.dem_name} DEM data'
         if 'description' in da_ortho.attrs:
             da_ortho.attrs['description'] = f"{da_ortho.attrs['description']} ({ortho_description})"
 
