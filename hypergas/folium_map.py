@@ -134,8 +134,15 @@ class Map():
             name='Esri Satellite',
         )
 
+        gsat = folium.TileLayer(
+        tiles = 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+        attr = 'Google',
+        name = 'Google Satellite',
+        )
+
         # add tile
         m.add_child(esri_tile)
+        m.add_child(gsat)
         m.add_child(openstreet_tile)
 
         # add full screen
