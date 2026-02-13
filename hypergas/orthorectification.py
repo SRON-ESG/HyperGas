@@ -25,6 +25,8 @@ from rasterio.enums import Resampling
 from rasterio.warp import transform
 from rasterio.control import GroundControlPoint as GCP
 
+from .dem import DEM
+
 LOG = logging.getLogger(__name__)
 
 
@@ -113,32 +115,11 @@ class Ortho():
 
     def _download_dem(self):
         """Download GLO-30 DEM data."""
-        self.dem_name = 'glo_30'
-
         # download DEM data and update config
-        dem_path = Path(self.data.attrs['filename'])
-        self.file_dem = dem_path.with_name(dem_path.stem+'_dem.tif')
-
-        if not os.path.exists(self.file_dem):
-            dst_area_or_point = 'Point'
-            dst_ellipsoidal_height = False
-
-            # get the DEM data (Copernicus GLO-30)
-            LOG.debug('Downloading GLO-30 DEM data using stitch_dem')
-            X, p = stitch_dem(self.bounds,
-                              dem_name=self.dem_name,
-                              dst_ellipsoidal_height=dst_ellipsoidal_height,
-                              dst_area_or_point=dst_area_or_point)
-
-            # export to tif file
-            with rasterio.open(self.file_dem, 'w', **p) as ds:
-                ds.write(X, 1)
-                ds.update_tags(AREA_OR_POINT=dst_area_or_point, source=self.dem_name)
-        else:
-            LOG.debug(f'Reading the existed {self.file_dem}')
-            with rasterio.open(self.file_dem) as ds:
-                self.dem_name = ds.tags().get('source')
-
+        dem = DEM(self.data.attrs['filename'], self.bounds)
+        self.file_dem = dem.file_dem
+        self.dem_name = dem.dem_name
+        dem.download()
 
     def _utm_epsg(self):
         """Find the suitable UTM epsg code based on lons and lats

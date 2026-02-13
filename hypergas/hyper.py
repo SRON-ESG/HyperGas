@@ -18,6 +18,7 @@ from pyresample.geometry import SwathDefinition
 from rasterio.transform import RPCTransformer
 
 from .angles import Angle2D, compute_raa, compute_sga
+from .dem import DEM
 from .denoise import Denoise
 from .hsi2rgb import Hsi2rgb
 from .orthorectification import Ortho
@@ -260,28 +261,50 @@ class Hyper():
 
         return scale
 
-    def _rpc_transform(self, scn, rpc):
-        # Create RPCTransformer
-        transformer = RPCTransformer(rpc)
+    def _rpc_transform(self, scn, rpc, bounds):
+        """
+        Compute a more accurate longitude/latitude transform for a scene
+        using Rational Polynomial Coefficients (RPC).
 
-        # Create 2D coordinate grids for image of shape (1024, 1000)
+        Parameters
+        ----------
+        scn : Scene
+            Source scene object to be geolocated.
+
+        rpc : RPC
+            Rational Polynomial Coefficients describing the sensor model.
+
+        bounds : list[float]
+            Bounding box in EPSG:4326 coordinates formatted as
+            [xmin, ymin, xmax, ymax], where x = longitude and y = latitude.
+
+        Returns
+        -------
+        area : pyresample.geometry.AreaDefinition
+            Pyresample area definition describing the transformed scene geometry.
+        """
+        # Download DEM data
+        dem = DEM(self.filename[0], bounds)
+        dem.download()
+
+        # Create RPCTransformer
+        transformer = RPCTransformer(rpc, rpc_dem=dem.file_dem)
+
+        # Get image dimensions
         height, width = scn['radiance'].sizes['y'], scn['radiance'].sizes['x']
 
-        # Create meshgrid of pixel coordinates
-        rows, cols = np.mgrid[0:height, 0:width]
+        # Create pixel coordinate grids
+        x_coords = np.arange(width)
+        y_coords = np.arange(height)
+        xx, yy = np.meshgrid(x_coords, y_coords)
 
-        # Flatten to 1D arrays
-        cols_flat = cols.ravel()  # sample/column coordinates (x)
-        rows_flat = rows.ravel()  # line/row coordinates (y)
-        heights_flat = np.zeros_like(cols_flat, dtype=float)  # elevation (ground level = 0)
+        # Transform pixel coordinates to lon/lat using xy() method
+        # xy() takes (row, col) and returns (x, y) which is (lon, lat)
+        lons, lats = transformer.xy(yy, xx)
 
-        # Transform from image coordinates to lon, lat
-        # Try xy() method instead - it transforms pixel to geographic
-        lons_flat, lats_flat = transformer.xy(rows_flat, cols_flat, heights_flat)
-
-        # Reshape back to 2D arrays
-        lons = np.array(lons_flat).reshape(height, width)
-        lats = np.array(lats_flat).reshape(height, width)
+        # Reshape back to 2D
+        lons = lons.reshape(height, width)
+        lats = lats.reshape(height, width)
 
         area = SwathDefinition(lons, lats)
         area.name = '_'.join([scn['radiance'].attrs['platform_name'], str(scn['radiance'].attrs['start_time'])])
@@ -329,13 +352,26 @@ class Hyper():
 
         # recalculate the lon and lat for EnMAP
         #   because the default yc and xc coords of TIFF files are not accurate
-        if self.reader == 'hsi_l1b':
-            rpc_swir = scn['rpc_coef_swir'].isel(bands_swir=0).item()
-            new_area = self._rpc_transform(scn, rpc_swir)
+        if self.reader == "hsi_l1b":
+            # Get default lon/lat from radiance area
+            lons_default, lats_default = scn["radiance"].attrs["area"].get_lonlats()
+
+            bounds = [
+                lons_default.min(),
+                lats_default.min(),
+                lons_default.max(),
+                lats_default.max(),
+            ]
+
+            LOG.info("Calculating lon/lat using RPC and DEM data")
+
+            rpc_swir = scn["rpc_coef_swir"].isel(bands_swir=0).item()
+            new_area = self._rpc_transform(scn, rpc_swir, bounds)
+
+            # Replace area definition for all datasets that contain an area attribute
             for key in scn.keys():
-                if 'area' in scn[key].attrs:
-                    # Replace with the new area definition
-                    scn[key].attrs['area'] = new_area
+                if "area" in scn[key].attrs:
+                    scn[key].attrs["area"] = new_area
 
         # get attrs
         self.start_time = scn['radiance'].attrs['start_time']
