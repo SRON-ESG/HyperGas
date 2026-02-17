@@ -164,8 +164,9 @@ class Unit_spec():
         E_filename = 'solar_irradiance_0400-2600nm_highres_sparse.nc'
         Edata = xr.open_dataset(os.path.join(self.irradiance_dir, E_filename))['irradiance']
 
-        # convert units to W m-2 um-1
+        # convert units to mW m-2 nm-1
         Edata *= 1e3
+        Edata.attrs['units'] = 'mW m-2 nm-1'
 
         # read abs data
         abs_filename = f'absorption_cs_ALL_{MODE[self.model]}.nc'
