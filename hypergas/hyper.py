@@ -26,6 +26,7 @@ from .retrieve import MatchedFilter
 from .tle import TLE
 from .wind import Wind
 from .a_priori_mask import Mask
+from .quality_mask import QualityMask
 
 AVAILABLE_READERS = ['hsi_l1b', 'emit_l1b', 'hyc_l1']
 LOG = logging.getLogger(__name__)
@@ -456,10 +457,15 @@ class Hyper():
         LOG.info('Generating RGB')
         self._rgb_composite()
 
+        # generate the quality mask
+        qm = QualityMask(scn)
+        qm.mask()
+        scn['quality_mask'] = qm.qmask
+
     def retrieve(self, wvl_intervals=None, species='ch4',
                  algo='smf', mode='column', rad_dist='normal',
                  land_mask=True, land_mask_source='OSM',
-                 cluster=False, skip_water=True, plume_mask=None):
+                 cluster=False, skip_water=True, skip_cloud=True, plume_mask=None):
         """Retrieve trace gas enhancements.
 
         Parameters
@@ -492,6 +498,9 @@ class Hyper():
         skip_water : bool
             Whether skip retrieval for water pixels, whose segmentation value is zero if cluster is False.
             Default: True.
+        skip_cloud : bool
+            Whether skip retrieval for cloudy pixels.
+            Default: True.
         plume_mask : :class:`numpy.ndarray`
             2D manual mask. 0: neglected pixels, 1: valid pixels.
             Default: ``None``.
@@ -511,7 +520,7 @@ class Hyper():
             raise ValueError(f"Please input a correct species name (ch4 or co2). {species} is not supported by LUT.")
 
         mf = MatchedFilter(self.scene, wvl_intervals, species, mode, rad_dist,
-                           rad_source, land_mask, land_mask_source, cluster, skip_water, plume_mask)
+                           rad_source, land_mask, land_mask_source, cluster, skip_water, skip_cloud, plume_mask)
         segmentation = mf.segmentation
         enhancement = getattr(mf, algo)()
 

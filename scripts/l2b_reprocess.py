@@ -31,7 +31,7 @@ LOG = logging.getLogger(__name__)
 # set filename pattern to load data automatically
 PATTERNS = ['ENMAP01-____L3B*plume0.nc', 'EMIT_L3B*plume0.nc', 'PRS_L3_*plume0.nc']
 
-def reprocess_data(filename, prefix, species, land_mask_source, skip_water, rad_dist, unortho_export):
+def reprocess_data(filename, prefix, species, land_mask_source, skip_water, skip_cloud, rad_dist, unortho_export):
     """Reprocess L2 by L3 plume masks"""
     # read all L3 nc data with same prefix
     l3_filelist = glob(prefix+'*nc')
@@ -58,14 +58,14 @@ def reprocess_data(filename, prefix, species, land_mask_source, skip_water, rad_
     LOG.info('Retrieving with background where plume pixels are excluded.')
     l2b_scene.savename = os.path.join(dirname, os.path.basename(
         str(Path(ds.attrs['filename'].replace('L1', 'L2').replace('_RAD', '')).with_suffix('.nc'))))
-    l2b_scene.retrieve(plume_mask=mask_resample, land_mask_source=land_mask_source, skip_water=skip_water, rad_dist=rad_dist)
+    l2b_scene.retrieve(plume_mask=mask_resample, land_mask_source=land_mask_source, skip_water=skip_water, skip_cloud=skip_cloud, rad_dist=rad_dist)
 
     if unortho_export:
         # output unortho data
         unortho_savename = l2b_scene.savename.replace('.nc', '_unortho.nc')
         LOG.info(f'Exporting unortho file: {unortho_savename}')
         l2b_scene.hyp.scene.save_datasets(
-            datasets=[species, f'{species}_comb', 'segmentation'], filename=unortho_savename, writer='cf')
+            datasets=[species, f'{species}_comb', 'quality_mask', 'segmentation'], filename=unortho_savename, writer='cf')
 
     l2b_scene.denoise()
     l2b_scene.ortho()
@@ -91,6 +91,9 @@ def main():
 
     # whether skip water pixels in the retrieval
     skip_water = True
+
+    # whether skip cloudy pixels in the retrieval
+    skip_cloud = True
 
     # get the filname list
     filelist = list(chain(*[glob(os.path.join(data_dir, pattern), recursive=True) for pattern in PATTERNS]))
@@ -130,7 +133,7 @@ def main():
 
         LOG.info(f"Reprocessing {prefix.replace('L3', 'L2')} ...")
         # only need to reprocess L2 once
-        reprocess_data(filenames[0], prefix, species, land_mask_source, skip_water, rad_dist, unortho_export)
+        reprocess_data(filenames[0], prefix, species, land_mask_source, skip_water, skip_cloud, rad_dist, unortho_export)
 
 
 if __name__ == '__main__':

@@ -95,7 +95,7 @@ class L2B():
 
         self.hyp = hyp
 
-    def retrieve(self, land_mask=True, plume_mask=None, land_mask_source='OSM', cluster=False, skip_water=True, rad_dist='normal'):
+    def retrieve(self, land_mask=True, plume_mask=None, land_mask_source='OSM', cluster=False, skip_water=True, skip_cloud=True, rad_dist='normal'):
         """run retrieval"""
         # retrieve trace gas
         for species in self.species:
@@ -108,6 +108,7 @@ class L2B():
                               land_mask_source=land_mask_source,
                               cluster=cluster,
                               skip_water=skip_water,
+                              skip_cloud=skip_cloud,
                               rad_dist=rad_dist,
                               species=species,
                               )
@@ -119,6 +120,7 @@ class L2B():
                               land_mask_source=land_mask_source,
                               cluster=cluster,
                               skip_water=skip_water,
+                              skip_cloud=skip_cloud,
                               rad_dist=rad_dist,
                               species=species,
                               )
@@ -147,6 +149,7 @@ class L2B():
     def _update_scene(self):
         # update Scene values
         self.hyp.scene['rgb'] = self.rgb_corr
+        self.hyp.scene['quality_mask'] = self.quality_mask_corr
         self.hyp.scene['segmentation'] = self.segmentation_corr
         self.hyp.scene['radiance_2100'] = self.radiance_2100_corr
 
@@ -192,6 +195,8 @@ class L2B():
 
         self.rgb_corr = self.hyp.terrain_corr(varname='rgb', rpcs=self.hyp.scene['rpc_coef_vnir'].sel(
             bands_vnir=650, method='nearest').item())
+        self.quality_mask_corr = self.hyp.terrain_corr(varname='quality_mask', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
+            bands_swir=mean_wvl, method='nearest').item())
         self.segmentation_corr = self.hyp.terrain_corr(varname='segmentation', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
             bands_swir=mean_wvl, method='nearest').item())
         self.radiance_2100_corr = self.hyp.terrain_corr(varname='radiance_2100', rpcs=self.hyp.scene['rpc_coef_swir'].sel(
@@ -230,6 +235,7 @@ class L2B():
 
         # orthorectification
         self.rgb_corr = self.hyp.terrain_corr(varname='rgb', rpcs=rpcs, gcps=gcps, gcp_crs=gcp_crs)
+        self.quality_mask_corr = self.hyp.terrain_corr(varname='quality_mask', rpcs=rpcs, gcps=gcps, gcp_crs=gcp_crs)
         self.segmentation_corr = self.hyp.terrain_corr(varname='segmentation', rpcs=rpcs, gcps=gcps, gcp_crs=gcp_crs)
         self.sza_corr = self.hyp.terrain_corr(varname='sza', rpcs=rpcs, gcps=gcps, gcp_crs=gcp_crs)
         self.saa_corr = self.hyp.terrain_corr(varname='saa', rpcs=rpcs, gcps=gcps, gcp_crs=gcp_crs)
@@ -307,7 +313,7 @@ class L2B():
         for species in self.species:
             species_vnames.extend([species, f'{species}_comb', f'{species}_denoise',
                                   f'{species}_comb_denoise', f'{species}_mask'])
-        vnames = ['u10', 'v10', 'sp', 'rgb', 'segmentation', 'radiance_2100', 'sza', 'saa', 'vza', 'vaa','raa', 'sga']
+        vnames = ['u10', 'v10', 'sp', 'rgb', 'quality_mask', 'segmentation', 'radiance_2100', 'sza', 'saa', 'vza', 'vaa','raa', 'sga']
         vnames.extend(species_vnames)
         loaded_names = [x['name'] for x in self.hyp.scene.keys()]
 
@@ -360,6 +366,12 @@ def main():
     # whether skip water pixels in the retrieval
     skip_water = True
 
+    # whether skip cloudy pixels in the retrieval
+    skip_cloud = True
+
+    # print the settings
+    LOG.info(f'Settings: {{species={species}, skip_water={skip_water}, skip_cloud={skip_cloud}}}.')
+
     # root directory of input data
     data_dir = '../hypergas/resources/test_data/ch4_cases/'
     # ---- settings --- #
@@ -385,7 +397,7 @@ def main():
         if not l2b_scene.skip:
             # rad_dist: 'normal', 'lognormal'
             # land_mask_source: 'OSM', 'GSHHS', 'Natural Earth'
-            l2b_scene.retrieve(rad_dist='normal', cluster=False, land_mask_source='OSM', skip_water=skip_water)
+            l2b_scene.retrieve(rad_dist='normal', cluster=False, land_mask_source='OSM', skip_water=skip_water, skip_cloud=skip_cloud)
 
             if unortho_export:
                 # output unortho data

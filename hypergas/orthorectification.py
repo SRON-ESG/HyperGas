@@ -200,9 +200,6 @@ class Ortho():
         if len(data.dims) == 2:
             data = data.expand_dims(dim={'band': 1})
 
-        # load into normal array
-        if 'source' in data.dims:
-            source_coord = data.coords['source'].values
         dims = data.dims
         data_sizes = data.shape
 
@@ -294,7 +291,10 @@ class Ortho():
 
         # assign source coords for wind data if exists
         if 'source' in dims:
-            da_ortho.coords['source'] = source_coord
+            da_ortho.coords['source'] = data.coords['source'].values
+        # assign 'quality_flag' coords for quality_mask
+        if 'quality_flag' in dims:
+            da_ortho.coords['quality_flag'] = data.coords['quality_flag'].values
 
         # copy attrs
         da_ortho = da_ortho.rename(self.scene[self.varname].name)

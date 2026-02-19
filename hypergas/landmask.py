@@ -132,7 +132,7 @@ def Land_mask(lons, lats, source='OSM'):
 
     else:
         raise ValueError(
-            "Please input the correct land data source ('GSHHS' or 'Natural Earth'). {land_data} is not supported")
+            "Please input the correct land data source ('OSM', 'GSHHS' or 'Natural Earth'). {land_data} is not supported")
 
     LOG.info(f'Creating land mask using {source} data (Done)')
     # save to DataArray

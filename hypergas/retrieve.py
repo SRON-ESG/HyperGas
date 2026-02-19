@@ -26,7 +26,7 @@ class MatchedFilter():
     def __init__(self, scn, wvl_intervals, species='ch4',
                  mode='column', rad_dist='normal', rad_source='model',
                  land_mask=True, land_mask_source='OSM', cluster=False,
-                 skip_water=True, plume_mask=None, scaling=None,
+                 skip_water=True, skip_cloud=True, plume_mask=None, scaling=None,
                  ):
         """Initialize MatchedFilter.
 
@@ -55,13 +55,16 @@ class MatchedFilter():
             Whether apply the matched filter to continental and oceanic pixels seperately.
             Default: True.
         land_mask_source : str
-            The data source of land mask ("OSM", "GSHHS", or "Natural Earth").
+            The data source of land mask ("auto", "OSM", "GSHHS", or "Natural Earth").
             Default: "OSM".
         cluster : bool
             Whether apply the pixel classification.
             Default: False.
         skip_water : bool
             Whether skip retrieval for water pixels, whose segmentation value is zero if cluster is False.
+            Default: True.
+        skip_cloud : bool
+            Whether skip retrieval for cloudy pixels.
             Default: True.
         plume_mask : :class:`numpy.ndarray`
             2D array, 0: neglected pixels, 1: plume pixels.
@@ -104,13 +107,23 @@ class MatchedFilter():
         self.land_mask = land_mask
         self.skip_water = skip_water
 
+        # calculate the cloud mask (0: clean, 1: cloud)
+        self.cloud_mask = scn['quality_mask'].sel(quality_flag=['cloud', 'cirrus']).any(dim='quality_flag')
+        self.skip_cloud = skip_cloud
+
         if cluster:
             segmentation = PCA_kmeans(self.radiance)
         elif land_mask:
-            # get lon and lat from area attrs
-            lons, lats = self.radiance.attrs['area'].get_lonlats()
-            # create land mask
-            segmentation = Land_mask(lons, lats, land_mask_source)
+            # create land mask (0: ocean/lake, 1: land)
+            if land_mask_source == 'auto':
+                segmentation = (scn['quality_mask'].sel(quality_flag='water') == 0).astype(float)
+                segmentation = segmentation.drop_vars(['quality_flag'])
+                segmentation.attrs = ''
+                segmentation.attrs['description'] = f'land mask (0: ocean/lake, 1: land) derived by TOA around 1000 nm.'
+            else:
+                # get lon and lat from area attrs
+                lons, lats = self.radiance.attrs['area'].get_lonlats()
+                segmentation = Land_mask(lons, lats, land_mask_source)
         else:
             # set all pixels as the same type
             segmentation = xr.DataArray(np.ones((self.radiance.sizes['y'],
@@ -140,7 +153,7 @@ class MatchedFilter():
     #         scaler.fit(self.radiance)
     #     return scaler.transform(data)
 
-    def col_matched_filter(self, radiance, segmentation, plume_mask, K):
+    def col_matched_filter(self, radiance, segmentation, cloud_mask, plume_mask, K):
         """Apply the matched filter by column.
 
         Parameters
@@ -149,6 +162,8 @@ class MatchedFilter():
             The radiance DataArray for one column.
         segmentation : :class:`~xarray.DataArray`, same shape as ``radiance``
             The segmentation of pixels (e.g., land and water mask).
+        cloud_mask : :class:`~xarray.DataArray`
+            The cloud mask DataArray (1: cloud).
         plume_mask : :class:`~xarray.DataArray`, same shape as ``radiance``
             Since the matched filter assumes plume signals are sparse (i.e., present in only a small fraction of pixels),
             it is better to exclude pixels within identified plume masks,
@@ -180,6 +195,12 @@ class MatchedFilter():
                 segmentation_mask = segmentation == label
                 mask = ~np.isnan(radiance).any(axis=-1)
                 mask = mask * segmentation_mask
+
+                # set cloudy pixel as 0 and skip retrieval
+                if self.skip_cloud:
+                    LOG.debug('Skip retrieval for the cloudy pixels.')
+                    mask *= ~cloud_mask
+
                 # we need to create new mask with plume instead of overwrite
                 #   because we want to keep retrieval results over plume pixels
                 mask_exclude_plume = mask * plume_mask.astype(bool)
@@ -271,10 +292,11 @@ class MatchedFilter():
         alpha = xr.apply_ufunc(self.col_matched_filter,
                                self.radiance.transpose(..., 'bands'),
                                self.segmentation,
+                               self.cloud_mask,
                                self.plume_mask,
                                self.K,
                                exclude_dims=set(('y', 'bands')),
-                               input_core_dims=[['y', 'bands'], ['y'], ['y'], ['bands']],
+                               input_core_dims=[['y', 'bands'], ['y'], ['y'], ['y'], ['bands']],
                                output_core_dims=[['y', 'bands']],
                                vectorize=True,
                                dask='parallelized',
