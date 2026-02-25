@@ -42,10 +42,35 @@ with col2:
         filelist = [os.path.basename(file) for file in html_list]
         # we do not want to read the html of masked plume
         filelist = [file for file in filelist if 'plume' not in file]
-        filename = st.selectbox("Pick L2 HTML file here:",
-                                filelist,
-                                index=0,
-                                )
+
+        # Initialize once
+        if "selected_option" not in st.session_state:
+            st.session_state.selected_option = filelist[0]
+
+        def go_previous():
+            current_index = filelist.index(st.session_state.selected_option)
+            if current_index > 0:
+                st.session_state.selected_option = filelist[current_index - 1]
+
+        def go_next():
+            current_index = filelist.index(st.session_state.selected_option)
+            if current_index < len(filelist) - 1:
+                st.session_state.selected_option = filelist[current_index + 1]
+
+        col_left, col_middle, col_right = st.columns([1, 5, 1])
+
+        with col_left:
+            st.button("⬅️", on_click=go_previous)
+
+        with col_middle:
+            filename = st.selectbox(
+                f"**Pick L2 HTML file here: (totally {len(filelist)})**",
+                filelist,
+                key="selected_option",
+            )
+
+        with col_right:
+            st.button("➡️", on_click=go_next)
 
         # get the full path
         st.success(filename)
