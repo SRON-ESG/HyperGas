@@ -7,11 +7,13 @@
 # hypergas is a library to retrieve trace gases from hyperspectral satellite data
 """Download DEM data for the region observed by the hyperspectral satellite."""
 
-import os
 import logging
 import rasterio
+import numpy as np
 from pathlib import Path
+from rasterio.transform import from_bounds
 from dem_stitcher.stitcher import stitch_dem
+from dem_stitcher.exceptions import NoDEMCoverage
 
 
 LOG = logging.getLogger(__name__)
@@ -85,6 +87,30 @@ class DEM():
             ymax + buffer,
         ]
 
+    def _zero_dem_fallback(self):
+        resolution = 1 / 3600  # GLO-30
+
+        minx, miny, maxx, maxy = self.bounds
+
+        width = int(np.ceil((maxx - minx) / resolution))
+        height = int(np.ceil((maxy - miny) / resolution))
+
+        dem_array = np.zeros((height, width), dtype=np.float32)
+
+        transform = from_bounds(minx, miny, maxx, maxy, width, height)
+
+        profile = {
+            "driver": "GTiff",
+            "dtype": "float32",
+            "width": width,
+            "height": height,
+            "count": 1,
+            "crs": "EPSG:4326",
+            "transform": transform,
+        }
+
+        return dem_array, profile
+
     def download(self, overwrite: bool = False) -> Path:
         """
         Download the DEM and save it to disk.
@@ -111,12 +137,21 @@ class DEM():
         )
 
         # Fetch DEM data
-        dem_array, profile = stitch_dem(
-            self.bounds,
-            dem_name=self.dem_name,
-            dst_ellipsoidal_height=self.dst_ellipsoidal_height,
-            dst_area_or_point=self.dst_area_or_point,
-        )
+        try:
+            dem_array, profile = stitch_dem(
+                self.bounds,
+                dem_name=self.dem_name,
+                dst_ellipsoidal_height=self.dst_ellipsoidal_height,
+                dst_area_or_point=self.dst_area_or_point,
+            )
+        except (NoDEMCoverage, ValueError, RuntimeError) as exc:
+            LOG.warning(
+                "DEM unavailable for bounds %s. "
+                "Assuming ocean-only region. Reason: %s",
+                self.bounds,
+                exc,
+            )
+            dem_array, profile = self._zero_dem_fallback()
 
         # Ensure output directory exists
         self.file_dem.parent.mkdir(parents=True, exist_ok=True)

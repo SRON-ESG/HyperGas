@@ -116,7 +116,7 @@ class Ortho():
     def _download_dem(self):
         """Download GLO-30 DEM data."""
         # download DEM data and update config
-        dem = DEM(self.data.attrs['filename'], self.bounds)
+        dem = DEM(filename=self.data.attrs['filename'], bounds=self.bounds)
         self.file_dem = dem.file_dem
         self.dem_name = dem.dem_name
         dem.download()
