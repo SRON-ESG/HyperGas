@@ -269,10 +269,9 @@ if __name__ == '__main__':
     # whether plot pre-saved markers on map
     plot_markers = False
 
-
     # the chunk of files for each html file
     #   don't set it too high if you meet RAM error
-    chunk = 3
+    chunk = 5
 
     # pad (degree) around the specific location
     #   if it is None, we will plot the whole scene

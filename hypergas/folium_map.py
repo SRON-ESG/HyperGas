@@ -273,7 +273,9 @@ class Map():
                 if cmap_vmax < vmin:
                     cmap_vmax = vmin + 1
 
-            fig, ax = plt.subplots(subplot_kw=dict(projection=self._get_cartopy_crs_from_epsg(out_epsg)))
+            fig, ax = plt.subplots(subplot_kw=dict(projection=self._get_cartopy_crs_from_epsg(out_epsg)),
+                                   num=1, clear=True,
+                                   )
 
             # because we use longitude and latitude, we need to specify the transform.
             input_crs = self._get_cartopy_crs_from_epsg(4326)
@@ -307,6 +309,8 @@ class Map():
         self.img_bounds = [[extent_4326[2], extent_4326[0]], [extent_4326[3], extent_4326[1]]]
 
         # clean vars
+        fig.clear()
+        plt.close(fig)
         del da_ortho, fig, ax
         gc.collect()
 

@@ -35,6 +35,7 @@ from shapely.geometry.point import Point
 from matplotlib.colors import ListedColormap
 
 from utils import get_dirs
+from l2b_plot import read_markers
 
 warnings.filterwarnings("ignore")
 
@@ -186,12 +187,12 @@ def sron_ime(fig, ax, ds_all, ds, df, gas, proj, plot_minimal, pad=None):
 
         title = df['datetime'].item().replace('T', ' ') + '\n' \
             + 'Lat: ' + str(df['plume_latitude'].round(4).item()) + ' Lon: ' + str(df['plume_longitude'].round(4).item()) + '\n' \
-            + str(round(df['emission'].item()/1e3, 2)) + ' t/h $\pm$ ' \
-            + str(round(df['emission_uncertainty']/df['emission']*100, 2).item()) + '%'
+            + 'IME: '+ str(round(df['emission'].item()/1e3, 1)) + ' t/h $\pm$ ' \
+            + str(round(df['emission_uncertainty']/df['emission']*100, 1).item()) + '%'
 
-    # add name to title if exists
-    if not df['name'].isnull().item():
-        title = str(df['name'].item()) + '\n' + title
+    ## add name to title if exists
+    #if not df['name'].isnull().item():
+    #    title = str(df['name'].item()) + '\n' + title
     ax.set_title(title, fontweight='bold')
 
     return extent, vmax
@@ -219,8 +220,8 @@ def sron_csf(fig, ax_ime, ax_csf, ds_csf, df):
     ax_csf.axhline(y=ds_csf['emission_rate'].mean()/1e3, c='orange', linestyle='--')
     ax_csf.set_xlabel('CSF lines')
     ax_csf.set_ylabel('Emission Rate (t h$^{-1}$)', c='C0')
-    title = str(round(df['emission_csf'].item()/1e3, 2)) + ' t/h $\pm$ ' \
-        + str(round(df['emission_csf_uncertainty']/df['emission_csf']*100, 2).item()) + '%'
+    title = str(round(df['emission_csf'].item()/1e3, 1)) + ' t/h $\pm$ ' \
+        + str(round(df['emission_csf_uncertainty']/df['emission_csf']*100, 1).item()) + '%'
     ax_csf.set_title(f'CSF: {title}', fontweight='bold')
 
     ds_csf.close()
@@ -252,7 +253,7 @@ def cm_ime(fig, ax, ds_all, ds, df, gas, proj, plot_minimal, extent, vmax):
     ax.set_title(title, fontweight='bold')
 
 
-def plot_data(filename, savename, plot_csf, plot_cm, plot_minimal, plot_full_field, pad):
+def plot_data(filename, savename, plot_csf, plot_cm, plot_minimal, plot_full_field, plot_markers, pad):
     """Plot L3 data"""
     LOG.info(f'Plotting {filename}')
 
@@ -289,7 +290,7 @@ def plot_data(filename, savename, plot_csf, plot_cm, plot_minimal, plot_full_fie
 
     proj = ccrs.PlateCarree()
 
-    fig = plt.figure(layout='compressed')
+    fig = plt.figure(layout='compressed', num=1, clear=True)
 
     # only plot csf if CSF data is available
     if plot_minimal:
@@ -323,6 +324,10 @@ def plot_data(filename, savename, plot_csf, plot_cm, plot_minimal, plot_full_fie
 
     # plot SRON IME results
     extent, vmax = sron_ime(fig, ax_ime, ds_all, ds, df, gas, proj, plot_minimal, pad)
+
+    if plot_markers:
+        df_marker = read_markers()
+        ax_ime.scatter(df_marker['longitude'], df_marker['latitude'], color='k', linewidth=2, marker='^', fc='none', s=200)
 
     # plot SRON csf results
     if plot_csf:
@@ -374,11 +379,13 @@ def plot_data(filename, savename, plot_csf, plot_cm, plot_minimal, plot_full_fie
     LOG.info(f'Exported to {savename}')
     fig.savefig(savename, bbox_inches='tight', pad_inches=0, dpi=300)
 
+    fig.clear()
+    plt.close(fig)
     del ds, df, fig
     gc.collect()
 
 
-def main(skip_exist=True, plot_csf=True, plot_minimal=False, plot_full_field=False, pad=None):
+def main(skip_exist=True, plot_csf=True, plot_minimal=False, plot_full_field=False, plot_markers=False, pad=None):
     # get the filname list
     filelist = list(chain(*[glob(os.path.join(data_dir, pattern), recursive=True) for pattern in PATTERNS]))
 
@@ -397,9 +404,9 @@ def main(skip_exist=True, plot_csf=True, plot_minimal=False, plot_full_field=Fal
             if os.path.isfile(savename):
                 LOG.info(f'{savename} exists, skip ...')
             else:
-                plot_data(filename, savename, plot_csf, plot_cm, plot_minimal, plot_full_field, pad)
+                plot_data(filename, savename, plot_csf, plot_cm, plot_minimal, plot_full_field, plot_markers, pad)
         else:
-            plot_data(filename, savename, plot_csf, plot_cm, plot_minimal, plot_full_field, pad)
+            plot_data(filename, savename, plot_csf, plot_cm, plot_minimal, plot_full_field, plot_markers, pad)
 
 
 if __name__ == '__main__':
@@ -426,6 +433,9 @@ if __name__ == '__main__':
     # whether plot the full field instead of plume
     plot_full_field = False
 
+    # whether plot marker dataset
+    plot_markers = False
+
     for data_dir in lowest_dirs:
         LOG.info(f'Plotting data under {data_dir}')
-        main(skip_exist, plot_csf, plot_minimal, plot_full_field, pad)
+        main(skip_exist, plot_csf, plot_minimal, plot_full_field, plot_markers, pad)
