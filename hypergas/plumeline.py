@@ -319,6 +319,8 @@ def create_perpendicular_lines_equal_arc(w, rotation_angle, x_offset, y_offset,
 
         # Transform center point to original space
         X_rot = feature(np.array([x_rot]), len(w)-1)
+        w = np.squeeze(w)
+        X_rot = np.squeeze(X_rot)
         y_rot = float(X_rot.dot(w))
 
         x_center = x_rot * cos_theta - y_rot * sin_theta + x_offset
