@@ -21,6 +21,7 @@ from pyresample import geometry, kd_tree
 
 from l2b_process import L2B
 from utils import get_dirs
+from hypergas.unit_conversion import convert_units
 
 # set the logger level
 logging.basicConfig(level=logging.INFO,
@@ -72,6 +73,42 @@ def reprocess_data(filename, prefix, species, land_mask_source, skip_water, skip
     l2b_scene.plume_mask()
     l2b_scene.to_netcdf()
 
+def _exceeds_pixel_threshold(filenames, species, ppb_threshold=1200, pixel_count_threshold=5):
+    """
+    Check whether more than `pixel_count_threshold` pixels, summed
+    across all `filenames`, exceed `ppb_threshold` for `species`.
+
+    Each file's native units are read from ds[species].attrs['units']
+    and converted to ppb before comparing against the threshold.
+
+    Parameters
+    ----------
+    filenames : list of str
+        Paths to the plume .nc files to check.
+    species : str
+        Variable name to read from each dataset (e.g. 'ch4').
+    ppb_threshold : float
+        Concentration threshold in ppb.
+    pixel_count_threshold : int
+        Number of pixels (summed across all files) that must be
+        exceeded to trigger the lognormal filter.
+
+    Returns
+    -------
+    bool
+        True if the total exceedance count is greater than
+        `pixel_count_threshold`.
+    """
+    n_exceed = 0
+    for f in filenames:
+        with xr.open_dataset(f) as ds:
+            da = ds[species]
+            native_units = da.attrs['units']
+            values_ppb = convert_units(da.values, native_units, 'ppb')
+            n_exceed += (values_ppb > ppb_threshold).sum()
+
+    LOG.info(f'{n_exceed} pixels across all files exceed {ppb_threshold} ppb')
+    return n_exceed > pixel_count_threshold
 
 def main():
     # set the name of trace gas species
@@ -119,14 +156,12 @@ def main():
         # calculate the highest emission rate for 'auto' MF
         if rad_dist == 'auto':
             if species == 'ch4':
-                df_emiss = pd.concat((pd.read_csv(f) for f in csv_filenames), ignore_index=True)
-                q_max = df_emiss['emission'].max() / 1e3
-                if q_max > 10:
+                if _exceeds_pixel_threshold(filenames, species):
                     rad_dist = 'lognormal'
-                    LOG.info(f'Using LMF because Q_max ({np.round(q_max, 1)}) > 10 t/h')
+                    LOG.info('Using LMF because pixel exceedance threshold was met')
                 else:
                     rad_dist = 'normal'
-                    LOG.info(f'Using MF because Q_max ({np.round(q_max, 1)}) <= 10 t/h')
+                    LOG.info('Using MF because pixel exceedance threshold was not met')
             else:
                 rad_dist = 'normal'
                 LOG.info(f'Using MF because the species {species} is not ch4')
