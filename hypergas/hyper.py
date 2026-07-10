@@ -27,6 +27,7 @@ from .tle import TLE
 from .wind import Wind
 from .a_priori_mask import Mask
 from .quality_mask import QualityMask
+from .unit_conversion import convert_units
 
 AVAILABLE_READERS = ['hsi_l1b', 'emit_l1b', 'hyc_l1']
 LOG = logging.getLogger(__name__)
@@ -246,21 +247,6 @@ class Hyper():
             for k in _ATTR_KEYS
             if k in da.attrs
         }
-
-    def _scale_units(self, units):
-        """Scale units from ppm"""
-        if units == 'ppm':
-            scale = 1
-        elif units == 'ppm m':
-            scale = 1/1.25e-4
-        elif units == 'ppb':
-            scale = 1e3
-        elif units == 'umol m-2':
-            scale = 1000/2900*1e6  # ppm -> umol m-2
-        else:
-            raise ValueError(f'We do not support converting ppm to {units}.')
-
-        return scale
 
     def _rpc_transform(self, scn, rpc, bounds):
         """
@@ -513,9 +499,6 @@ class Hyper():
             raise ValueError(
                 f"The rad_source in the config.yaml file should be 'model' or 'lut'. {rad_source} is not supported.")
 
-        units = self.species_setting[species]['units']
-        unit_scale = self._scale_units(units)
-
         if (rad_source == 'lut') and (species not in ['ch4', 'co2']):
             raise ValueError(f"Please input a correct species name (ch4 or co2). {species} is not supported by LUT.")
 
@@ -529,7 +512,8 @@ class Hyper():
             enhancement.load()
 
         # set units
-        enhancement *= unit_scale
+        units = self.species_setting[species]['units']
+        enhancement = convert_units(enhancement, input_unit='ppm', output_unit=units)
 
         # copy attrs
         segmentation_attrs = {'standard_name': 'segmentation',
