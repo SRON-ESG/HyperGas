@@ -175,3 +175,13 @@ csf_calibration: # ueff = beta1*wspd + beta2
         beta1: 1.13
         beta2: 0.
         resid: -0.03
+
+ime_mask_err: # plume masking error (%)
+  EMIT: 8
+  EnMAP: 10
+  PRISMA: 15
+
+csf_mask_err: # plume masking error (%)
+  EMIT: 13
+  EnMAP: 16
+  PRISMA: 20

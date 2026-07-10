@@ -48,6 +48,9 @@ with open(os.path.join(_dirname, 'config.yaml')) as f:
     ime_calibration_info = settings['ime_calibration']
     csf_calibration_info = settings['csf_calibration']
 
+    ime_mask_err = settings['ime_mask_err']
+    csf_mask_err = settings['csf_mask_err']
+
 
 class IME_CSF():
     def __init__(self, sensor,
@@ -97,6 +100,7 @@ class IME_CSF():
         self.land_only = land_only
         self.land_mask_source = land_mask_source
 
+        self.sensor = sensor
         self.sensor_info = sensor_info[sensor]
 
         self.ds = xr.open_dataset(self.plume_nc_filename, decode_coords='all')
@@ -703,8 +707,11 @@ class IME_CSF():
             LOG.info('Calculating calibration error')
             err_calib = self._calc_calibration_error_csf(C_lines, u_eff)
 
+            # 4. plume masking error
+            err_mask = Q * csf_mask_err[self.sensor] * 0.01
+
             # sum error
-            Q_err = np.sqrt(err_random**2 + err_wind**2 + err_calib**2)
+            Q_err = np.sqrt(err_random**2 + err_wind**2 + err_calib**2 + err_mask**2)
 
             return ds_csf, n_csf, l_csf, u_eff, Q*3600, Q_err*3600, \
                 err_random*3600, err_wind*3600, err_calib*3600  # kg/h
@@ -833,8 +840,11 @@ class IME_CSF():
         LOG.info('Calculating calibration error')
         err_calib = self._calc_calibration_error(IME, u_eff, l_eff)
 
+        # 4. plume masking error
+        err_mask = Q * ime_mask_err[self.sensor] * 0.01
+
         # sum error
-        Q_err = np.sqrt(err_random**2 + err_wind**2 + err_calib**2)
+        Q_err = np.sqrt(err_random**2 + err_wind**2 + err_calib**2 + err_mask**2)
 
         ds.close()
         ds_original.close()
