@@ -185,9 +185,9 @@ def sron_ime(fig, ax, ds_all, ds, df, gas, proj, plot_minimal, pad=None):
         ax.text(lon_min+pad/4, lat_min+pad/9, f'{np.round(wspd_geosfp, 2)} m/s (GEOS-FP)',
                 transform=proj, color='w', fontsize=10, weight='bold')
 
-        title = df['datetime'].item().replace('T', ' ') + '\n' \
+        title = df['platform'].item() + ' on ' + df['datetime'].item().replace('T', ' ') + '\n' \
             + 'Lat: ' + str(df['plume_latitude'].round(4).item()) + ' Lon: ' + str(df['plume_longitude'].round(4).item()) + '\n' \
-            + 'IME: '+ str(round(df['emission'].item()/1e3, 1)) + ' t/h $\pm$ ' \
+            + 'IME: ' + str(round(df['emission'].item()/1e3, 1)) + ' t/h $\pm$ ' \
             + str(round(df['emission_uncertainty']/df['emission']*100, 1).item()) + '%'
 
     ## add name to title if exists
