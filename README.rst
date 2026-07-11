@@ -9,7 +9,7 @@ HyperGas
 The HyperGas package is a python library for retrieving trace gases enhancements from hyperspectral satellite data and writing it to different formats (NetCDF, PNG, and HTML).
 HyperGas also supports generating plume masks and calculating gas emission rates.
 
-Installation
-============
+Documentation
+=============
 
 The documentation is available at https://hypergas.readthedocs.io/.
