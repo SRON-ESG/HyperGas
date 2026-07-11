@@ -1,3 +1,5 @@
+.. _batch_processing:
+
 ================
 Batch Processing
 ================
@@ -160,7 +162,7 @@ The script supports modifying following parameters:
 
 - ``root_dir (str)``: The root_dir of the L2 data.
 
-- ``plot_markers (bool)``: Whether to plot pre-saved markers (see :doc:`config`) on the map.
+- ``plot_markers (bool)``: Whether to plot pre-saved markers (see :ref:`Predefined Markers <config_markers>`) on the map.
 
 - ``chunk (int)``: Number of files per HTML chunk. Reduce this value if you encounter memory errors.
 
@@ -168,13 +170,13 @@ The script supports modifying following parameters:
 
 Example of an HTML output:
 
-.. image:: ../fig/l2_html.jpg
+.. image:: ./fig/l2_html.jpg
 
 The layers on the left have two main components: *group* and *variables*.
 The *group* level controls all sub-layers: RGB, radiance, and gas product map.
 Wind arrows are positioned at the scene center and can be repositioned by clicking and dragging:
 
-.. image:: ../fig/l2_html_wind.jpg
+.. image:: ./fig/l2_html_wind.jpg
 
 .. note::
 
@@ -189,12 +191,12 @@ L2 --> L3/L4
 Step 1: Mark plume source locations
 -----------------------------------
 
-To generate L3 and L4 products, users need to add the plume markers using :doc:`plume_app` (See :ref:`plume_marker`).
+To generate L3 and L4 products, users need to add the plume markers using :ref:`plume_app` (See :ref:`Plume Marker <plume_marker>`).
 
 Step 2: Emission estimation
 ---------------------------
 
-Next, uesers can run ``l3_process.py`` or use the app (See :ref:`plume_emission`) to generate plume masks and estimate emission rates.
+Next, uesers can run ``l3_process.py`` or use the app (See :ref:`Plume APP Emission page <plume_emission>`) to generate plume masks and estimate emission rates.
 
 .. note::
 
@@ -221,10 +223,10 @@ Supported parameters of ``l3_process.py``:
 - ``wspd_manual (float or None)``: Manually override wind speed with zero uncertainty. If ``None``, the reanalysis wind speed from the CSV file is used.
 
 - ``azimuth_diff_max (float)``: The maximum of azimuth of minimum rotated rectangle.
-  - keep this as default unless you find obvious wrong plume pixels. Refer to :doc:`plume_mask` for guidance on adjustments.
+  - keep this as default unless you find obvious wrong plume pixels. Refer to :ref:`plume_mask` for guidance on adjustments.
 
 - ``dist_max``: The maximum of dilation distance (meter)
-  - keep this as default unless you find obvious wrong plume pixels. Refer to :doc:`plume_mask` for guidance on adjustments.
+  - keep this as default unless you find obvious wrong plume pixels. Refer to :ref:`plume_mask` for guidance on adjustments.
 
 
 Step 3: Plot plume summary
@@ -232,7 +234,7 @@ Step 3: Plot plume summary
 
 Once the emission estimation is verified, users can run ``l3_plot.py`` to generate the scientific plot of the plume, as shown below:
 
-.. image:: ../fig/estimation_case.jpg
+.. image:: ../userguide/l4/fig/estimation_case.jpg
 
 .. hint::
 

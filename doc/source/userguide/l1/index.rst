@@ -1,3 +1,14 @@
+Level 1 Product
+---------------
+
+To read the hyperspectral L1 radiance data, users can choose between two options:
+
+- Use `Satpy <https://satpy.readthedocs.io/>`_ to read the raw data in :class:`~xarray.DataArray` and :class:`~xarray.Dataset`.
+- Use the :class:`~hypergas.hyper.Hyper` class from HyperGas, which is built on top of `Satpy <https://satpy.readthedocs.io/>`_.
+  This approach reads the required data for trace gas retrieval and combines it into a single :class:`~xarray.Dataset` with user-friendly coordinates.
+
+.. _reading:
+
 =======
 Reading
 =======

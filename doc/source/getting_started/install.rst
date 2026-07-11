@@ -1,10 +1,12 @@
+.. _install:
+
 =========================
 Installation Instructions
 =========================
 
 HyperGas can be installed through conda-forge (using conda), PyPI (using pip), or directly from source (using pip with Git).
 The instructions below cover installing stable releases of HyperGas.
-For guidance on installing the development or unstable version, see :doc:`dev_guide`.
+For guidance on installing the development or unstable version, see :ref:`devinstall`.
 
 Conda-based Installation
 ========================

@@ -1,13 +1,9 @@
-=================
-Developer's Guide
-=================
-
 .. _devinstall:
 
 Development installation
 ========================
 
-For general installation guidance, please check the :doc:`install` page.
+For general installation guidance, please check the :ref:`install` page.
 When setting up HyperGas for development, work from a cloned Git repository and install it in editable mode to ensure your local modifications are picked up automatically.
 It’s best practice to create an isolated environment, such as a conda environment for this purpose.
 For example, with conda you might run:
@@ -35,6 +31,8 @@ The second command must be executed from the top-level directory of your cloned 
 
 At this point, any changes you make to the Python files in your clone will be picked up immediately by your active conda environment.
 
+.. _add_gas:
+
 Adding a Custom Gas Retrieval
 =============================
 
@@ -61,6 +59,8 @@ Below is an example of how to include carbon monoxide (CO):
     - Make sure that the ``concentrations (ppm)`` cover a typical emission range.
     - The term ``units`` specifies the units used for the L2 product outputs.
 
+.. _wind_calib:
+
 Modifying wind calibrations
 ===========================
 
@@ -76,7 +76,7 @@ Below is an example of IME calibration for a point source detected by EMIT:
           EMIT:
             alpha1: 0.
             alpha2: 0.43
-            alpha3: 0.35
+            alpha3: 0.36
             resid: 0.05
 
 Build documentation

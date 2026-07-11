@@ -48,21 +48,21 @@ Retrieval output:
         description:          methane enhancement derived by the 2110~2450 nm window
         matched_filter:       normal matched filter
 
-HyperGas provides different options for *retrieval algorithm* and *watermask/cluster*:
+HyperGas provides different options for :ref:`Retrieval Algorithms <algorithms>` and :ref:`Landmask Databases <databases>`:
 
     -  algorithms
         - matched filter
         - lognormal matched filter
         - cluster-tuned matched filter
 
-    -  watermask/cluster
+    -  landmask/cluster
         - OSM and ESA WorldCover
         - the Global Self-consistent, Hierarchical, High-resolution Geography database (GSHHG)
         - the Natural Earth dataset
         - k-means clustering
 
 The default wavelength windows for each trace gas are defined in ``<HyperGas_dir>/hypergas/config.yaml``.
-See :doc:`dev_guide` for more information.
+See :ref:`add_gas` for more information.
 Users can test wavelength ranges temporarily by modifying the ``wvl_intervals`` parameter,
 which can be a list or multi-list.
 

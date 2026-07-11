@@ -1,3 +1,8 @@
+Level 3 Product
+---------------
+
+.. _plume_mask:
+
 =============
 Plume Masking
 =============
@@ -12,7 +17,7 @@ To address this issue, HyperGas provides automatic plume detection and masking u
 A priori mask
 =============
 
-Since the background field can be noisy, we recommend denoising the data first, as described in :doc:`denoising`.
+Since the background field can be noisy, we recommend denoising the data first, as described in :ref:`denoising`.
 After generating a denoised gas enhancement field, HyperGas uses the `tobac <https://github.com/tobac-project/tobac>`_
 package to detect high-value features and create a mask via watershed segmentation.
 For further details, refer to the `tobac's documentation <https://tobac.readthedocs.io/en/latest/>`_.
@@ -53,7 +58,7 @@ and nearby areas with high enhancement values.
    >>>     ax.set_ylim(250, 350)
    >>>     ax.set_title('Zoom in')
 
-.. image:: ../fig/plume_mask.jpg
+.. image:: ./fig/plume_mask.jpg
 
 .. _pick_plume:
 
@@ -99,4 +104,4 @@ raising the plume distance limit from 180 m to 360 m.
    >>> ax.set_xlim(49.6, 49.7)
    >>> ax.set_ylim(40.2, 40.3)
 
-.. image:: ../fig/plume_mask_sel.jpg
+.. image:: ./fig/plume_mask_sel.jpg

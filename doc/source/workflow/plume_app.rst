@@ -1,3 +1,5 @@
+.. _plume_app:
+
 =========
 Plume APP
 =========
@@ -72,7 +74,7 @@ A green notification bar confirms the successful upload of the GeoJSON file.
 Click the "X" button to clear the cache.
 If the same path is used later, a warning will be shown.
 
-.. image:: ../fig/app_plume_marker.jpg
+.. image:: ./fig/app_plume_marker.jpg
 
 .. _plume_emission:
 
@@ -94,7 +96,7 @@ The Emission page includes a primary preview window and three panels:
 Load data
 ^^^^^^^^^
 
-.. image:: ../fig/app_plume_emission_1.jpg
+.. image:: ./fig/app_plume_emission_1.jpg
     :width: 400
     :align: center
 
@@ -104,7 +106,7 @@ If the “I only want to check plume HTML files” toggle is enabled, only exist
 Create plume mask
 ^^^^^^^^^^^^^^^^^
 
-.. image:: ../fig/app_plume_emission_2.jpg
+.. image:: ./fig/app_plume_emission_2.jpg
 
 Once plume source locations are defined, select the target source and connect a priori masks.
 Refer to :ref:`a_priori_mask` for the definition of a priori mask.
@@ -138,20 +140,20 @@ Because the default settings only include the first part of plume,
 adjustments are necessary for the truncated plume.
 Typically, there are usually two options: 1. increasing the azimuth difference (``az_max``), 2. increasing the dilation distance (``dist_max``).
 
-.. image:: ../fig/plume_mask_comp.jpg
+.. image:: ./fig/plume_mask_comp.jpg
 
 .. note::
     When generating land masks, three data sources are supported: "OSM", "GSHHS", and "Natural Earth".
     OSM is used by default due to its higher resolution and accuracy.  
-    Choose carefully based on your region of interest—see :ref:`databases` for more details.
+    Choose carefully based on your region of interest—see :ref:`Landmask Databases <databases>` for more details.
 
 Emission estimation
 ^^^^^^^^^^^^^^^^^^^
 
-.. image:: ../fig/app_plume_emission_3.jpg
+.. image:: ./fig/app_plume_emission_3.jpg
 
 The emission estimation tool supports both Integrated Methane Enhancement (IME) and cross-sectional flux (CSF) methods.
-This module imports the same logic as described in :doc:`emission` and supports the following parameters:
+This module imports the same logic as described in :ref:`Emission Estimation <emission>` and supports the following parameters:
 
 - ``sitename (str)``: Preferred facility name. Reliable sources include: `Carbon Mapper <https://carbonmapper.org/>`_, `Climate TRACE <https://climatetrace.org/>`_, and `Global Energy Monitor <https://globalenergymonitor.org/>`_.
 
@@ -165,7 +167,7 @@ This module imports the same logic as described in :doc:`emission` and supports 
 
 Upon submission, the app will display output including emission rate estimates and associated uncertainties:
 
-.. image:: ../fig/app_plume_emission_3_output.jpg
+.. image:: ./fig/app_plume_emission_3_output.jpg
 
 .. note::
     It is advisable to use the ``IME (Ueff)`` and ``CSF (Ueff)`` method at this stage, as other methods are under develepment.

@@ -14,7 +14,7 @@ You can browse RGB preview, direct download, and order data.
 For detailed instructions, refer to the `EMIT-Data-Resources guide <https://github.com/nasa/EMIT-Data-Resources/blob/main/guides/Getting_EMIT_Data_using_EarthData_Search.md>`_.
 A simple method is to click the ``Copy`` button at the final step and paste the links into a single ``links.txt`` file:
 
-.. image:: ../fig/emit_download.png
+.. image:: ./fig/emit_download.png
 
 After that you can run ``wget -i links.txt`` to download all data into the current directory.
 

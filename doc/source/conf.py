@@ -67,23 +67,47 @@ pygments_style = "sphinx"
 
 # The theme to use for HTML and HTML Help pages.  Major themes that come with
 # Sphinx are currently 'default' and 'sphinxdoc'.
-html_theme = "sphinx_rtd_theme"
+html_theme = "pydata_sphinx_theme"
 
-html_static_path = ['_static']
+html_static_path = ["_static"]
 
-html_css_files = [
-    "theme_overrides.css",  # override wide tables in RTD theme
-    "https://cdn.datatables.net/1.10.23/css/jquery.dataTables.min.css",
-]
+html_css_files = ["css/hypergas-landing.css",
+                  "theme_overrides.css",
+                  "https://cdn.datatables.net/1.10.23/css/jquery.dataTables.min.css",
+                  "api_custom.css"]
+
+html_show_sourcelink = False
 
 html_js_files = [
     "https://cdn.datatables.net/1.10.23/js/jquery.dataTables.min.js",
     "main.js",
 ]
 
+html_theme_options = {
+    "logo": {
+        "image_light": "../fig/logo_light.png",
+        "image_dark": "../fig/logo_dark.png",
+    },
+    # https://pydata-sphinx-theme.readthedocs.io/en/stable/user_guide/header-links.html#fontawesome-icons
+    "icon_links": [
+        {
+            "name": "GitHub",
+            "url": "https://github.com/SRON-ESG/HyperGas",
+            "icon": "fa-brands fa-github",
+        },
+    ],
+    "navbar_start": ["navbar-logo"],
+    "navbar_align": "content",
+    "header_links_before_dropdown": 5,
+}
+
+project = "hypergas"
 
 # The master toctree document.
 master_doc = "index"
+
+# allow dropdowns
+collapse_navigation = False
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {

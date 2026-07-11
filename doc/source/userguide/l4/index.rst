@@ -1,3 +1,8 @@
+Level 4 Product
+---------------
+
+.. _emission:
+
 ===================
 Emission Estimation
 ===================
@@ -25,7 +30,7 @@ where :math:`IME` is the total gas mass (kg) within the plume mask,
 and :math:`U_{eff,IME}` is the effective wind speed (m/s).
 
 The coefficiencies for wind calibration are saved in ``<HyperGas_dir>/hypergas/config.yaml``.
-See :doc:`dev_guide` for more information.
+See :ref:`wind_calib` for more information.
 
 CSF
 ===
@@ -53,6 +58,6 @@ The plume length is defined as the distance along this curve from the source to 
 
 Below is the plume case detected by EMIT:
 
-.. image:: ../fig/estimation_case.jpg
+.. image:: ./fig/estimation_case.jpg
 
-To run the emission estimates, please refer to :doc:`batch_processing` for the workflow.
+To run the emission estimates, please refer to :ref:`batch_processing` for the workflow.

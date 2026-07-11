@@ -136,6 +136,8 @@ The directory structure should be ``<yyyy>/<mm>/<dd>/GEOS.fp.asm.tavg1_2d_slv_Nx
     │   └── 01
     │   └── ..
 
+.. _config_markers:
+
 markers_filename
 ^^^^^^^^^^^^^^^^
 

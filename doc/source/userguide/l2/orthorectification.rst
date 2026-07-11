@@ -1,3 +1,5 @@
+.. _orthorectification:
+
 ==================
 Orthorectification
 ==================
