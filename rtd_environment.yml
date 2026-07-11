@@ -26,8 +26,8 @@ dependencies:
   - matplotlib-scalebar
   - setuptools
   - setuptools_scm
-  - sphinx>=8.2.0
-  - sphinx_rtd_theme
+  - sphinx>=9.0.4
+  - pydata-sphinx-theme
   - sphinx-autodoc-typehints
   - sphinxcontrib-apidoc
   - pip:
