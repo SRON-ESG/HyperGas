@@ -71,6 +71,8 @@ html_theme = "pydata_sphinx_theme"
 
 html_static_path = ["_static"]
 
+html_favicon = "_static/images/hypergas_favicon.png"
+
 html_css_files = ["css/hypergas-landing.css",
                   "theme_overrides.css",
                   "https://cdn.datatables.net/1.10.23/css/jquery.dataTables.min.css",
