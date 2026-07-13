@@ -45,7 +45,7 @@ classifiers = [
 
 [project.optional-dependencies]
 # Documentation:
-doc = ["sphinx", "sphinx_rtd_theme", "pydata-sphinx-theme", "sphinxcontrib-apidoc"]
+doc = ["sphinx", "pydata-sphinx-theme", "sphinxcontrib-apidoc"]
 
 [project.urls]
 Homepage = "https://github.com/SRON-ESG/HyperGas"
