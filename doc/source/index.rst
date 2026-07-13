@@ -69,7 +69,7 @@
          <div class="hg-section-head">
            <p class="hg-eyebrow" style="justify-content:center;">Processing levels</p>
            <h2>From radiance to emission rate</h2>
-           <p>Every HyperGas run moves the same way: raw radiance in, quantified plumes out.</p>
+           <p>Every HyperGas run moves the same way: raw radiance in, quantified emission rates out.</p>
          </div>
          <div class="hg-stepper">
            <span class="hg-step hg-step-l1">L1 &middot; radiance</span>
@@ -109,12 +109,12 @@
              <p>Save results as PNG, HTML, or CF-compliant NetCDF for downstream tools.</p>
            </div>
            <div class="hg-feature-card" style="--card-accent:#ef6a4c;">
-             <h3>Emission estimation</h3>
-             <p>Estimate gas emission rates and write them out to CSV.</p>
+             <h3>Plume detection</h3>
+             <p>Semi-supervised detection of gas plumes with automatic plume mask generation.</p>
            </div>
            <div class="hg-feature-card" style="--card-accent:#93a0b8;">
-             <h3>Built on Xarray</h3>
-             <p>Every step works with familiar <code>DataArray</code> and <code>Dataset</code> objects.</p>
+             <h3>Emission estimation</h3>
+             <p>Estimate gas emission rates and write them out to CSV.</p>
            </div>
          </div>
        </div>
