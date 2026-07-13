@@ -156,6 +156,67 @@
        </div>
      </section>
 
+     <section id="used-by">
+       <style>
+         .hg-users-grid {
+           display: grid;
+           grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+           gap: 1.5rem;
+           margin-top: 2rem;
+         }
+         .hg-user-card {
+           display: flex;
+           flex-direction: column;
+           align-items: center;
+           justify-content: center;
+           gap: 0.85rem;
+           padding: 1.75rem 1.25rem;
+           border: 1px solid rgba(120,130,150,0.18);
+           border-radius: 14px;
+           background: rgba(120,130,150,0.04);
+           text-decoration: none;
+           transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+         }
+         .hg-user-card:hover {
+           transform: translateY(-3px);
+           border-color: rgba(76,142,247,0.45);
+           background: rgba(76,142,247,0.06);
+         }
+         .hg-user-card img {
+           height: 48px;
+           max-width: 140px;
+           width: auto;
+           object-fit: contain;
+           filter: grayscale(0%) opacity(0.9);
+           transition: filter 0.18s ease;
+         }
+         .hg-user-card:hover img {
+           filter: grayscale(0%) opacity(1);
+         }
+         .hg-user-card span {
+           font-family: "Inter", sans-serif;
+           font-size: 0.85rem;
+           font-weight: 500;
+           color: inherit;
+           text-align: center;
+           line-height: 1.3;
+         }
+       </style>
+       <div class="hg-inner">
+         <div class="hg-section-head">
+           <p class="hg-eyebrow" style="justify-content:center;">Community</p>
+           <h2>Our users</h2>
+           <p>HyperGas is used by a broad range of users for hyperspectral trace-gas monitoring.</p>
+         </div>
+         <div class="hg-users-grid">
+           <a class="hg-user-card" href="https://www.sron.nl/" target="_blank" rel="noopener">
+             <img src="_static/images/logos/sron.png" alt="SRON Netherlands Institute for Space Research logo">
+             <span>SRON Space Research Organisation Netherlands</span>
+           </a>
+         </div>
+       </div>
+     </section>
+
    </div>
 
 
@@ -170,4 +231,3 @@
    Workflow<workflow/index>
    Developer Guide<developer_guide/index>
    API <api/modules>
-
