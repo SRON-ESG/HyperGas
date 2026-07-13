@@ -14,7 +14,7 @@
            <p class="hg-tagline">Trace gases, read from light itself.</p>
            <p class="hg-desc">
              HyperGas reads, processes, and writes data from hyperspectral imagers,
-             turning L1 radiance cubes into trace-gas concentrations and emission-rate estimates.
+             turning L1 radiance data into trace-gas concentration enhancements and emission-rate estimates.
            </p>
            <div class="hg-btn-row">
              <a class="hg-btn hg-btn-primary" href="getting_started">
@@ -69,7 +69,7 @@
          <div class="hg-section-head">
            <p class="hg-eyebrow" style="justify-content:center;">Processing levels</p>
            <h2>From radiance to emission rate</h2>
-           <p>Every HyperGas run moves the same way: raw radiance in, quantified emission rates out.</p>
+           <p>Each HyperGas run: radiance in, quantified emission rates out.</p>
          </div>
          <div class="hg-stepper">
            <span class="hg-step hg-step-l1">L1 &middot; radiance</span>
@@ -79,9 +79,9 @@
            <span class="hg-step hg-step-l34">L3/L4 &middot; plume mask + emission estimation</span>
          </div>
          <div class="hg-pipeline-figure">
-           <img src="_static/images/hypergas_pipeline.png" alt="HyperGas processing pipeline from L1 radiance cube through denoised trace-gas enhancement to L3/L4 plume mask and emission rate estimation">
+           <img src="_static/images/hypergas_pipeline.png" alt="HyperGas processing pipeline from L1 radiance through denoised trace-gas enhancement to L3/L4 plume mask and emission rate estimation">
          </div>
-         <p class="hg-pipeline-caption">L1 radiance cube &rarr; L2 denoised trace-gas enhancement (&Delta;X) and automatic plume mask &rarr; L3/L4 emission estimation using the integrated mass enhancement (IME) and cross-sectional flux (CSF) methods.</p>
+         <p class="hg-pipeline-caption">L1 radiance &rarr; L2 denoised trace-gas enhancement (&Delta;X) and automatic plume mask &rarr; L3/L4 emission estimation using the integrated mass enhancement (IME) and cross-sectional flux (CSF) methods.</p>
        </div>
      </section>
 
@@ -124,7 +124,7 @@
        <div class="hg-inner hg-footer-grid">
          <div>
            <h3>Get started</h3>
-           <p>Install HyperGas and read your first L1 radiance cube in a few lines.</p>
+           <p>Install HyperGas and read your first L1 radiance in a few lines.</p>
            <div class="hg-code-block">conda install -c conda-forge hypergas</div>
            <p style="margin-top:1rem;">See the <a href="getting_started" style="color:#4c8ef7;">quickstart guide</a> and <a href="api/modules.html" style="color:#4c8ef7;">API reference</a> for details.</p>
          </div>
