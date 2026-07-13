@@ -202,6 +202,7 @@
            line-height: 1.3;
          }
        </style>
+       <!--
        <div class="hg-inner">
          <div class="hg-section-head">
            <p class="hg-eyebrow" style="justify-content:center;">Community</p>
@@ -215,6 +216,7 @@
            </a>
          </div>
        </div>
+       -->
      </section>
 
    </div>
