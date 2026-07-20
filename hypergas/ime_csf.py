@@ -159,7 +159,7 @@ class IME_CSF():
         and :meth:`csf`,
         """
         surface_pressure, wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, l_ime, l_eff, u_eff, IME, Q, Q_err, \
-            err_random, err_wind, err_calib = self.ime()
+            err_random, err_wind, err_calib, err_mask = self.ime()
 
         Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch = self.ime_fetch()
 
@@ -167,7 +167,7 @@ class IME_CSF():
         IME_cm, l_cm, Q_cm = self.ime_cm()
 
         return surface_pressure, wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, l_ime, l_eff, u_eff, IME, Q, Q_err, \
-            err_random, err_wind, err_calib, Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch, \
+            err_random, err_wind, err_calib, err_mask, Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch, \
             IME_cm, l_cm, Q_cm, ds_csf, n_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf
 
     def _create_circular_mask(self, h, w, center=None, radius=None):
@@ -751,6 +751,8 @@ class IME_CSF():
             The uncertainty (kg/h) caused by the wind speed error.
         err_calib : float
             The uncertainty (kg/h) caused by the wind calibration error.
+        err_mask : float
+            The uncertainty (kg/h) caused by the plume masking error.
         """
         # read file and pick valid data
         file_original = self.plume_nc_filename.replace('L3', 'L2').replace(f'_{self.plume_name}.nc', '.nc')
@@ -852,7 +854,7 @@ class IME_CSF():
         gc.collect()
 
         return self.sp, self.wspd, wdir, wspd_all, wdir_all, wind_source_all, l_ime, l_eff, u_eff, IME, Q*3600, Q_err*3600, \
-            err_random*3600, err_wind*3600, err_calib*3600  # kg/h
+            err_random*3600, err_wind*3600, err_calib*3600, err_mask*3600  # kg/h
 
     def ime_cm(self):
         """Calculate the emission rate (kg/h) using `Carbon Mapper's method <https://assets.carbonmapper.org/documents/L3_L4%20Algorithm%20Theoretical%20Basis%20Document_formatted_10-24-24.pdf>`_.

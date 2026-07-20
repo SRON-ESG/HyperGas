@@ -171,7 +171,7 @@ class Emiss():
 
         # calculate emission rates
         surface_pressure, wind_speed, wdir, wind_speed_all, wdir_all, wind_source_all, \
-            l_ime, l_eff, u_eff, IME, Q, Q_err, err_random, err_wind, err_calib, \
+            l_ime, l_eff, u_eff, IME, Q, Q_err, err_random, err_wind, err_calib, err_mask, \
             Q_fetch, Q_fetch_err, err_ime_fetch, err_wind_fetch, \
             IME_cm, l_cm, Q_cm, \
             ds_csf, n_csf, l_csf, u_eff_csf, Q_csf, Q_csf_err, err_random_csf, err_wind_csf, err_calib_csf = ime_csf.calc_emiss()
@@ -231,6 +231,7 @@ class Emiss():
                    'emission_uncertainty_random': err_random,
                    'emission_uncertainty_wind': err_wind,
                    'emission_uncertainty_calibration': err_calib,
+                   'emission_uncertainty_mask': err_mask,
                    'emission_cm': Q_cm,
                    'emission_fetch': Q_fetch,
                    'emission_fetch_uncertainty': Q_fetch_err,
