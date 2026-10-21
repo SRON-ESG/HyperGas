@@ -26,7 +26,8 @@ LOG = logging.getLogger(__name__)
 class Denoise():
     """The Denoise Class."""
 
-    def __init__(self, scene, varname, method='calibrated_tv_filter', weight=None, skip_water=True):
+    def __init__(self, scene, varname, method='calibrated_tv_filter', weight=None,
+                 skip_water=True, max_segments=5):
         """Initialize Denoise.
 
         Parameters
@@ -44,12 +45,25 @@ class Denoise():
         skip_water : bool
             Whether skip retrieval for water pixels, whose segmentation value is zero if cluster is False.
             Default: True.
+        max_segments : int
+            If the number of segmentation labels is larger than this value,
+            the denoising is applied to the whole scene instead of each segment
+            (too many clusters lead to fragmented segments).
+            Default: 5.
         """
         self.data = scene[varname]
         self.segmentation = scene['segmentation']
         self.weight = weight
         self.method = method
         self.skip_water = skip_water
+        self.max_segments = max_segments
+        self.seg_id = None
+
+    def _seg_mask(self):
+        """Boolean mask of the current segment. All True if seg_id is None (whole scene)."""
+        if self.seg_id is None:
+            return xr.ones_like(self.segmentation, dtype=bool)
+        return self.segmentation == self.seg_id
 
     def _create_mask_from_quantiles(self, image, lower_quantile=0.01, upper_quantile=0.99, min_cluster_size=10):
         """
@@ -113,7 +127,7 @@ class Denoise():
 
     def tv_filter(self):
         """Call TV filter"""
-        noisy = self.data.squeeze().where(self.segmentation == self.seg_id)
+        noisy = self.data.squeeze().where(self._seg_mask())
         trim_mean = trimmed_mean(noisy.stack(z=('y', 'x')).dropna('z'), (1e-3, 1e-3))
         res = denoise_tv_chambolle(noisy.fillna(trim_mean), weight=self.weight)
 
@@ -139,7 +153,7 @@ class Denoise():
         losses_tv : :class:`numpy.ndarray`, optional
             1D array of total variation (TV) filter losses. Returned only if ``return_loss == True``.
         """
-        noisy = self.data.squeeze().where(self.segmentation == self.seg_id)
+        noisy = self.data.squeeze().where(self._seg_mask())
 
         # remove highest and lowest value
         noisy_mask = self._create_mask_from_quantiles(noisy)
@@ -182,14 +196,20 @@ class Denoise():
         # create the empty list for denoised data
         res_list = []
 
-        # drop water from segmentation labels if skip_water is True
-        #   and cluster is False (only two seg: land [1] and water [0])
         segmentation_labels = np.unique(self.segmentation)
-        if self.skip_water and len(segmentation_labels) == 2:
+
+        if len(segmentation_labels) > self.max_segments:
+            # too many clusters give fragmented segments, so denoise the whole scene at once
+            LOG.info(f'{len(segmentation_labels)} segmentation labels (> {self.max_segments}): '
+                     'applying denoising to the whole scene.')
+            segmentation_labels = [None]
+        elif self.skip_water and len(segmentation_labels) == 2:
+            # drop water from segmentation labels if skip_water is True
+            #   and cluster is False (only two seg: land [1] and water [0])
             LOG.debug('Skip denoising for the water pixels.')
             segmentation_labels = [1]
 
-        # denoising data by cluster
+        # denoising data by cluster (or the whole scene if seg_id is None)
         for seg_id in segmentation_labels:
             LOG.info(f'Applying denoising to segmentation_id {seg_id} ...')
             self.seg_id = seg_id
@@ -204,8 +224,8 @@ class Denoise():
             # copy attributes
             res = self._copy_attrs(res)
 
-            # set values only for seg_id
-            res = res.where(self.segmentation == seg_id, 0)
+            # set values only for seg_id (all pixels for the whole-scene case)
+            res = res.where(self._seg_mask(), 0)
 
             # append to list
             res_list.append(res)
