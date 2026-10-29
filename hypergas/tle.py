@@ -14,8 +14,8 @@ import spacetrack.operators as op
 import yaml
 from spacetrack import SpaceTrackClient
 
-# NORAD Catalog Numbers (https://celestrak.com/satcat/search.php)
-norad_cat_id = {'ENMAP': 52159, 'PRISMA': 44072}  # use upper case for platform_name
+# NORAD Catalog Numbers (https://celestrak.com/satcat/search.php or https://orbitalradar.com/satellite-directory)
+norad_cat_id = {'ENMAP': 52159, 'PRISMA': 44072, 'GEISAT': 56934, 'GESAT': 62612}  # use upper case for platform_name
 
 
 class TLE():
